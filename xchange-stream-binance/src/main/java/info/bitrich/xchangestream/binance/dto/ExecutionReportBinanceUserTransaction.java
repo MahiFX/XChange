@@ -135,7 +135,9 @@ public class ExecutionReportBinanceUserTransaction extends ProductBinanceWebSock
                     BigDecimal.ZERO,
                     timestamp), isFuture);
 
-    order.setAveragePrice(cumulativeQuoteAssetTransactedQuantity.divide(cumulativeFilledQuantity, RoundingMode.HALF_EVEN));
+    if (cumulativeFilledQuantity.doubleValue() > 0 && cumulativeQuoteAssetTransactedQuantity.doubleValue() > 0) {
+      order.setAveragePrice(cumulativeQuoteAssetTransactedQuantity.divide(cumulativeFilledQuantity, RoundingMode.HALF_EVEN));
+    }
     return order;
   }
 
