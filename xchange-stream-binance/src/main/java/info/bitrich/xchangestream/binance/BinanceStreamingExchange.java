@@ -148,7 +148,7 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
 
   private Completable createAndConnectUserDataService(String listenKey) {
     userDataStreamingService =
-        BinanceUserDataStreamingService.create(getStreamingBaseUri(), listenKey);
+        BinanceUserDataStreamingService.create(getStreamingBaseUri(), listenKey, Boolean.TRUE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX)));
     applyStreamingSpecification(getExchangeSpecification(), userDataStreamingService);
     return userDataStreamingService
         .connect()
@@ -193,7 +193,7 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
 
   @Override
   public boolean isAlive() {
-    return streamingService != null && streamingService.isSocketOpen();
+    return (streamingService != null && streamingService.isSocketOpen() || userDataStreamingService != null && userDataStreamingService.isSocketOpen());
   }
 
   @Override
