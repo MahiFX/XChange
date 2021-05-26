@@ -2,6 +2,8 @@ package info.bitrich.xchangestream.binance.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 
 import lombok.Getter;
 import org.knowm.xchange.binance.BinanceAdapters;
@@ -116,22 +118,25 @@ public class ExecutionReportBinanceUserTransaction extends ProductBinanceWebSock
   }
 
   public Order toOrder(boolean isFuture) {
-    return BinanceAdapters.adaptOrder(
-        new BinanceOrder(
-            getSymbol(),
-            orderId,
-            clientOrderId,
-            orderPrice,
-            orderQuantity,
-            lastExecutedQuantity,
-            cumulativeFilledQuantity,
-            currentOrderStatus,
-            timeInForce,
-            orderType,
-            side,
-            stopPrice,
-            BigDecimal.ZERO,
-            timestamp), isFuture);
+    Order order = BinanceAdapters.adaptOrder(
+            new BinanceOrder(
+                    getSymbol(),
+                    orderId,
+                    clientOrderId,
+                    orderPrice,
+                    orderQuantity,
+                    lastExecutedQuantity,
+                    cumulativeFilledQuantity,
+                    currentOrderStatus,
+                    timeInForce,
+                    orderType,
+                    side,
+                    stopPrice,
+                    BigDecimal.ZERO,
+                    timestamp), isFuture);
+
+    order.setAveragePrice(cumulativeQuoteAssetTransactedQuantity.divide(cumulativeFilledQuantity, RoundingMode.HALF_EVEN));
+    return order;
   }
 
   @Override
