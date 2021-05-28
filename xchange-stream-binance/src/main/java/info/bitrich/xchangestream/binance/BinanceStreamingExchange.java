@@ -148,7 +148,7 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
 
   private Completable createAndConnectUserDataService(String listenKey) {
     userDataStreamingService =
-        BinanceUserDataStreamingService.create(getStreamingBaseUri(), listenKey, Boolean.TRUE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX)));
+        BinanceUserDataStreamingService.create(getStreamingBaseUri(), listenKey);
     applyStreamingSpecification(getExchangeSpecification(), userDataStreamingService);
     return userDataStreamingService
         .connect()
