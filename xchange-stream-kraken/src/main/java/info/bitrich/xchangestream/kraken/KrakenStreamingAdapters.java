@@ -130,9 +130,12 @@ public class KrakenStreamingAdapters {
   public static OrderBook adaptFuturesOrderbookMessage(
           OrderBook orderBook, Instrument instrument, ObjectNode objectNode) {
     if (objectNode.get("feed").asText().equals("book_snapshot")) {
-      adaptFuturesLimitOrders(instrument, Order.OrderType.BID, objectNode.withArray("bids"))
+      //Clear orderbook if receiving snapshot
+      clearOrderbook(orderBook);
+      Date timestamp = new Date(objectNode.get("timestamp").asLong());
+      adaptFuturesLimitOrders(instrument, Order.OrderType.BID, objectNode.withArray("bids"), null)
               .forEach(orderBook::update);
-      adaptFuturesLimitOrders(instrument, Order.OrderType.ASK, objectNode.withArray("asks"))
+      adaptFuturesLimitOrders(instrument, Order.OrderType.ASK, objectNode.withArray("asks"), null)
               .forEach(orderBook::update);
     } else {
       if (objectNode.get("side").asText().equals("buy")) {
@@ -149,6 +152,11 @@ public class KrakenStreamingAdapters {
             true);
   }
 
+  private static void clearOrderbook(OrderBook orderBook){
+    orderBook.getBids().clear();
+    orderBook.getAsks().clear();
+  }
+
   /**
    * Adapt a JsonNode to a Stream of limit orders, the node past in here should be the body of a
    * a/b/as/bs key.
@@ -163,13 +171,13 @@ public class KrakenStreamingAdapters {
   }
 
   public static Stream<LimitOrder> adaptFuturesLimitOrders(
-          Instrument instrument, Order.OrderType orderType, ArrayNode node) {
+          Instrument instrument, Order.OrderType orderType, ArrayNode node, Date timestamp) {
     if (node == null || !node.isArray()) {
       return Stream.empty();
     }
     return Streams.stream(node.elements())
 //                .filter(JsonNode::isArray)
-            .map(jsonNode -> adaptFututuresSnapshotLimitOrder(instrument, orderType, jsonNode));
+            .map(jsonNode -> adaptFututuresSnapshotLimitOrder(instrument, orderType, jsonNode, timestamp));
   }
 
   /**
@@ -188,14 +196,14 @@ public class KrakenStreamingAdapters {
   }
 
   public static LimitOrder adaptFututuresSnapshotLimitOrder(
-          Instrument instrument, Order.OrderType orderType, JsonNode node) {
+          Instrument instrument, Order.OrderType orderType, JsonNode node, Date timestamp) {
     if (node == null) {
       return null;
     }
 
     BigDecimal price = new BigDecimal(node.get("price").asText()).stripTrailingZeros();
     BigDecimal volume = new BigDecimal(node.get("qty").asText()).stripTrailingZeros();
-    return new LimitOrder(orderType, volume, instrument, null, null, price);
+    return new LimitOrder(orderType, volume, instrument, null, timestamp, price);
   }
 
   public static LimitOrder adaptFuturesLimitOrder(
