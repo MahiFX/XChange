@@ -31,4 +31,9 @@ public class DepthBinanceWebSocketTransaction extends ProductBinanceWebSocketTra
     this.pu = pu;
     orderBook = new BinanceOrderbook(lastUpdateId, _bids, _asks);
   }
+
+
+  public long getPreviousMessagelastUpdateId() {
+    return pu;
+  }
 }
