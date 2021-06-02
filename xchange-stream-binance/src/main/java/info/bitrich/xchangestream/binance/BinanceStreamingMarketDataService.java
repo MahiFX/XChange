@@ -482,21 +482,13 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
         .filter(
             depth -> {
               long lastUpdateId = subscription.lastUpdateId.get();
-              boolean result;
+              boolean isDataInOrder;
               if (lastUpdateId == 0L) {
-                result = true;
+                isDataInOrder = true;
               } else {
-                // Futures API
-                if(depth.getPreviousMessagelastUpdateId() != 0L){
-                  result = lastUpdateId >= depth.getPreviousMessagelastUpdateId();
-                // Spot API
-                } else {
-                  result =
-                          depth.getFirstUpdateId() <= lastUpdateId + 1
-                                  && depth.getLastUpdateId() >= lastUpdateId + 1;
-                }
+                isDataInOrder = checkDepthDataInOrder(depth, lastUpdateId);
               }
-              if (result) {
+              if (isDataInOrder) {
                 subscription.lastUpdateId.set(depth.getLastUpdateId());
               } else {
                 // If not, we re-sync.  This will commonly occur a few times when starting up, since
@@ -506,15 +498,15 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
                 // missing 6.  The only thing we can do is to keep requesting a fresh snapshot until
                 // we get to a situation where the snapshot and an update event precisely line up.
                 LOG.info(
-                    "Orderbook snapshot for {} out of date (last={}, U={}, u={}, pu={}). This is normal. Re-syncing.",
+                    "Orderbook snapshot for {} out of date (last={}, U={}, u={}{}). This is normal. Re-syncing.",
                     instrument,
                     lastUpdateId,
                     depth.getFirstUpdateId(),
                     depth.getLastUpdateId(),
-                    depth.getPreviousMessagelastUpdateId());
+                        depth.getLastUpdateIdFromPreviousEvent() == null ? "" : ", pu=" + depth.getLastUpdateIdFromPreviousEvent());
                 subscription.invalidateSnapshot();
               }
-              return result;
+              return isDataInOrder;
             })
 
         // 7. The data in each event is the absolute quantity for a price level
@@ -528,6 +520,10 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
               return subscription.orderBook;
             })
         .share();
+  }
+
+  protected boolean checkDepthDataInOrder(DepthBinanceWebSocketTransaction depth, long lastUpdateId) {
+    return depth.getFirstUpdateId() <= lastUpdateId + 1 && depth.getLastUpdateId() >= lastUpdateId + 1;
   }
 
   private Observable<BinanceRawTrade> rawTradeStream(Instrument instrument) {
