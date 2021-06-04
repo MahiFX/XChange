@@ -170,30 +170,31 @@ public class KrakenStreamingAdapters {
             node.elements(), jsonNode -> adaptLimitOrder(instrument, orderType, jsonNode));
   }
 
-  public static Stream<LimitOrder> adaptFuturesLimitOrders(
-          Instrument instrument, Order.OrderType orderType, ArrayNode node, Date timestamp) {
-    if (node == null || !node.isArray()) {
-      return Stream.empty();
-    }
-    return Streams.stream(node.elements())
+    public static Stream<LimitOrder> adaptFuturesLimitOrders(
+            Instrument instrument, Order.OrderType orderType, ArrayNode node, Date timestamp) {
+        if (node == null || !node.isArray()) {
+            return Stream.empty();
+        }
+        return Streams.stream(node.elements())
 //                .filter(JsonNode::isArray)
-            .map(jsonNode -> adaptFututuresSnapshotLimitOrder(instrument, orderType, jsonNode, timestamp));
-  }
-
-  /**
-   * Adapt a JsonNode containing two decimals into a LimitOrder
-   */
-  public static LimitOrder adaptLimitOrder(
-          Instrument instrument, Order.OrderType orderType, JsonNode node) {
-    if (node == null) {
-      return null;
+                .map(jsonNode -> adaptFututuresSnapshotLimitOrder(instrument, orderType, jsonNode, timestamp));
     }
-    Iterator<JsonNode> iterator = node.elements();
-    BigDecimal price = nextNodeAsDecimal(iterator);
-    BigDecimal volume = nextNodeAsDecimal(iterator);
-    Date timestamp = nextNodeAsDate(iterator);
-    return new LimitOrder(orderType, volume, instrument, null, timestamp, price);
-  }
+
+
+    /**
+     * Adapt a JsonNode containing two decimals into a LimitOrder
+     */
+    public static LimitOrder adaptLimitOrder(
+            Instrument instrument, Order.OrderType orderType, JsonNode node) {
+        if (node == null) {
+            return null;
+        }
+        Iterator<JsonNode> iterator = node.elements();
+        BigDecimal price = nextNodeAsDecimal(iterator);
+        BigDecimal volume = nextNodeAsDecimal(iterator);
+        Date timestamp = nextNodeAsDate(iterator);
+        return new LimitOrder(orderType, volume, instrument, null, timestamp, price);
+    }
 
   public static LimitOrder adaptFututuresSnapshotLimitOrder(
           Instrument instrument, Order.OrderType orderType, JsonNode node, Date timestamp) {
