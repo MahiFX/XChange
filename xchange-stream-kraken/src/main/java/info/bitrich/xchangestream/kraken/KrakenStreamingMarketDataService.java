@@ -35,10 +35,24 @@ public class KrakenStreamingMarketDataService implements StreamingMarketDataServ
     String channelName = getChannelName(KrakenSubscriptionName.book, currencyPair);
     OrderBook orderBook = new OrderBook(null, Lists.newArrayList(), Lists.newArrayList());
     int depth = parseOrderBookSize(args);
-    return subscribe(channelName, MIN_DATA_ARRAY_SIZE, depth)
-        .map(
-            arrayNode ->
-                KrakenStreamingAdapters.adaptOrderbookMessage(orderBook, currencyPair, arrayNode));
+
+    Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
+          o -> {
+              LOG.warn("Invalidating book due to disconnect {}", o);
+              orderBook.clear();
+              return orderBook;
+          }
+    );
+
+    Observable<OrderBook> orderBookStream = subscribe(channelName, MIN_DATA_ARRAY_SIZE, depth)
+          .map(
+                  arrayNode ->
+                          KrakenStreamingAdapters.adaptOrderbookMessage(orderBook, currencyPair, arrayNode));
+
+    return Observable.merge(
+          orderBookStream,
+          disconnectStream
+    );
   }
 
   @Override
