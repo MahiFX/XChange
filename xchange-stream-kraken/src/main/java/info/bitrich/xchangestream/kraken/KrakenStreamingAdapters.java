@@ -44,7 +44,7 @@ public class KrakenStreamingAdapters {
                         currentNode -> {
                             if(currentNode.has(BID_SNAPSHOT) || currentNode.has(ASK_SNAPSHOT)) {
                                 //Clear orderbook if receiving snapshot
-                                clearOrderbook(orderBook);
+                                orderBook.clear();
 
                                 adaptLimitOrders(instrument, Order.OrderType.BID, currentNode.get(BID_SNAPSHOT))
                                         .forEach(orderBook::update);
@@ -69,7 +69,7 @@ public class KrakenStreamingAdapters {
             OrderBook orderBook, Instrument instrument, ObjectNode objectNode) {
         if (objectNode.get("feed").asText().equals("book_snapshot")) {
             //Clear orderbook if receiving snapshot
-            clearOrderbook(orderBook);
+            orderBook.clear();
 
             Date timestamp = new Date(objectNode.get("timestamp").asLong());
             adaptFuturesLimitOrders(instrument, Order.OrderType.BID, objectNode.withArray("bids"), timestamp)
@@ -288,8 +288,4 @@ public class KrakenStreamingAdapters {
         return KrakenAdapters.adaptOrderType(KrakenType.fromString(iterator.next().textValue()));
     }
 
-    private static void clearOrderbook(OrderBook orderBook){
-        orderBook.getBids().clear();
-        orderBook.getAsks().clear();
-    }
 }
