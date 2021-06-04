@@ -15,8 +15,6 @@ import org.knowm.xchange.krakenfutures.service.KrakenFuturesMarketDataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * @author makarid, pchertalev
  */
@@ -44,28 +42,35 @@ public class KrakenFuturesStreamingMarketDataService implements StreamingMarketD
         int depth = parseOrderBookSize(args);
         Observable<ObjectNode> subscribe = subscribe(channelName, MIN_DATA_ARRAY_SIZE, depth);
         OrderbookSubscription orderbookSubscription = new OrderbookSubscription(subscribe);
-        AtomicInteger x = new AtomicInteger();
-        return orderbookSubscription.stream
+        Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
+                o -> {
+                    LOG.warn("Invalidating book due to disconnect {}", o);
+                    orderbookSubscription.orderBook.clear();
+                    return orderbookSubscription.orderBook;
+                }
+        );
 
-                .doOnNext(objectNode -> orderbookSubscription.initSnapshotIfInvalid(currencyPair))
-
+        Observable<OrderBook> orderBookStream = orderbookSubscription.stream
                 .filter(objectNode -> {
 
                     Integer seqNumber = objectNode.get("seq").asInt();
 
                     if (orderbookSubscription.lastSequenceNumber + 1 == seqNumber || orderbookSubscription.lastSequenceNumber == 0) {
-                        if(x.get() == 100) orderbookSubscription.lastSequenceNumber = seqNumber -10;
-
-                        else orderbookSubscription.lastSequenceNumber = seqNumber;
-                        x.incrementAndGet();
+                        orderbookSubscription.lastSequenceNumber = seqNumber;
 
                         return true;
                     }
-                    orderbookSubscription.lastSequenceNumber = null;
+                    LOG.info("Kraken orderbook invalid for Instrument: " + currencyPair.toString());
+                    orderbookSubscription.initSnapshotIfInvalid(currencyPair);
                     return false;
                 })
 
                 .map(objectNode -> KrakenFuturesStreamingAdapters.adaptFuturesOrderbookMessage(orderbookSubscription.orderBook, currencyPair, objectNode));
+
+        return Observable.merge(
+                orderBookStream,
+                disconnectStream
+        );
     }
 
     @Override
@@ -142,15 +147,13 @@ public class KrakenFuturesStreamingMarketDataService implements StreamingMarketD
         }
 
         void initSnapshotIfInvalid(CurrencyPair currencyPair) {
-            if (lastSequenceNumber != null) return;
             try {
                 LOG.info("Fetching orderbook snapshot for {} ", currencyPair);
                 orderBook = marketDataService.getOrderBook(currencyPair);
 
             } catch (Exception e) {
                 LOG.error("Failed to fetch order book snapshot for " + currencyPair, e);
-                orderBook.getAsks().clear();
-                orderBook.getBids().clear();
+                orderBook.clear();
 
             } finally {
                 lastSequenceNumber = 0;
