@@ -131,7 +131,7 @@ public class KrakenStreamingAdapters {
           OrderBook orderBook, Instrument instrument, ObjectNode objectNode) {
     if (objectNode.get("feed").asText().equals("book_snapshot")) {
       //Clear orderbook if receiving snapshot
-      clearOrderbook(orderBook);
+      orderBook.clear();
       Date timestamp = new Date(objectNode.get("timestamp").asLong());
       adaptFuturesLimitOrders(instrument, Order.OrderType.BID, objectNode.withArray("bids"), null)
               .forEach(orderBook::update);
