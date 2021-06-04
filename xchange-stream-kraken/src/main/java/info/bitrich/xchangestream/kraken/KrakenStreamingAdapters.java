@@ -41,7 +41,7 @@ public class KrakenStreamingAdapters {
                         currentNode -> {
                             if(currentNode.has(BID_SNAPSHOT) || currentNode.has(ASK_SNAPSHOT)) {
                                 //Clear orderbook if receiving snapshot
-                                clearOrderbook(orderBook);
+                                orderBook.clear();
 
                                 adaptLimitOrders(instrument, Order.OrderType.BID, currentNode.get(BID_SNAPSHOT))
                                         .forEach(orderBook::update);
@@ -191,8 +191,4 @@ public class KrakenStreamingAdapters {
         return KrakenAdapters.adaptOrderType(KrakenType.fromString(iterator.next().textValue()));
     }
 
-    private static void clearOrderbook(OrderBook orderBook){
-        orderBook.getBids().clear();
-        orderBook.getAsks().clear();
-    }
 }
