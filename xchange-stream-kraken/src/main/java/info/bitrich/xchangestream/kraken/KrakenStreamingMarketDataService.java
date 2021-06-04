@@ -6,7 +6,6 @@ import com.google.common.collect.Sets;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.kraken.dto.enums.KrakenSubscriptionName;
 import io.reactivex.Observable;
-import java.util.TreeSet;
 import org.apache.commons.lang3.ObjectUtils;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
@@ -15,6 +14,8 @@ import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.TreeSet;
 
 /** @author makarid, pchertalev */
 public class KrakenStreamingMarketDataService implements StreamingMarketDataService {
@@ -39,29 +40,40 @@ public class KrakenStreamingMarketDataService implements StreamingMarketDataServ
     TreeSet<LimitOrder> bids = Sets.newTreeSet();
     TreeSet<LimitOrder> asks = Sets.newTreeSet();
     int depth =
-        ObjectUtils.defaultIfNull(
-            KrakenStreamingService.parseOrderBookSize(args),
-            KrakenStreamingService.ORDER_BOOK_SIZE_DEFAULT);
-    return subscribe(channelName, MIN_DATA_ARRAY_SIZE, args)
-        .map(
-            arrayNode -> {
-              try {
-                return KrakenStreamingAdapters.adaptOrderbookMessage(
-                    depth, bids, asks, currencyPair, arrayNode);
-              } catch (IllegalStateException e) {
-                LOG.warn(
-                    "Resubscribing {} channel after adapter error {}",
-                    currencyPair,
-                    e.getMessage());
-                bids.clear();
-                asks.clear();
-                // Resubscribe to the channel, triggering a new snapshot
-                this.service.sendMessage(service.getUnsubscribeMessage(channelName, args));
-                this.service.sendMessage(service.getSubscribeMessage(channelName, args));
-                return new OrderBook(null, Lists.newArrayList(), Lists.newArrayList(), false);
-              }
-            })
-        .filter(ob -> ob.getBids().size() > 0 && ob.getAsks().size() > 0);
+            ObjectUtils.defaultIfNull(
+                    KrakenStreamingService.parseOrderBookSize(args),
+                    KrakenStreamingService.ORDER_BOOK_SIZE_DEFAULT);
+
+    Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
+            o -> {
+              LOG.warn("Invalidating book due to disconnect {}", o);
+              bids.clear();
+              asks.clear();
+              return new OrderBook(null, Lists.newArrayList(), Lists.newArrayList(), false);
+            }
+    );
+
+    return Observable.merge(subscribe(channelName, MIN_DATA_ARRAY_SIZE, args)
+                    .map(
+                            arrayNode -> {
+                              try {
+                                return KrakenStreamingAdapters.adaptOrderbookMessage(
+                                        depth, bids, asks, currencyPair, arrayNode);
+                              } catch (IllegalStateException e) {
+                                LOG.warn(
+                                        "Resubscribing {} channel after adapter error {}",
+                                        currencyPair,
+                                        e.getMessage());
+                                bids.clear();
+                                asks.clear();
+                                // Resubscribe to the channel, triggering a new snapshot
+                                this.service.sendMessage(service.getUnsubscribeMessage(channelName, args));
+                                this.service.sendMessage(service.getSubscribeMessage(channelName, args));
+                                return new OrderBook(null, Lists.newArrayList(), Lists.newArrayList(), false);
+                              }
+                            })
+                    .filter(ob -> ob.getBids().size() > 0 && ob.getAsks().size() > 0),
+            disconnectStream);
   }
 
   @Override
