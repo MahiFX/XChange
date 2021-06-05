@@ -52,15 +52,14 @@ public class KrakenFuturesStreamingMarketDataService implements StreamingMarketD
 
         Observable<OrderBook> orderBookStream = orderbookSubscription.stream
                 .filter(objectNode -> {
-
                     Integer seqNumber = objectNode.get("seq").asInt();
 
                     if (orderbookSubscription.lastSequenceNumber + 1 == seqNumber || orderbookSubscription.lastSequenceNumber == 0) {
                         orderbookSubscription.lastSequenceNumber = seqNumber;
-
                         return true;
                     }
-                    LOG.info("Kraken orderbook invalid for Instrument: " + currencyPair.toString());
+
+                    LOG.info("Kraken orderbook invalid for " + currencyPair + ", lastSequenceNumber: " + orderbookSubscription.lastSequenceNumber + ", newSequence: " + seqNumber);
                     orderbookSubscription.initSnapshotIfInvalid(currencyPair);
                     return false;
                 })
