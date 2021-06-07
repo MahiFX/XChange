@@ -4,12 +4,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.Set;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.instrument.Instrument;
+
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.Set;
 
 /**
  * DTO representing a limit order
@@ -23,6 +24,9 @@ import org.knowm.xchange.instrument.Instrument;
 public class LimitOrder extends Order implements Comparable<LimitOrder> {
 
   private static final long serialVersionUID = -5166848178471347540L;
+
+  /** Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders) */
+  private final Date creationTimestamp = new Date();
 
   /** The limit price */
   protected final BigDecimal limitPrice;
@@ -160,6 +164,11 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
         status,
         userReference);
     this.limitPrice = limitPrice;
+  }
+
+  /** @return Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders) */
+  public Date getCreationTimestamp() {
+    return creationTimestamp;
   }
 
   /** @return The limit price */
