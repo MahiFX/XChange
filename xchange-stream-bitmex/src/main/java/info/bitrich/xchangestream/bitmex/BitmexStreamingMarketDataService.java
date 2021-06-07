@@ -114,7 +114,7 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
     } else {
         Observable<OrderBook> disconnectStream = streamingService.subscribeDisconnect().map(
                 o -> {
-                    LOG.warn("Invalidating book due to disconnect {}", o);
+                    LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
                     orderbooks.remove(instrument);
                     return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
                 }

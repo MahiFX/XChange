@@ -336,7 +336,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
 
     Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
             o -> {
-              LOG.warn("Invalidating book due to disconnect {}", o);
+              LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
               subscription.invalidateSnapshot();
               return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
             }

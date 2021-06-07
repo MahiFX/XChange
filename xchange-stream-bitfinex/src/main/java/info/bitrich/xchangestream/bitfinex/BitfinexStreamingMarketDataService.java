@@ -31,7 +31,7 @@ import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptTrades;
 
 /** Created by Lukas Zaoralek on 7.11.17. */
 public class BitfinexStreamingMarketDataService implements StreamingMarketDataService {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingMarketDataService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BitfinexStreamingMarketDataService.class);
 
   private final BitfinexStreamingService service;
 
@@ -60,7 +60,7 @@ public class BitfinexStreamingMarketDataService implements StreamingMarketDataSe
 
       Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
               o -> {
-                  LOG.warn("Invalidating book due to disconnect {}", o);
+                  LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
                   orderbooks.remove(currencyPair);
                   return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
               }
