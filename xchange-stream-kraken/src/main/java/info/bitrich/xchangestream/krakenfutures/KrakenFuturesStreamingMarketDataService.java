@@ -44,7 +44,7 @@ public class KrakenFuturesStreamingMarketDataService implements StreamingMarketD
         OrderbookSubscription orderbookSubscription = new OrderbookSubscription(subscribe);
         Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
                 o -> {
-                    LOG.warn("Invalidating book due to disconnect {}", o);
+                    LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
                     orderbookSubscription.orderBook.clear();
                     return orderbookSubscription.orderBook;
                 }
