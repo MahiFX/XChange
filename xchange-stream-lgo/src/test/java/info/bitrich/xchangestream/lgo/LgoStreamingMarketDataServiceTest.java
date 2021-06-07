@@ -1,18 +1,7 @@
 package info.bitrich.xchangestream.lgo;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import io.reactivex.Observable;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.TimeZone;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.Before;
 import org.junit.Test;
@@ -22,10 +11,19 @@ import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.dto.trade.LimitOrder;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.TimeZone;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
+
 public class LgoStreamingMarketDataServiceTest {
 
   private final RecursiveComparisonConfiguration orderComparator =
-      new RecursiveComparisonConfiguration();
+          new RecursiveComparisonConfiguration();
   private SimpleDateFormat dateFormat;
 
   @Before
@@ -81,15 +79,15 @@ public class LgoStreamingMarketDataServiceTest {
     verify(streamingService).subscribeChannel("level2-BTC-USD");
     OrderBook firstBook = orderBook.blockingFirst();
     assertThat(firstBook.getAsks())
-        .usingElementComparatorIgnoringFields("id", "userReference")
+            .usingElementComparatorIgnoringFields("id", "userReference", "creationTimestamp")
         .contains(sellOrder("1111.1000", "9.39370000"), sellOrder("1115.9000", "0.88420000"));
     assertThat(firstBook.getBids())
-        .usingElementComparatorIgnoringFields("id", "userReference")
+            .usingElementComparatorIgnoringFields("id", "userReference", "creationTimestamp")
         .contains(buyOrder("1089.1000", "0.10000000"));
     OrderBook lastBook = orderBook.blockingLast();
     assertThat(lastBook.getBids()).isEmpty();
     assertThat(lastBook.getAsks())
-        .usingElementComparatorIgnoringFields("id", "userReference")
+            .usingElementComparatorIgnoringFields("id", "userReference", "creationTimestamp")
         .contains(
             sellOrder("1111.1000", "0.10000000"),
             sellOrder("1115.9000", "0.88420000"),
