@@ -42,16 +42,38 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
    *     acceptable price
    */
   public LimitOrder(
-      OrderType type,
-      BigDecimal originalAmount,
-      Instrument instrument,
-      String id,
-      Date timestamp,
-      BigDecimal limitPrice) {
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          String id,
+          Date timestamp,
+          BigDecimal limitPrice) {
+    this(type, originalAmount, instrument, id, timestamp, limitPrice, new Date());
+  }
+
+  /**
+   * @param type Either BID (buying) or ASK (selling)
+   * @param originalAmount The amount to trade
+   * @param instrument The identifier (e.g. BTC/USD)
+   * @param id An id (usually provided by the exchange)
+   * @param timestamp a Date object representing the order's timestamp according to the exchange's
+   *     server, null if not provided
+   * @param limitPrice In a BID this is the highest acceptable price, in an ASK this is the lowest
+   *     acceptable price
+   * @param creationTimestamp Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders)
+   */
+  public LimitOrder(
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          String id,
+          Date timestamp,
+          BigDecimal limitPrice,
+          Date creationTimestamp) {
 
     super(type, originalAmount, instrument, id, timestamp);
     this.limitPrice = limitPrice;
-    this.creationTimestamp = new Date();
+    this.creationTimestamp = creationTimestamp;
   }
 
   /**
