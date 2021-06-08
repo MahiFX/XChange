@@ -2,10 +2,11 @@ package info.bitrich.xchangestream.bitmex.dto;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.math.BigDecimal;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
+
+import java.math.BigDecimal;
 
 /** Created by Lukas Zaoralek on 13.11.17. */
 public class BitmexLimitOrder extends BitmexMarketDataEvent {
@@ -63,6 +64,6 @@ public class BitmexLimitOrder extends BitmexMarketDataEvent {
   public LimitOrder toLimitOrder() {
     CurrencyPair pair = getCurrencyPair();
     Order.OrderType orderType = getOrderSide();
-    return new LimitOrder(orderType, size, pair, id, null, price);
+    return new LimitOrder(orderType, size, pair, id, null, price, getReceivedTimestamp());
   }
 }
