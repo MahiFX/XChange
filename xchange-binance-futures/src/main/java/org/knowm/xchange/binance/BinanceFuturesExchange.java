@@ -3,6 +3,7 @@ package org.knowm.xchange.binance;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.service.BinanceAccountService;
 import org.knowm.xchange.binance.service.BinanceFuturesAccountService;
+import org.knowm.xchange.binance.service.BinanceFuturesTradeService;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.utils.AuthUtils;
 
@@ -20,10 +21,16 @@ public class BinanceFuturesExchange extends BinanceExchange {
         spec.setSslUri("https://fapi.binance.com");
         spec.setHost("www.binance.com");
         spec.setPort(80);
-        spec.setExchangeName("Binance");
-        spec.setExchangeDescription("Binance Exchange.");
-        AuthUtils.setApiAndSecretKey(spec, "binance");
+        spec.setExchangeName("Binance Futures");
+        spec.setExchangeDescription("Binance Futures Exchange.");
+        AuthUtils.setApiAndSecretKey(spec, "binance_futures");
         return spec;
+    }
+
+    @Override
+    protected void binanceTradeService(BinanceAuthenticated binance) {
+        assert binance instanceof BinanceFuturesAuthenticated;
+        this.tradeService = new BinanceFuturesTradeService(this, (BinanceFuturesAuthenticated) binance, getResilienceRegistries());
     }
 
     @Override

@@ -1,14 +1,11 @@
 package org.knowm.xchange.binance;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.util.*;
-import java.util.stream.Collectors;
 import org.knowm.xchange.binance.dto.account.AssetDetail;
 import org.knowm.xchange.binance.dto.marketdata.BinancePriceQuantity;
 import org.knowm.xchange.binance.dto.trade.BinanceOrder;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.OrderStatus;
+import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import org.knowm.xchange.binance.service.BinanceTradeService.BinanceOrderFlags;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -21,9 +18,18 @@ import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.StopOrder;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 public class BinanceAdapters {
 
-  private BinanceAdapters() {}
+  private BinanceAdapters() {
+  }
 
   public static String toSymbol(CurrencyPair pair) {
     if (pair.equals(CurrencyPair.IOTA_BTC)) {
@@ -37,6 +43,13 @@ public class BinanceAdapters {
       return "IOTA";
     }
     return currency.getSymbol();
+  }
+
+  public static Optional<TimeInForce> timeInForceFromOrder(Order order) {
+    return order.getOrderFlags().stream()
+            .filter(flag -> flag instanceof TimeInForce)
+            .map(flag -> (TimeInForce) flag)
+            .findFirst();
   }
 
   public static OrderType convert(OrderSide side) {

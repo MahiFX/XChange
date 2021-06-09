@@ -1,8 +1,5 @@
 package org.knowm.xchange.binance;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.Map;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.dto.account.AssetDetail;
@@ -22,6 +19,10 @@ import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.utils.AuthUtils;
 import si.mazi.rescu.SynchronizedValueFactory;
 
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Map;
+
 public class BinanceExchange extends BaseExchange {
 
   private static ResilienceRegistries RESILIENCE_REGISTRIES;
@@ -34,11 +35,15 @@ public class BinanceExchange extends BaseExchange {
   protected void initServices() {
     this.binance = binance();
     this.timestampFactory =
-        new BinanceTimestampFactory(
-            binance, getExchangeSpecification().getResilience(), getResilienceRegistries());
+            new BinanceTimestampFactory(
+                    binance, getExchangeSpecification().getResilience(), getResilienceRegistries());
     this.marketDataService = new BinanceMarketDataService(this, binance, getResilienceRegistries());
-    this.tradeService = new BinanceTradeService(this, binance, getResilienceRegistries());
+    binanceTradeService(binance);
     this.accountService = binanceAccountService(binance);
+  }
+
+  protected void binanceTradeService(BinanceAuthenticated binance) {
+    this.tradeService = new BinanceTradeService(this, binance, getResilienceRegistries());
   }
 
   protected BinanceAccountService binanceAccountService(BinanceAuthenticated binance) {
