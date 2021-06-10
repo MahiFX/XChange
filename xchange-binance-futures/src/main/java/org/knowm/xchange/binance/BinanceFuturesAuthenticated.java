@@ -13,9 +13,13 @@ import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.math.BigDecimal;
 
+@SuppressWarnings("RestParamTypeInspection")
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
-public interface BinanceFuturesAuthenticated extends BinanceAuthenticated {
+public interface BinanceFuturesAuthenticated {
+
+    String SIGNATURE = "signature";
+    String X_MBX_APIKEY = "X-MBX-APIKEY";
 
     /**
      * Current exchange trading rules and symbol information.
@@ -23,7 +27,6 @@ public interface BinanceFuturesAuthenticated extends BinanceAuthenticated {
      * @return
      * @throws IOException
      */
-    @Override
     @GET
     @Path("fapi/v1/exchangeInfo")
     BinanceExchangeInfo exchangeInfo() throws IOException;
@@ -36,7 +39,6 @@ public interface BinanceFuturesAuthenticated extends BinanceAuthenticated {
      * @throws IOException
      * @throws BinanceException
      */
-    @Override
     @GET
     @Path("fapi/v1/depth")
     BinanceOrderbook depth(@QueryParam("symbol") String symbol, @QueryParam("limit") Integer limit) throws IOException, BinanceException;
@@ -64,4 +66,26 @@ public interface BinanceFuturesAuthenticated extends BinanceAuthenticated {
             @HeaderParam(X_MBX_APIKEY) String apiKey,
             @QueryParam(SIGNATURE) ParamsDigest signature)
             throws IOException, BinanceException;
+
+    @DELETE
+    @Path("fapi/v1/order")
+    BinanceFuturesOrder cancelOrder(
+            @FormParam("symbol") String symbol,
+            @FormParam("orderId") Long orderId,
+            @FormParam("origClientOrderId") String origClientOrderId,
+            @FormParam("recvWindow") Long recvWindow,
+            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @HeaderParam(X_MBX_APIKEY) String apiKey,
+            @QueryParam(SIGNATURE) ParamsDigest signature)
+            throws IOException, BinanceException;
+
+    @DELETE
+    @Path("fapi/v1/orders")
+    Object cancelAllOpenOrders(
+            @FormParam("symbol") String symbol,
+            @FormParam("recvWindow") Long recvWindow,
+            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @HeaderParam(X_MBX_APIKEY) String apiKey,
+            @QueryParam(SIGNATURE) ParamsDigest signature
+    );
 }

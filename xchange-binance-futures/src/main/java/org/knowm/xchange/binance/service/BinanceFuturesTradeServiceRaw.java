@@ -68,4 +68,41 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
                 .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
                 .call();
     }
+
+    public BinanceFuturesOrder cancelOrder(
+            CurrencyPair currencyPair,
+            Long orderId,
+            String clientOrderId)
+            throws IOException, BinanceException {
+        return decorateApiCall(
+                () ->
+                        binanceFutures.cancelOrder(
+                                BinanceAdapters.toSymbol(currencyPair),
+                                orderId,
+                                clientOrderId,
+                                getRecvWindow(),
+                                getTimestampFactory(),
+                                apiKey,
+                                signatureCreator
+                        ))
+                .withRetry(retry("cancelOrder"))
+                .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+                .call();
+    }
+
+    public void cancelAllOpenOrders(CurrencyPair currencyPair)
+            throws IOException, BinanceException {
+        decorateApiCall(
+                () ->
+                        binanceFutures.cancelAllOpenOrders(
+                                BinanceAdapters.toSymbol(currencyPair),
+                                getRecvWindow(),
+                                getTimestampFactory(),
+                                apiKey,
+                                signatureCreator
+                        ))
+                .withRetry(retry("cancelAllOpenOrders"))
+                .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+                .call();
+    }
 }
