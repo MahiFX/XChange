@@ -11,6 +11,7 @@ import org.knowm.xchange.currency.CurrencyPair;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.knowm.xchange.binance.BinanceResilience.*;
 import static org.knowm.xchange.client.ResilienceRegistries.NON_IDEMPOTENT_CALLS_RETRY_CONFIG_NAME;
@@ -102,6 +103,25 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
                                 signatureCreator
                         ))
                 .withRetry(retry("cancelAllOpenOrders"))
+                .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+                .call();
+    }
+
+    public List<BinanceFuturesOrder> getAllOpenOrders() throws IOException, BinanceException {
+        return getAllOpenOrders(null);
+    }
+
+    public List<BinanceFuturesOrder> getAllOpenOrders(CurrencyPair currencyPair) throws IOException, BinanceException {
+        return decorateApiCall(
+                () ->
+                        binanceFutures.getAllOpenOrders(
+                                currencyPair != null ? BinanceAdapters.toSymbol(currencyPair) : null,
+                                getRecvWindow(),
+                                getTimestampFactory(),
+                                apiKey,
+                                signatureCreator
+                        ))
+                .withRetry(retry("openOrders"))
                 .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
                 .call();
     }

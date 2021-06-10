@@ -12,6 +12,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
 
 @SuppressWarnings("RestParamTypeInspection")
 @Path("")
@@ -80,12 +81,34 @@ public interface BinanceFuturesAuthenticated {
             throws IOException, BinanceException;
 
     @DELETE
-    @Path("fapi/v1/orders")
+    @Path("fapi/v1/allOpenOrders")
     Object cancelAllOpenOrders(
             @FormParam("symbol") String symbol,
             @FormParam("recvWindow") Long recvWindow,
             @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
             @HeaderParam(X_MBX_APIKEY) String apiKey,
-            @QueryParam(SIGNATURE) ParamsDigest signature
-    );
+            @QueryParam(SIGNATURE) ParamsDigest signature)
+            throws IOException, BinanceException;
+
+    @GET
+    @Path("fapi/v1/openOrder")
+    BinanceFuturesOrder getOpenOrder(
+            @FormParam("symbol") String symbol,
+            @FormParam("orderId") Long orderId,
+            @FormParam("origClientOrderId") String origClientOrderId,
+            @FormParam("recvWindow") Long recvWindow,
+            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @HeaderParam(X_MBX_APIKEY) String apiKey,
+            @QueryParam(SIGNATURE) ParamsDigest signature)
+            throws IOException, BinanceException;
+
+    @GET
+    @Path("fapi/v1/openOrders")
+    List<BinanceFuturesOrder> getAllOpenOrders(
+            @FormParam("symbol") String symbol,
+            @FormParam("recvWindow") Long recvWindow,
+            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @HeaderParam(X_MBX_APIKEY) String apiKey,
+            @QueryParam(SIGNATURE) ParamsDigest signature)
+            throws IOException, BinanceException;
 }
