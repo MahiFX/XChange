@@ -1,18 +1,24 @@
 package org.knowm.xchange.binance;
 
 import org.knowm.xchange.ExchangeSpecification;
-import org.knowm.xchange.binance.service.BinanceAccountService;
-import org.knowm.xchange.binance.service.BinanceFuturesAccountService;
 import org.knowm.xchange.binance.service.BinanceFuturesTradeService;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.utils.AuthUtils;
 
-public class BinanceFuturesExchange extends BinanceExchange {
+public class BinanceFuturesExchange extends BinanceExchangeCommon {
+    private BinanceFuturesAuthenticated binance;
+
     @Override
-    protected BinanceAuthenticated binance() {
-        return ExchangeRestProxyBuilder.forInterface(
+    protected void initServices() {
+        this.binance = ExchangeRestProxyBuilder.forInterface(
                 BinanceFuturesAuthenticated.class, getExchangeSpecification())
                 .build();
+        this.timestampFactory =
+                new BinanceTimestampFactory(
+                        binance, getExchangeSpecification().getResilience(), getResilienceRegistries());
+//        this.marketDataService = new BinanceMarketDataService(this, binance, getResilienceRegistries()); TODO - Binance Futures
+        this.tradeService = new BinanceFuturesTradeService(this, binance, getResilienceRegistries());
+//        this.accountService = new BinanceFuturesAccountService(this, binance, getResilienceRegistries()); TODO - Binance Futures
     }
 
     @Override
@@ -25,16 +31,5 @@ public class BinanceFuturesExchange extends BinanceExchange {
         spec.setExchangeDescription("Binance Futures Exchange.");
         AuthUtils.setApiAndSecretKey(spec, "binance_futures");
         return spec;
-    }
-
-    @Override
-    protected void binanceTradeService(BinanceAuthenticated binance) {
-        assert binance instanceof BinanceFuturesAuthenticated;
-        this.tradeService = new BinanceFuturesTradeService(this, (BinanceFuturesAuthenticated) binance, getResilienceRegistries());
-    }
-
-    @Override
-    protected BinanceAccountService binanceAccountService(BinanceAuthenticated binance) {
-        return new BinanceFuturesAccountService(this, binance, getResilienceRegistries());
     }
 }

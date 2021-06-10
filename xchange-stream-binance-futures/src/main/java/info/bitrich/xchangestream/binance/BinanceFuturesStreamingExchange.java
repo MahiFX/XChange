@@ -1,54 +1,53 @@
 package info.bitrich.xchangestream.binance;
 
 import info.bitrich.xchangestream.core.ProductSubscription;
-import org.knowm.xchange.ExchangeSpecification;
-import org.knowm.xchange.binance.BinanceAuthenticated;
-import org.knowm.xchange.binance.BinanceFuturesAuthenticated;
-import org.knowm.xchange.binance.service.BinanceAccountService;
-import org.knowm.xchange.binance.service.BinanceFuturesAccountService;
-import org.knowm.xchange.binance.service.BinanceMarketDataService;
-import org.knowm.xchange.client.ExchangeRestProxyBuilder;
-import org.knowm.xchange.utils.AuthUtils;
+import info.bitrich.xchangestream.core.StreamingExchange;
+import io.reactivex.Completable;
+import org.knowm.xchange.binance.BinanceFuturesExchange;
 
-public class BinanceFuturesStreamingExchange extends BinanceStreamingExchange {
+public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange implements StreamingExchange {
     private static final String WS_USD_FUTURES_API_BASE_URI = "wss://fstream.binance.com/";
 
+    // TODO - Binance Futures
+
+
+//    @Override
+//    protected String wsUri(ExchangeSpecification exchangeSpecification) {
+//        return WS_USD_FUTURES_API_BASE_URI;
+//    }
+//
+//    @Override
+//    protected BinanceAccountService binanceAccountService(BinanceAuthenticated binance) {
+//        return new BinanceFuturesAccountService(this, binance, getResilienceRegistries());
+//    }
+//
+//    @Override
+//    protected BinanceStreamingService createStreamingService(ProductSubscription subscription) {
+//        return new BinanceFuturesStreamingService(streamingUri(subscription), subscription);
+//    }
+//
+//    @Override
+//    protected BinanceStreamingMarketDataService streamingMarketDataService(BinanceStreamingService streamingService, BinanceMarketDataService marketDataService, Runnable onApiCall, String orderBookUpdateFrequencyParameter) {
+//        return new BinanceFuturesStreamingMarketDataService(streamingService, marketDataService, onApiCall, orderBookUpdateFrequencyParameter);
+//    }
+
     @Override
-    protected BinanceAuthenticated binance() {
-        return ExchangeRestProxyBuilder.forInterface(
-                BinanceFuturesAuthenticated.class, getExchangeSpecification())
-                .build();
+    public Completable connect(ProductSubscription... args) {
+        return null;
     }
 
     @Override
-    public ExchangeSpecification getDefaultExchangeSpecification() {
-        ExchangeSpecification spec = new ExchangeSpecification(this.getClass());
-        spec.setSslUri("https://fapi.binance.com");
-        spec.setHost("www.binance.com");
-        spec.setPort(80);
-        spec.setExchangeName("Binance");
-        spec.setExchangeDescription("Binance Exchange.");
-        AuthUtils.setApiAndSecretKey(spec, "binance");
-        return spec;
+    public Completable disconnect() {
+        return null;
     }
 
     @Override
-    protected String wsUri(ExchangeSpecification exchangeSpecification) {
-        return WS_USD_FUTURES_API_BASE_URI;
+    public boolean isAlive() {
+        return false;
     }
 
     @Override
-    protected BinanceAccountService binanceAccountService(BinanceAuthenticated binance) {
-        return new BinanceFuturesAccountService(this, binance, getResilienceRegistries());
-    }
+    public void useCompressedMessages(boolean compressedMessages) {
 
-    @Override
-    protected BinanceStreamingService createStreamingService(ProductSubscription subscription) {
-        return new BinanceFuturesStreamingService(streamingUri(subscription), subscription);
-    }
-
-    @Override
-    protected BinanceStreamingMarketDataService streamingMarketDataService(BinanceStreamingService streamingService, BinanceMarketDataService marketDataService, Runnable onApiCall, String orderBookUpdateFrequencyParameter) {
-        return new BinanceFuturesStreamingMarketDataService(streamingService, marketDataService, onApiCall, orderBookUpdateFrequencyParameter);
     }
 }

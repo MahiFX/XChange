@@ -2,6 +2,7 @@ package org.knowm.xchange.binance;
 
 import org.knowm.xchange.binance.dto.*;
 import org.knowm.xchange.binance.dto.marketdata.BinanceOrderbook;
+import org.knowm.xchange.binance.dto.meta.BinanceTime;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
@@ -17,10 +18,15 @@ import java.util.List;
 @SuppressWarnings("RestParamTypeInspection")
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
-public interface BinanceFuturesAuthenticated {
+public interface BinanceFuturesAuthenticated extends BinanceCommon {
 
     String SIGNATURE = "signature";
     String X_MBX_APIKEY = "X-MBX-APIKEY";
+
+    @Override
+    @GET
+    @Path("fapi/v1/time")
+    BinanceTime time() throws IOException;
 
     /**
      * Current exchange trading rules and symbol information.
