@@ -153,6 +153,12 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
     return streamingService.subscribeBitmexChannel(channelName).map(s -> s.toBitmexTicker());
   }
 
+  public Observable<org.knowm.xchange.bitmex.dto.account.BitmexTicker> getRawInstrument(String instrument) {
+    String channelName = String.format("instrument:%s", instrument);
+
+    return streamingService.subscribeBitmexChannel(channelName).map(s -> s.toBitmexInstrument());
+  }
+
   @Override
   public Observable<Ticker> getTicker(CurrencyPair currencyPair, Object... args) {
     String instrument = getBitmexSymbol(currencyPair);
