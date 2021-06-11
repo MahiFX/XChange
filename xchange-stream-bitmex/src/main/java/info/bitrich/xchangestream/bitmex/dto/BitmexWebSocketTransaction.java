@@ -5,9 +5,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
-import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /** Created by Lukas Zaoralek on 13.11.17. */
 public class BitmexWebSocketTransaction {
@@ -49,6 +50,16 @@ public class BitmexWebSocketTransaction {
     BitmexTicker bitmexTicker = null;
     try {
       bitmexTicker = mapper.treeToValue(data.get(0), BitmexTicker.class);
+    } catch (IOException e) {
+      log.error("ticker mapping exception", e);
+    }
+    return bitmexTicker;
+  }
+
+  public org.knowm.xchange.bitmex.dto.account.BitmexTicker toBitmexInstrument() {
+    org.knowm.xchange.bitmex.dto.account.BitmexTicker bitmexTicker = null;
+    try {
+      bitmexTicker = mapper.treeToValue(data.get(0), org.knowm.xchange.bitmex.dto.account.BitmexTicker.class);
     } catch (IOException e) {
       log.error("ticker mapping exception", e);
     }
