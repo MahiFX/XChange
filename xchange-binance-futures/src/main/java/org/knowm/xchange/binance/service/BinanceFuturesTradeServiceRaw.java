@@ -70,6 +70,27 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
                 .call();
     }
 
+    public BinanceFuturesOrder getOrderStatus(
+            CurrencyPair currencyPair,
+            Long orderId,
+            String clientOrderId)
+            throws IOException, BinanceException {
+        return decorateApiCall(
+                () ->
+                        binanceFutures.getOrder(
+                                BinanceAdapters.toSymbol(currencyPair),
+                                orderId,
+                                clientOrderId,
+                                getRecvWindow(),
+                                getTimestampFactory(),
+                                apiKey,
+                                signatureCreator
+                        ))
+                .withRetry(retry("orderStatus"))
+                .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+                .call();
+    }
+
     public BinanceFuturesOrder cancelOrder(
             CurrencyPair currencyPair,
             Long orderId,

@@ -1,5 +1,6 @@
 package org.knowm.xchange.binance.service;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.binance.BinanceFuturesAdapters;
 import org.knowm.xchange.binance.BinanceFuturesAuthenticated;
@@ -20,10 +21,13 @@ import org.knowm.xchange.service.trade.params.CancelOrderByPairAndIdParams;
 import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamCurrencyPair;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
+import org.knowm.xchange.service.trade.params.orders.OrderQueryParamCurrencyPair;
+import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -85,6 +89,34 @@ public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw im
         } else {
             throw new ExchangeException("Binance Futures cancels must have pair and Client Order ID (ie. must implement CancelOrderByPairAndIdParams), or just pair to cancel all orders for that pair (ie. must implement CancelOrderByCurrencyPair)");
         }
+    }
+
+    @Override
+    public Collection<Order> getOrder(OrderQueryParams... orderQueryParams) throws IOException {
+        if (ArrayUtils.isEmpty(orderQueryParams)) return null;
+
+        List<Order> orders = new ArrayList<>();
+
+        for (OrderQueryParams orderQueryParam : orderQueryParams) {
+            if (!(orderQueryParam instanceof OrderQueryParamCurrencyPair))
+                throw new ExchangeException("Binance Futures order queries must have currency pair and order ID (ie. must implement OrderQueryParamCurrencyPair)");
+
+            Long marketOrderId = null;
+            try {
+                marketOrderId = Long.valueOf(orderQueryParam.getOrderId());
+            } catch (NumberFormatException ignored) {
+            }
+
+            BinanceFuturesOrder binanceOrderStatus = getOrderStatus(
+                    ((OrderQueryParamCurrencyPair) orderQueryParam).getCurrencyPair(),
+                    marketOrderId,
+                    orderQueryParam.getOrderId()
+            );
+
+            orders.add(BinanceFuturesAdapters.adaptOrder(binanceOrderStatus));
+        }
+
+        return orders;
     }
 
     @Override

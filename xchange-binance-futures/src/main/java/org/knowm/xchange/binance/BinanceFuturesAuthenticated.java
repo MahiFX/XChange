@@ -74,6 +74,18 @@ public interface BinanceFuturesAuthenticated extends BinanceCommon {
             @QueryParam(SIGNATURE) ParamsDigest signature)
             throws IOException, BinanceException;
 
+    @GET
+    @Path("fapi/v1/order")
+    BinanceFuturesOrder getOrder(
+            @FormParam("symbol") String symbol,
+            @FormParam("orderId") Long orderId,
+            @FormParam("origClientOrderId") String origClientOrderId,
+            @FormParam("recvWindow") Long recvWindow,
+            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @HeaderParam(X_MBX_APIKEY) String apiKey,
+            @QueryParam(SIGNATURE) ParamsDigest signature)
+            throws IOException, BinanceException;
+
     @DELETE
     @Path("fapi/v1/order")
     BinanceFuturesOrder cancelOrder(
