@@ -1,9 +1,5 @@
 package info.bitrich.xchangestream.bitfinex;
 
-import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptOrderBook;
-import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptTicker;
-import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptTrades;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.bitfinex.dto.BitfinexOrderbook;
 import info.bitrich.xchangestream.bitfinex.dto.BitfinexWebSocketOrderbookTransaction;
@@ -16,16 +12,26 @@ import info.bitrich.xchangestream.bitfinex.dto.BitfinexWebsocketUpdateTrade;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
-import java.util.HashMap;
-import java.util.Map;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.dto.marketdata.Trades;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptOrderBook;
+import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptTicker;
+import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptTrades;
 
 /** Created by Lukas Zaoralek on 7.11.17. */
 public class BitfinexStreamingMarketDataService implements StreamingMarketDataService {
+  private static final Logger LOG = LoggerFactory.getLogger(BitfinexStreamingMarketDataService.class);
 
   private final BitfinexStreamingService service;
 
@@ -52,13 +58,26 @@ public class BitfinexStreamingMarketDataService implements StreamingMarketDataSe
                   else return mapper.treeToValue(s, BitfinexWebSocketUpdateOrderbook.class);
                 });
 
-    return subscribedChannel.map(
-        s -> {
-          BitfinexOrderbook bitfinexOrderbook =
-              s.toBitfinexOrderBook(orderbooks.getOrDefault(currencyPair, null));
-          orderbooks.put(currencyPair, bitfinexOrderbook);
-          return adaptOrderBook(bitfinexOrderbook.toBitfinexDepth(), currencyPair);
-        });
+      Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
+              o -> {
+                  LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
+                  orderbooks.remove(currencyPair);
+                  return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
+              }
+      );
+
+      Observable<OrderBook> orderBookStream = subscribedChannel.map(
+              s -> {
+                  BitfinexOrderbook bitfinexOrderbook =
+                          s.toBitfinexOrderBook(orderbooks.getOrDefault(currencyPair, null));
+                  orderbooks.put(currencyPair, bitfinexOrderbook);
+                  return adaptOrderBook(bitfinexOrderbook.toBitfinexDepth(), currencyPair);
+              });
+
+      return Observable.merge(
+              orderBookStream,
+              disconnectStream
+      );
   }
 
   @Override

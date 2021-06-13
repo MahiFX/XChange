@@ -4,12 +4,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.Set;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.instrument.Instrument;
+
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.Set;
 
 /**
  * DTO representing a limit order
@@ -27,6 +28,9 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
   /** The limit price */
   protected final BigDecimal limitPrice;
 
+  /** Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders) */
+  private final Date creationTimestamp;
+
   /**
    * @param type Either BID (buying) or ASK (selling)
    * @param originalAmount The amount to trade
@@ -38,15 +42,38 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
    *     acceptable price
    */
   public LimitOrder(
-      OrderType type,
-      BigDecimal originalAmount,
-      Instrument instrument,
-      String id,
-      Date timestamp,
-      BigDecimal limitPrice) {
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          String id,
+          Date timestamp,
+          BigDecimal limitPrice) {
+    this(type, originalAmount, instrument, id, timestamp, limitPrice, new Date());
+  }
+
+  /**
+   * @param type Either BID (buying) or ASK (selling)
+   * @param originalAmount The amount to trade
+   * @param instrument The identifier (e.g. BTC/USD)
+   * @param id An id (usually provided by the exchange)
+   * @param timestamp a Date object representing the order's timestamp according to the exchange's
+   *     server, null if not provided
+   * @param limitPrice In a BID this is the highest acceptable price, in an ASK this is the lowest
+   *     acceptable price
+   * @param creationTimestamp Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders)
+   */
+  public LimitOrder(
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          String id,
+          Date timestamp,
+          BigDecimal limitPrice,
+          Date creationTimestamp) {
 
     super(type, originalAmount, instrument, id, timestamp);
     this.limitPrice = limitPrice;
+    this.creationTimestamp = creationTimestamp;
   }
 
   /**
@@ -80,6 +107,7 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
         BigDecimal.ZERO,
         OrderStatus.PENDING_NEW);
     this.limitPrice = limitPrice;
+    this.creationTimestamp = new Date();
   }
 
   /**
@@ -119,6 +147,7 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
         fee,
         status);
     this.limitPrice = limitPrice;
+    this.creationTimestamp = new Date();
   }
 
   /**
@@ -136,17 +165,48 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
    * @param userReference An id provided by the user
    */
   public LimitOrder(
-      OrderType type,
-      BigDecimal originalAmount,
-      Instrument instrument,
-      String id,
-      Date timestamp,
-      BigDecimal limitPrice,
-      BigDecimal averagePrice,
-      BigDecimal cumulativeAmount,
-      BigDecimal fee,
-      OrderStatus status,
-      String userReference) {
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          String id,
+          Date timestamp,
+          BigDecimal limitPrice,
+          BigDecimal averagePrice,
+          BigDecimal cumulativeAmount,
+          BigDecimal fee,
+          OrderStatus status,
+          String userReference) {
+    this(type, originalAmount, instrument, id, timestamp, limitPrice, averagePrice, cumulativeAmount, fee, status, userReference, new Date());
+  }
+
+  /**
+   * @param type Either BID (buying) or ASK (selling)
+   * @param originalAmount The amount to trade
+   * @param instrument The identifier (e.g. BTC/USD)
+   * @param id An id (usually provided by the exchange)
+   * @param timestamp a Date object representing the order's timestamp according to the exchange's
+   *     server, null if not provided
+   * @param limitPrice In a BID this is the highest acceptable price, in an ASK this is the lowest
+   *     acceptable price
+   * @param averagePrice the weighted average price of any fills belonging to the order
+   * @param cumulativeAmount the amount that has been filled
+   * @param status the status of the order at the exchange or broker
+   * @param userReference An id provided by the user
+   * @param creationTimestamp Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders)
+   */
+  public LimitOrder(
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          String id,
+          Date timestamp,
+          BigDecimal limitPrice,
+          BigDecimal averagePrice,
+          BigDecimal cumulativeAmount,
+          BigDecimal fee,
+          OrderStatus status,
+          String userReference,
+          Date creationTimestamp) {
 
     super(
         type,
@@ -160,18 +220,23 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
         status,
         userReference);
     this.limitPrice = limitPrice;
+    this.creationTimestamp = creationTimestamp;
   }
 
   /** @return The limit price */
   public BigDecimal getLimitPrice() {
-
     return limitPrice;
+  }
+
+  /** @return Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders) */
+  public Date getCreationTimestamp() {
+    return creationTimestamp;
   }
 
   @Override
   public String toString() {
 
-    return "LimitOrder [limitPrice=" + printLimitPrice() + ", " + super.toString() + "]";
+    return "LimitOrder [limitPrice=" + printLimitPrice() + ", creationTimestamp=" + creationTimestamp + ", " + super.toString() + "]";
   }
 
   private String printLimitPrice() {
@@ -225,6 +290,7 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
   @JsonPOJOBuilder(withPrefix = "")
   public static class Builder extends Order.Builder {
 
+    protected Date creationTimestamp;
     protected BigDecimal limitPrice;
 
     @JsonCreator
@@ -251,6 +317,7 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
       if (order instanceof LimitOrder) {
         LimitOrder limitOrder = (LimitOrder) order;
         builder.limitPrice(limitOrder.getLimitPrice());
+        builder.creationTimestamp(limitOrder.getCreationTimestamp());
       }
       return builder;
     }
@@ -339,8 +406,12 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
       return (Builder) super.fee(fee);
     }
 
-    public Builder limitPrice(BigDecimal limitPrice) {
+    public Builder creationTimestamp(Date creationTimestamp) {
+      this.creationTimestamp = creationTimestamp;
+      return this;
+    }
 
+    public Builder limitPrice(BigDecimal limitPrice) {
       this.limitPrice = limitPrice;
       return this;
     }
@@ -362,7 +433,8 @@ public class LimitOrder extends Order implements Comparable<LimitOrder> {
                   : originalAmount.subtract(remainingAmount),
               fee,
               status,
-              userReference);
+              userReference,
+              creationTimestamp);
       order.setOrderFlags(flags);
       order.setLeverage(leverage);
       return order;

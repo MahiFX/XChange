@@ -3,23 +3,6 @@ package org.knowm.xchange.bitfinex.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.knowm.xchange.bitfinex.v1.BitfinexOrderType;
 import org.knowm.xchange.bitfinex.v1.BitfinexUtils;
 import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexAccountFeesResponse;
@@ -69,6 +52,24 @@ import org.knowm.xchange.utils.DateUtils;
 import org.knowm.xchange.utils.jackson.CurrencyPairDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class BitfinexAdapters {
 
@@ -218,7 +219,8 @@ public final class BitfinexAdapters {
               bitfinexLevel.getPrice(),
               currencyPair,
               orderType,
-              timestamp));
+              timestamp,
+              bitfinexLevel.getReceivedTimestamp()));
     }
 
     long maxTimestampInMillis = maxTimestamp.multiply(new BigDecimal(1000L)).longValue();
@@ -226,13 +228,14 @@ public final class BitfinexAdapters {
   }
 
   public static LimitOrder adaptOrder(
-      BigDecimal originalAmount,
-      BigDecimal price,
-      CurrencyPair currencyPair,
-      OrderType orderType,
-      Date timestamp) {
+          BigDecimal originalAmount,
+          BigDecimal price,
+          CurrencyPair currencyPair,
+          OrderType orderType,
+          Date timestamp,
+          Date timeReceived) {
 
-    return new LimitOrder(orderType, originalAmount, currencyPair, "", timestamp, price);
+    return new LimitOrder(orderType, originalAmount, currencyPair, "", timestamp, price, timeReceived);
   }
 
   public static List<FixedRateLoanOrder> adaptFixedRateLoanOrders(

@@ -1,16 +1,18 @@
 package info.bitrich.xchangestream.bitmex;
 
-import static org.knowm.xchange.dto.Order.OrderType.ASK;
-import static org.knowm.xchange.dto.Order.OrderType.BID;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import info.bitrich.xchangestream.bitmex.dto.*;
+import info.bitrich.xchangestream.bitmex.dto.BitmexExecution;
+import info.bitrich.xchangestream.bitmex.dto.BitmexFunding;
+import info.bitrich.xchangestream.bitmex.dto.BitmexLimitOrder;
+import info.bitrich.xchangestream.bitmex.dto.BitmexOrderbook;
+import info.bitrich.xchangestream.bitmex.dto.BitmexTicker;
+import info.bitrich.xchangestream.bitmex.dto.BitmexTrade;
+import info.bitrich.xchangestream.bitmex.dto.BitmexWebSocketTransaction;
+import info.bitrich.xchangestream.bitmex.dto.RawOrderBook;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
-import java.io.IOException;
-import java.util.*;
 import org.knowm.xchange.bitmex.BitmexExchange;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
@@ -19,6 +21,17 @@ import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import static org.knowm.xchange.dto.Order.OrderType.ASK;
+import static org.knowm.xchange.dto.Order.OrderType.BID;
 
 /** Created by Lukas Zaoralek on 13.11.17. */
 public class BitmexStreamingMarketDataService implements StreamingMarketDataService {
@@ -99,28 +112,41 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
                 return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
               });
     } else {
-      return streamingService
-          .subscribeBitmexChannel(channelName)
-          .map(
-              s -> {
-                BitmexOrderbook orderbook;
-                String action = s.getAction();
-                if ("partial".equals(action)) {
-                  orderbook = s.toBitmexOrderbook();
-                  orderbooks.put(instrument, orderbook);
-                } else {
-                  orderbook = orderbooks.get(instrument);
-                  // ignore updates until first "partial"
-                  if (orderbook == null) {
-                    return new OrderBook(
-                        new Date(), Collections.emptyList(), Collections.emptyList());
-                  }
-                  BitmexLimitOrder[] levels = s.toBitmexOrderbookLevels();
-                  orderbook.updateLevels(levels, action);
+        Observable<OrderBook> disconnectStream = streamingService.subscribeDisconnect().map(
+                o -> {
+                    LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
+                    orderbooks.remove(instrument);
+                    return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
                 }
+        );
 
-                return orderbook.toOrderbook();
-              });
+        Observable<OrderBook> orderBookStream = streamingService
+                .subscribeBitmexChannel(channelName)
+                .map(
+                        s -> {
+                            BitmexOrderbook orderbook;
+                            String action = s.getAction();
+                            if ("partial".equals(action)) {
+                                orderbook = s.toBitmexOrderbook();
+                                orderbooks.put(instrument, orderbook);
+                            } else {
+                                orderbook = orderbooks.get(instrument);
+                                // ignore updates until first "partial"
+                                if (orderbook == null) {
+                                    return new OrderBook(
+                                            new Date(), Collections.emptyList(), Collections.emptyList());
+                                }
+                                BitmexLimitOrder[] levels = s.toBitmexOrderbookLevels();
+                                orderbook.updateLevels(levels, action);
+                            }
+
+                            return orderbook.toOrderbook();
+                        });
+
+        return Observable.merge(
+                orderBookStream,
+                disconnectStream
+        );
     }
   }
 
@@ -135,6 +161,12 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
     String channelName = String.format("quote:%s", instrument);
 
     return streamingService.subscribeBitmexChannel(channelName).map(s -> s.toBitmexTicker());
+  }
+
+  public Observable<org.knowm.xchange.bitmex.dto.account.BitmexTicker> getRawInstrument(String instrument) {
+    String channelName = String.format("instrument:%s", instrument);
+
+    return streamingService.subscribeBitmexChannel(channelName).map(s -> s.toBitmexInstrument());
   }
 
   @Override
