@@ -1,7 +1,6 @@
 package org.knowm.xchange.binance;
 
 import org.knowm.xchange.binance.dto.*;
-import org.knowm.xchange.binance.dto.marketdata.BinanceOrderbook;
 import org.knowm.xchange.binance.dto.meta.BinanceTime;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
@@ -18,7 +17,7 @@ import java.util.List;
 @SuppressWarnings("RestParamTypeInspection")
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
-public interface BinanceFuturesAuthenticated extends BinanceCommon {
+public interface BinanceFuturesAuthenticated extends BinanceFutures {
 
     String SIGNATURE = "signature";
     String X_MBX_APIKEY = "X-MBX-APIKEY";
@@ -37,21 +36,6 @@ public interface BinanceFuturesAuthenticated extends BinanceCommon {
     @GET
     @Path("fapi/v1/exchangeInfo")
     BinanceExchangeInfo exchangeInfo() throws IOException;
-
-    /**
-     * @param symbol
-     * @param limit  optional, default 100 max 5000. Valid limits: [5, 10, 20, 50, 100, 500, 1000,
-     *               5000]
-     * @return
-     * @throws IOException
-     * @throws BinanceException
-     */
-    @GET
-    @Path("fapi/v1/depth")
-    BinanceOrderbook depth(
-            @QueryParam("symbol") String symbol,
-            @QueryParam("limit") Integer limit)
-            throws IOException, BinanceException;
 
     @POST
     @Path("fapi/v1/order")
