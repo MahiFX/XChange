@@ -30,7 +30,7 @@ public class BinanceFuturesAdapters {
                 .originalAmount(binanceFuturesOrder.getOrigQty())
                 .id(Long.toString(binanceFuturesOrder.getOrderId()))
                 .timestamp(new Date(binanceFuturesOrder.getUpdateTime()))
-                .cumulativeAmount(binanceFuturesOrder.getCumQty())
+                .cumulativeAmount(binanceFuturesOrder.getExecutedQty())
                 .averagePrice(binanceFuturesOrder.getAvgPrice());
 
         if (binanceFuturesOrder.getClientOrderId() != null) {
