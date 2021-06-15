@@ -48,7 +48,10 @@ public interface BinanceFuturesAuthenticated extends BinanceCommon {
      */
     @GET
     @Path("fapi/v1/depth")
-    BinanceOrderbook depth(@QueryParam("symbol") String symbol, @QueryParam("limit") Integer limit) throws IOException, BinanceException;
+    BinanceOrderbook depth(
+            @QueryParam("symbol") String symbol,
+            @QueryParam("limit") Integer limit)
+            throws IOException, BinanceException;
 
     @POST
     @Path("fapi/v1/order")
@@ -77,11 +80,11 @@ public interface BinanceFuturesAuthenticated extends BinanceCommon {
     @GET
     @Path("fapi/v1/order")
     BinanceFuturesOrder getOrder(
-            @FormParam("symbol") String symbol,
-            @FormParam("orderId") Long orderId,
-            @FormParam("origClientOrderId") String origClientOrderId,
-            @FormParam("recvWindow") Long recvWindow,
-            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @QueryParam("symbol") String symbol,
+            @QueryParam("orderId") Long orderId,
+            @QueryParam("origClientOrderId") String origClientOrderId,
+            @QueryParam("recvWindow") Long recvWindow,
+            @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
             @HeaderParam(X_MBX_APIKEY) String apiKey,
             @QueryParam(SIGNATURE) ParamsDigest signature)
             throws IOException, BinanceException;
@@ -111,11 +114,11 @@ public interface BinanceFuturesAuthenticated extends BinanceCommon {
     @GET
     @Path("fapi/v1/openOrder")
     BinanceFuturesOrder getOpenOrder(
-            @FormParam("symbol") String symbol,
-            @FormParam("orderId") Long orderId,
-            @FormParam("origClientOrderId") String origClientOrderId,
-            @FormParam("recvWindow") Long recvWindow,
-            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @QueryParam("symbol") String symbol,
+            @QueryParam("orderId") Long orderId,
+            @QueryParam("origClientOrderId") String origClientOrderId,
+            @QueryParam("recvWindow") Long recvWindow,
+            @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
             @HeaderParam(X_MBX_APIKEY) String apiKey,
             @QueryParam(SIGNATURE) ParamsDigest signature)
             throws IOException, BinanceException;
@@ -123,9 +126,9 @@ public interface BinanceFuturesAuthenticated extends BinanceCommon {
     @GET
     @Path("fapi/v1/openOrders")
     List<BinanceFuturesOrder> getAllOpenOrders(
-            @FormParam("symbol") String symbol,
-            @FormParam("recvWindow") Long recvWindow,
-            @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @QueryParam("symbol") String symbol,
+            @QueryParam("recvWindow") Long recvWindow,
+            @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
             @HeaderParam(X_MBX_APIKEY) String apiKey,
             @QueryParam(SIGNATURE) ParamsDigest signature)
             throws IOException, BinanceException;
