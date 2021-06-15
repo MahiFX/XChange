@@ -57,7 +57,7 @@ public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw im
                 BinanceAdapters.convert(order.getType()),
                 null,
                 type,
-                BinanceAdapters.timeInForceFromOrder(order).orElse(TimeInForce.IOC),
+                OrderType.LIMIT.equals(type) ? BinanceAdapters.timeInForceFromOrder(order).orElse(TimeInForce.IOC) : null,
                 order.getOriginalAmount(),
                 null,
                 limitPrice,

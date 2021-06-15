@@ -32,4 +32,31 @@ public class BinanceFuturesExchange extends BinanceExchangeCommon {
         AuthUtils.setApiAndSecretKey(spec, "binance_futures");
         return spec;
     }
+
+    @Override
+    public void applySpecification(ExchangeSpecification exchangeSpecification) {
+        concludeHostParams(exchangeSpecification);
+        super.applySpecification(exchangeSpecification);
+    }
+
+    /**
+     * Adjust host parameters depending on exchange specific parameters
+     */
+    private static void concludeHostParams(ExchangeSpecification exchangeSpecification) {
+        if (exchangeSpecification.getExchangeSpecificParameters() != null) {
+            if (Boolean.TRUE.equals(
+                    exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox"))) {
+                exchangeSpecification.setSslUri("https://testnet.binancefuture.com");
+                exchangeSpecification.setHost("testnet.binancefuture.com");
+            }
+        }
+    }
+
+    @Override
+    public void remoteInit() {
+        try {
+            super.remoteInit();
+        } catch (Throwable ignored) {
+        }
+    }
 }
