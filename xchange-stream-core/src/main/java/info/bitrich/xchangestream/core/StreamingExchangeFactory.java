@@ -57,7 +57,7 @@ public enum StreamingExchangeFactory {
         return (Class<? extends StreamingExchange>) exchangeProviderClass;
       } else {
         throw new ExchangeException(
-            "Class '" + exchangeClassName + "' does not implement Exchange");
+            "Class '" + exchangeClassName + "' does not implement StreamingExchange");
       }
     } catch (ReflectiveOperationException e) {
       throw new ExchangeException("Problem creating Exchange ", e);
