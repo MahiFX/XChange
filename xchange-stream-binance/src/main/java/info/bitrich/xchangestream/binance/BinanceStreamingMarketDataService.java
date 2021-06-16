@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static info.bitrich.xchangestream.binance.BinanceSubscriptionType.KLINE;
@@ -86,24 +87,24 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
                   .build()));
 
   private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
-  private final BinanceMarketDataService marketDataService;
+  private final Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider;
   private final Runnable onApiCall;
 
   private final AtomicBoolean fallenBack = new AtomicBoolean();
   private final AtomicReference<Runnable> fallbackOnApiCall = new AtomicReference<>(() -> {});
 
   public BinanceStreamingMarketDataService(
-      BinanceStreamingService service,
-      BinanceMarketDataService marketDataService,
-      Runnable onApiCall,
-      final String orderBookUpdateFrequencyParameter,
-      boolean realtimeOrderBookTicker,
-      int oderBookFetchLimitParameter) {
+          BinanceStreamingService service,
+          Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider,
+          Runnable onApiCall,
+          final String orderBookUpdateFrequencyParameter,
+          boolean realtimeOrderBookTicker,
+          int oderBookFetchLimitParameter) {
     this.service = service;
     this.orderBookUpdateFrequencyParameter = orderBookUpdateFrequencyParameter;
     this.realtimeOrderBookTicker = realtimeOrderBookTicker;
     this.oderBookFetchLimitParameter = oderBookFetchLimitParameter;
-    this.marketDataService = marketDataService;
+    this.binanceOrderBookProvider = binanceOrderBookProvider;
     this.onApiCall = onApiCall;
     this.tickerSubscriptions = new ConcurrentHashMap<>();
     this.bookTickerSubscriptions = new ConcurrentHashMap<>();
@@ -463,7 +464,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
 
     Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
             o -> {
-              LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
+              LOG.warn("Invalidating {} book due to disconnect {}", instrument, o);
               subscription.invalidateSnapshot();
               return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
             }
@@ -876,8 +877,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
   private BinanceOrderbook fetchBinanceOrderBook(Instrument instrument)
       throws IOException, InterruptedException {
     try {
-      return marketDataService.getBinanceOrderbookAllProducts(
-          instrument, oderBookFetchLimitParameter);
+      return binanceOrderBookProvider.apply((CurrencyPair) instrument);
     } catch (BinanceException e) {
       if (BinanceErrorAdapter.adapt(e) instanceof RateLimitExceededException) {
         if (fallenBack.compareAndSet(false, true)) {

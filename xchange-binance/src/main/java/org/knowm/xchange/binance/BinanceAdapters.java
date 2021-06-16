@@ -1,17 +1,5 @@
 package org.knowm.xchange.binance;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import org.knowm.xchange.binance.dto.account.AssetDetail;
 import org.knowm.xchange.binance.dto.account.BinanceAccountInformation;
 import org.knowm.xchange.binance.dto.account.futures.BinanceFutureAccountInformation;
@@ -23,10 +11,7 @@ import org.knowm.xchange.binance.dto.marketdata.BinancePriceQuantity;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.Filter;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.Symbol;
-import org.knowm.xchange.binance.dto.trade.BinanceOrder;
-import org.knowm.xchange.binance.dto.trade.BinanceTrade;
-import org.knowm.xchange.binance.dto.trade.OrderSide;
-import org.knowm.xchange.binance.dto.trade.OrderStatus;
+import org.knowm.xchange.binance.dto.trade.*;
 import org.knowm.xchange.binance.service.BinanceTradeService.BinanceOrderFlags;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -45,11 +30,23 @@ import org.knowm.xchange.dto.meta.WalletHealth;
 import org.knowm.xchange.dto.trade.*;
 import org.knowm.xchange.instrument.Instrument;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 public class BinanceAdapters {
   private static final DateTimeFormatter DATE_TIME_FMT =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+          DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-  private BinanceAdapters() {}
+  private BinanceAdapters() {
+  }
 
   /**
    * Converts a datetime as string in time zone UTC to a Date object
@@ -85,6 +82,13 @@ public class BinanceAdapters {
       return "IOTA";
     }
     return currency.getSymbol();
+  }
+
+  public static Optional<TimeInForce> timeInForceFromOrder(Order order) {
+    return order.getOrderFlags().stream()
+            .filter(flag -> flag instanceof TimeInForce)
+            .map(flag -> (TimeInForce) flag)
+            .findFirst();
   }
 
   public static OrderType convert(OrderSide side) {

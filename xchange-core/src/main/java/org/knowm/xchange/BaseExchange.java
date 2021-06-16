@@ -1,13 +1,6 @@
 package org.knowm.xchange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.knowm.xchange.dto.meta.ExchangeMetaData;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
@@ -19,6 +12,14 @@ import org.knowm.xchange.utils.nonce.CurrentTimeIncrementalNonceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public abstract class BaseExchange implements Exchange {
 
@@ -180,16 +181,19 @@ public abstract class BaseExchange implements Exchange {
     return exchangeMetaData;
   }
 
+  @Override
   public MarketDataService getMarketDataService() {
 
     return marketDataService;
   }
 
+  @Override
   public TradeService getTradeService() {
 
     return tradeService;
   }
 
+  @Override
   public AccountService getAccountService() {
 
     return accountService;

@@ -4,9 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.kraken.KrakenStreamingMarketDataService;
-import info.bitrich.xchangestream.krakenfutures.dto.KrakenFuturesSubscriptionMessage;
 import info.bitrich.xchangestream.kraken.dto.enums.KrakenEventType;
 import info.bitrich.xchangestream.kraken.dto.enums.KrakenSubscriptionName;
+import info.bitrich.xchangestream.krakenfutures.dto.KrakenFuturesSubscriptionMessage;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import info.bitrich.xchangestream.service.netty.WebSocketClientCompressionAllowClientNoContextHandler;
@@ -163,7 +163,7 @@ public class KrakenFuturesStreamingService extends JsonNettyStreamingService {
     }
 
     @Override
-    public String getUnsubscribeMessage(String channelName) throws IOException {
+    public String getUnsubscribeMessage(String channelName, Object... args) throws IOException {
         String[] channelData =
                 channelName.split(KrakenStreamingMarketDataService.KRAKEN_CHANNEL_DELIMITER);
 

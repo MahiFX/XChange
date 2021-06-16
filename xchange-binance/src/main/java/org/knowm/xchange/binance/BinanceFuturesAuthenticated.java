@@ -209,17 +209,15 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures{
             @QueryParam(SIGNATURE) ParamsDigest signature)
             throws IOException, BinanceException;
 
-    @Override
-    @GET
-    @Path("fapi/v1/depth")
     /**
      * @param symbol
-     * @param limit optional, default 100 max 5000. Valid limits: [5, 10, 20, 50, 100, 500, 1000,
-     *     5000]
+     * @param limit  optional, default 100 max 5000. Valid limits: [5, 10, 20, 50, 100, 500, 1000,
+     *               5000]
      * @return
      * @throws IOException
      * @throws BinanceException
      */
-    BinanceOrderbook depth(@QueryParam("symbol") String symbol, @QueryParam("limit") Integer limit) throws IOException, BinanceException;
+    BinanceOrderbook depth(@QueryParam("symbol") String symbol, @QueryParam("limit") Integer limit)
+            throws IOException, BinanceException;
 
 }

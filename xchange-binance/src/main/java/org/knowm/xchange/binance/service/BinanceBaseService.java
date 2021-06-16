@@ -1,9 +1,5 @@
 package org.knowm.xchange.binance.service;
 
-import static org.knowm.xchange.binance.BinanceResilience.REQUEST_WEIGHT_RATE_LIMITER;
-
-import java.io.IOException;
-
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceAuthenticated;
 import org.knowm.xchange.binance.BinanceExchange;
@@ -18,6 +14,10 @@ import org.slf4j.LoggerFactory;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
 
+import java.io.IOException;
+
+import static org.knowm.xchange.binance.BinanceResilience.REQUEST_WEIGHT_RATE_LIMITER;
+
 public class BinanceBaseService extends BaseResilientExchangeService<BinanceExchange> {
 
   protected final Logger LOG = LoggerFactory.getLogger(getClass());
@@ -27,22 +27,19 @@ public class BinanceBaseService extends BaseResilientExchangeService<BinanceExch
   protected final BinanceFuturesAuthenticated binanceFutures;
   protected final ParamsDigest signatureCreator;
 
-  protected BinanceBaseService(
-      BinanceExchange exchange,
-      ResilienceRegistries resilienceRegistries) {
-
+  protected BinanceBaseService(BinanceExchange exchange, ResilienceRegistries resilienceRegistries) {
     super(exchange, resilienceRegistries);
     this.binance = ExchangeRestProxyBuilder.forInterface(
-                            BinanceAuthenticated.class, exchange.getExchangeSpecification())
+                    BinanceAuthenticated.class, exchange.getExchangeSpecification())
             .build();
     ExchangeSpecification futuresSpec = exchange.getDefaultExchangeSpecification();
-    futuresSpec.setSslUri((exchange.usingSandbox()) ? BinanceExchange.SANDBOX_FUTURES_URL: BinanceExchange.FUTURES_URL);
+    futuresSpec.setSslUri((exchange.usingSandbox()) ? BinanceExchange.SANDBOX_FUTURES_URL : BinanceExchange.FUTURES_URL);
     this.binanceFutures = ExchangeRestProxyBuilder.forInterface(
                     BinanceFuturesAuthenticated.class, futuresSpec)
             .build();
     this.apiKey = exchange.getExchangeSpecification().getApiKey();
     this.signatureCreator =
-        BinanceHmacDigest.createInstance(exchange.getExchangeSpecification().getSecretKey());
+            BinanceHmacDigest.createInstance(exchange.getExchangeSpecification().getSecretKey());
   }
 
   public Long getRecvWindow() {
@@ -75,9 +72,9 @@ public class BinanceBaseService extends BaseResilientExchangeService<BinanceExch
 
   public BinanceExchangeInfo getExchangeInfo() throws IOException {
     return decorateApiCall(binance::exchangeInfo)
-        .withRetry(retry("exchangeInfo"))
-        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
-        .call();
+            .withRetry(retry("exchangeInfo"))
+            .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+            .call();
   }
 
   public BinanceExchangeInfo getFutureExchangeInfo() throws IOException {
