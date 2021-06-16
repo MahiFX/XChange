@@ -199,6 +199,7 @@
     <module>xchange-stream-coinbasepro</module>
     <module>xchange-stream-coinjar</module>
     <module>xchange-stream-coinmate</module>
+    <module>xchange-stream-cryptofacilities</module>
     <module>xchange-stream-core</module>
     <module>xchange-stream-dydx</module>
     <module>xchange-stream-ftx</module>
