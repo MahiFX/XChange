@@ -6,7 +6,7 @@ import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.Filter;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.Symbol;
 import org.knowm.xchange.binance.service.BinanceAccountService;
-import org.knowm.xchange.binance.service.BinanceMarketDataService;
+import org.knowm.xchange.binance.service.BinanceBaseServiceCommon;
 import org.knowm.xchange.client.ResilienceRegistries;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -54,17 +54,22 @@ public abstract class BinanceExchangeCommon extends BaseExchange {
             Map<CurrencyPair, CurrencyPairMetaData> currencyPairs = exchangeMetaData.getCurrencyPairs();
             Map<Currency, CurrencyMetaData> currencies = exchangeMetaData.getCurrencies();
 
-            BinanceMarketDataService marketDataService =
-                    (BinanceMarketDataService) this.marketDataService;
-            exchangeInfo = marketDataService.getExchangeInfo();
+            BinanceBaseServiceCommon binanceBaseServiceCommon = (BinanceBaseServiceCommon) this.marketDataService;
+            exchangeInfo = binanceBaseServiceCommon.getExchangeInfo();
             Symbol[] symbols = exchangeInfo.getSymbols();
 
-            BinanceAccountService accountService = (BinanceAccountService) getAccountService();
-            Map<String, AssetDetail> assetDetailMap = accountService.getAssetDetails();
+            Map<String, AssetDetail> assetDetailMap = null;
+            try {
+                BinanceAccountService accountService = (BinanceAccountService) getAccountService();
+                assetDetailMap = accountService.getAssetDetails();
+            } catch (Throwable t) {
+                logger.warn("Failed to get asset details from exchange. Using hardcoded ones instead");
+            }
             // Clear all hardcoded currencies when loading dynamically from exchange.
             if (assetDetailMap != null) {
                 currencies.clear();
             }
+
             for (Symbol symbol : symbols) {
                 if (symbol.getStatus().equals("TRADING")) { // Symbols which are trading
                     int basePrecision = Integer.parseInt(symbol.getBaseAssetPrecision());
@@ -138,7 +143,6 @@ public abstract class BinanceExchangeCommon extends BaseExchange {
     private int numberOfDecimals(String value) {
         return new BigDecimal(value).stripTrailingZeros().scale();
     }
-
 
     public BinanceExchangeInfo getExchangeInfo() {
         return exchangeInfo;

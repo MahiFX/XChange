@@ -3,6 +3,7 @@ package org.knowm.xchange.binance;
 import org.knowm.xchange.binance.dto.BinanceException;
 import org.knowm.xchange.binance.dto.marketdata.BinanceOrderbook;
 import org.knowm.xchange.binance.dto.meta.BinanceTime;
+import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
 
 import javax.ws.rs.QueryParam;
 import java.io.IOException;
@@ -26,4 +27,12 @@ public interface BinanceCommon {
      */
     BinanceOrderbook depth(@QueryParam("symbol") String symbol, @QueryParam("limit") Integer limit)
             throws IOException, BinanceException;
+
+    /**
+     * Current exchange trading rules and symbol information.
+     *
+     * @return
+     * @throws IOException
+     */
+    BinanceExchangeInfo exchangeInfo() throws IOException;
 }

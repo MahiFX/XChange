@@ -2,7 +2,6 @@ package org.knowm.xchange.binance;
 
 import org.knowm.xchange.binance.dto.BinanceException;
 import org.knowm.xchange.binance.dto.marketdata.*;
-import org.knowm.xchange.binance.dto.meta.BinanceSystemStatus;
 import org.knowm.xchange.binance.dto.meta.BinanceTime;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
 
@@ -17,15 +16,6 @@ import java.util.List;
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
 public interface Binance extends BinanceCommon {
-
-    @GET
-    @Path("wapi/v3/systemStatus.html")
-    /**
-     * Fetch system status which is normal or system maintenance.
-     *
-     * @throws IOException
-     */
-    BinanceSystemStatus systemStatus() throws IOException;
 
     @GET
     @Path("api/v3/ping")
@@ -48,15 +38,10 @@ public interface Binance extends BinanceCommon {
      */
     BinanceTime time() throws IOException;
 
+    @Override
     @GET
     @Path("api/v3/exchangeInfo")
-    /**
-     * Current exchange trading rules and symbol information.
-     *
-     * @return
-     * @throws IOException
-     */
-    BinanceExchangeInfo exchangeInfo() throws IOException;
+    BinanceExchangeInfo exchangeInfo();
 
     @Override
     @GET

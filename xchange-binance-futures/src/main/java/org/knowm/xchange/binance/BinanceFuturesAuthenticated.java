@@ -33,6 +33,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
      * @return
      * @throws IOException
      */
+    @Override
     @GET
     @Path("fapi/v1/exchangeInfo")
     BinanceExchangeInfo exchangeInfo() throws IOException;
