@@ -5,11 +5,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.RateLimiter;
-import info.bitrich.xchangestream.binance.dto.BinanceRawTrade;
-import info.bitrich.xchangestream.binance.dto.BinanceWebsocketTransaction;
-import info.bitrich.xchangestream.binance.dto.DepthBinanceWebSocketTransaction;
-import info.bitrich.xchangestream.binance.dto.TickerBinanceWebsocketTransaction;
-import info.bitrich.xchangestream.binance.dto.TradeBinanceWebsocketTransaction;
+import info.bitrich.xchangestream.binance.dto.*;
 import info.bitrich.xchangestream.binance.exceptions.UpFrontSubscriptionRequiredException;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
@@ -41,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper.getObjectMapper;
@@ -64,20 +61,20 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
       orderBookRawUpdatesSubscriptions;
 
   private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
-  private final BinanceMarketDataService marketDataService;
+  private final Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider;
   private final Runnable onApiCall;
 
   private final AtomicBoolean fallenBack = new AtomicBoolean();
   private final AtomicReference<Runnable> fallbackOnApiCall = new AtomicReference<>(() -> {});
 
   public BinanceStreamingMarketDataService(
-      BinanceStreamingService service,
-      BinanceMarketDataService marketDataService,
-      Runnable onApiCall,
-      final String orderBookUpdateFrequencyParameter) {
+          BinanceStreamingService service,
+          Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider,
+          Runnable onApiCall,
+          final String orderBookUpdateFrequencyParameter) {
     this.service = service;
     this.orderBookUpdateFrequencyParameter = orderBookUpdateFrequencyParameter;
-    this.marketDataService = marketDataService;
+    this.binanceOrderBookProvider = binanceOrderBookProvider;
     this.onApiCall = onApiCall;
     this.tickerSubscriptions = new ConcurrentHashMap<>();
     this.orderbookSubscriptions = new ConcurrentHashMap<>();
@@ -290,7 +287,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
     private BinanceOrderbook fetchBinanceOrderBook(CurrencyPair currencyPair)
         throws IOException, InterruptedException {
       try {
-        return marketDataService.getBinanceOrderbook(currencyPair, 1000);
+        return binanceOrderBookProvider.apply(currencyPair);
       } catch (BinanceException e) {
         if (BinanceErrorAdapter.adapt(e) instanceof RateLimitExceededException) {
           if (fallenBack.compareAndSet(false, true)) {

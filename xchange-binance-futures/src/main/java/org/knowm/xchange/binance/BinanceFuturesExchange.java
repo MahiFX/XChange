@@ -1,38 +1,36 @@
 package org.knowm.xchange.binance;
 
 import org.knowm.xchange.ExchangeSpecification;
-import org.knowm.xchange.binance.service.BinanceAccountService;
-import org.knowm.xchange.binance.service.BinanceMarketDataService;
-import org.knowm.xchange.binance.service.BinanceTradeService;
+import org.knowm.xchange.binance.service.BinanceFuturesMarketDataService;
+import org.knowm.xchange.binance.service.BinanceFuturesTradeService;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.utils.AuthUtils;
 
-public class BinanceExchange extends BinanceExchangeCommon {
-    private BinanceAuthenticated binance;
+public class BinanceFuturesExchange extends BinanceExchangeCommon {
+    private BinanceFuturesAuthenticated binance;
 
     @Override
     protected void initServices() {
         this.binance = ExchangeRestProxyBuilder.forInterface(
-                BinanceAuthenticated.class, getExchangeSpecification())
+                BinanceFuturesAuthenticated.class, getExchangeSpecification())
                 .build();
         this.timestampFactory =
                 new BinanceTimestampFactory(
                         binance, getExchangeSpecification().getResilience(), getResilienceRegistries());
-        this.marketDataService = new BinanceMarketDataService(this, binance, getResilienceRegistries());
-        this.tradeService = new BinanceTradeService(this, binance, getResilienceRegistries());
-        this.accountService = new BinanceAccountService(this, binance, getResilienceRegistries());
+        this.marketDataService = new BinanceFuturesMarketDataService(this, binance, getResilienceRegistries());
+        this.tradeService = new BinanceFuturesTradeService(this, binance, getResilienceRegistries());
+//        this.accountService = new BinanceFuturesAccountService(this, binance, getResilienceRegistries()); TODO - Binance Futures
     }
 
     @Override
     public ExchangeSpecification getDefaultExchangeSpecification() {
-
         ExchangeSpecification spec = new ExchangeSpecification(this.getClass());
-        spec.setSslUri("https://api.binance.com");
+        spec.setSslUri("https://fapi.binance.com");
         spec.setHost("www.binance.com");
         spec.setPort(80);
-        spec.setExchangeName("Binance");
-        spec.setExchangeDescription("Binance Exchange.");
-        AuthUtils.setApiAndSecretKey(spec, "binance");
+        spec.setExchangeName("Binance Futures");
+        spec.setExchangeDescription("Binance Futures Exchange.");
+        AuthUtils.setApiAndSecretKey(spec, "binance_futures");
         return spec;
     }
 
@@ -49,10 +47,17 @@ public class BinanceExchange extends BinanceExchangeCommon {
         if (exchangeSpecification.getExchangeSpecificParameters() != null) {
             if (Boolean.TRUE.equals(
                     exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox"))) {
-                exchangeSpecification.setSslUri("https://testnet.binance.vision");
-                exchangeSpecification.setHost("testnet.binance.vision");
+                exchangeSpecification.setSslUri("https://testnet.binancefuture.com");
+                exchangeSpecification.setHost("testnet.binancefuture.com");
             }
         }
     }
 
+    @Override
+    public void remoteInit() {
+        try {
+            super.remoteInit();
+        } catch (Throwable ignored) {
+        }
+    }
 }

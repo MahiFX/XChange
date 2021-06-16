@@ -14,7 +14,7 @@ public class AbstractResilienceTest {
 
   @Before
   public void resertResilienceRegistries() {
-    BinanceExchange.resetResilienceRegistries();
+    BinanceExchangeCommon.resetResilienceRegistries();
   }
 
   protected BinanceExchange createExchangeWithRetryEnabled() {
