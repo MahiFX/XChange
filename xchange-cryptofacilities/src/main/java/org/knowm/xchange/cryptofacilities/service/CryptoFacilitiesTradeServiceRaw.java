@@ -1,9 +1,5 @@
 package org.knowm.xchange.cryptofacilities.service;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.List;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.cryptofacilities.Util;
 import org.knowm.xchange.cryptofacilities.dto.marketdata.CryptoFacilitiesCancel;
@@ -20,6 +16,11 @@ import org.knowm.xchange.dto.Order.OrderType;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+
 /** @author Jean-Christophe Laruelle */
 public class CryptoFacilitiesTradeServiceRaw extends CryptoFacilitiesBaseService {
 
@@ -34,7 +35,7 @@ public class CryptoFacilitiesTradeServiceRaw extends CryptoFacilitiesBaseService
   }
 
   public CryptoFacilitiesOrder sendCryptoFacilitiesLimitOrder(LimitOrder order) throws IOException {
-    String orderType = order.hasFlag(CryptoFacilitiesOrderFlags.POST_ONLY) ? "post" : "lmt";
+    String orderType = order.hasFlag(CryptoFacilitiesOrderFlags.IoC) ? "ioc" : order.hasFlag(CryptoFacilitiesOrderFlags.POST_ONLY) ? "post" : "lmt";
 
     String symbol = order.getCurrencyPair().base.toString();
     String side = "buy";
@@ -56,11 +57,15 @@ public class CryptoFacilitiesTradeServiceRaw extends CryptoFacilitiesBaseService
             limitPrice,
             null);
 
-    if (ord.isSuccess()) {
-      return ord;
-    } else {
+    if (!ord.isSuccess()) {
       throw new ExchangeException("Error sending CF limit order: " + ord.getError());
     }
+
+    if (!ord.getStatus().equals("placed")) {
+      throw new ExchangeException("Order rejected: " + ord.getStatus());
+    }
+
+    return ord;
   }
 
   public BatchOrderResult sendCryptoFacilitiesBatchOrder(List<OrderCommand> commands)
