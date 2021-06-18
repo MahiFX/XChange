@@ -34,17 +34,17 @@ public class BitfinexStreamingMarketDataService implements StreamingMarketDataSe
   }
 
   private String pairToSymbol(CurrencyPair currencyPair) {
-    return (currencyPair.counter == Currency.USDT)
-        ? ("t" + currencyPair.base.getCurrencyCode() + "UST")
-        : ("t" + currencyPair.base.getCurrencyCode() + currencyPair.counter.getCurrencyCode());
+      return (currencyPair.counter == Currency.USDT)
+              ? ("t" + currencyPair.base.getCurrencyCode() + "UST")
+              : ("t" + currencyPair.base.getCurrencyCode() + currencyPair.counter.getCurrencyCode());
   }
 
   @Override
   public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
     String channelName = "book";
     final String depth = args.length > 0 ? args[0].toString() : "100";
-    String pair = pairToSymbol(currencyPair);
-    final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+      String pair = pairToSymbol(currencyPair);
+      final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
       Observable<BitfinexWebSocketOrderbookTransaction> subscribedChannel =
               service
