@@ -4,6 +4,7 @@ import com.google.common.base.MoreObjects;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
+import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import info.bitrich.xchangestream.util.Events;
 import io.reactivex.Completable;
@@ -12,7 +13,10 @@ import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceFuturesExchange;
 import org.knowm.xchange.binance.dto.marketdata.BinanceOrderbook;
 import org.knowm.xchange.binance.service.BinanceFuturesMarketDataService;
+import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,13 +28,21 @@ import java.util.stream.Stream;
 import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_HIGHER_UPDATE_FREQUENCY;
 
 public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange implements StreamingExchange {
+    private static final Logger LOG = LoggerFactory.getLogger(BinanceStreamingExchange.class);
+
     private static final String WS_USD_FUTURES_API_BASE_URI = "wss://fstream.binance.com/";
     private static final String WS_USD_TESTNET_FUTURES_API_BASE_URI = "wss://stream.binancefuture.com/";
 
     private Runnable onApiCall;
     private String orderBookUpdateFrequencyParameter = "";
+
     private BinanceStreamingService streamingService;
+    private BinanceUserDataStreamingService userDataStreamingService;
+
     private BinanceFuturesStreamingMarketDataService streamingMarketDataService;
+    private BinanceFuturesStreamingTradeService streamingTradeService;
+
+    private BinanceUserDataChannel userDataChannel;
 
     @Override
     protected void initServices() {
@@ -110,14 +122,59 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
             completables.add(streamingService.connect());
         }
 
+        if (subscriptions.hasAuthenticated()) {
+            if (exchangeSpecification.getApiKey() == null) {
+                throw new IllegalArgumentException("API key required for authenticated streams");
+            }
+
+            LOG.info("Connecting to authenticated web socket");
+            BinanceFuturesStreaming binance =
+                    ExchangeRestProxyBuilder.forInterface(
+                            BinanceFuturesStreaming.class, getExchangeSpecification())
+                            .build();
+            userDataChannel =
+                    new BinanceUserDataChannel(binance, exchangeSpecification.getApiKey(), onApiCall);
+            try {
+                completables.add(createAndConnectUserDataService(userDataChannel.getListenKey()));
+            } catch (BinanceUserDataChannel.NoActiveChannelException e) {
+                throw new IllegalStateException("Failed to establish user data channel", e);
+            }
+        }
+
         streamingMarketDataService = new BinanceFuturesStreamingMarketDataService(
                 streamingService,
                 getBinanceOrderBookProvider(),
                 onApiCall,
                 orderBookUpdateFrequencyParameter);
+        streamingTradeService = new BinanceFuturesStreamingTradeService(userDataStreamingService);
 
         return Completable.concat(completables)
-                .doOnComplete(() -> streamingMarketDataService.openSubscriptions(subscriptions));
+                .doOnComplete(() -> streamingMarketDataService.openSubscriptions(subscriptions))
+                .doOnComplete(() -> streamingTradeService.openSubscriptions());
+    }
+
+    private Completable createAndConnectUserDataService(String listenKey) {
+        userDataStreamingService = BinanceFuturesUserDataStreamingService.create(listenKey, Boolean.TRUE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX)));
+        return userDataStreamingService
+                .connect()
+                .doOnComplete(
+                        () -> {
+                            LOG.info("Connected to authenticated web socket");
+                            userDataChannel.onChangeListenKey(
+                                    newListenKey -> {
+                                        userDataStreamingService
+                                                .disconnect()
+                                                .doOnComplete(
+                                                        () -> {
+                                                            createAndConnectUserDataService(newListenKey)
+                                                                    .doOnComplete(
+                                                                            () -> {
+                                                                                streamingTradeService.setUserDataStreamingService(
+                                                                                        userDataStreamingService);
+                                                                            });
+                                                        });
+                                    });
+                        });
     }
 
     private Function<CurrencyPair, BinanceOrderbook> getBinanceOrderBookProvider() {
@@ -135,6 +192,11 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
         return streamingMarketDataService;
     }
 
+    @Override
+    public StreamingTradeService getStreamingTradeService() {
+        return streamingTradeService;
+    }
+
     private BinanceStreamingService createStreamingService(ProductSubscription subscription) {
         return new BinanceFuturesStreamingService(streamingUri(subscription), subscription);
     }
@@ -144,6 +206,14 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
         List<Completable> completables = new ArrayList<>();
         completables.add(streamingService.disconnect());
         streamingService = null;
+        if (userDataStreamingService != null) {
+            completables.add(userDataStreamingService.disconnect());
+            userDataStreamingService = null;
+        }
+        if (userDataChannel != null) {
+            userDataChannel.close();
+            userDataChannel = null;
+        }
         streamingMarketDataService = null;
         return Completable.concat(completables);
     }
@@ -155,7 +225,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
 
     @Override
     public boolean isAlive() {
-        return streamingService != null && streamingService.isSocketOpen();
+        return (streamingService != null && streamingService.isSocketOpen() || userDataStreamingService != null && userDataStreamingService.isSocketOpen());
     }
 
     @Override

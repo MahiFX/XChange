@@ -11,25 +11,26 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
-import java.io.IOException;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.ExchangeSecurityException;
 
+import java.io.IOException;
+
 public class BinanceStreamingTradeService implements StreamingTradeService {
 
-  private final Subject<ExecutionReportBinanceUserTransaction> executionReportsPublisher =
-      PublishSubject.<ExecutionReportBinanceUserTransaction>create().toSerialized();
+  protected final Subject<ExecutionReportBinanceUserTransaction> executionReportsPublisher =
+          PublishSubject.<ExecutionReportBinanceUserTransaction>create().toSerialized();
 
-  private volatile Disposable executionReports;
-  private volatile BinanceUserDataStreamingService binanceUserDataStreamingService;
+  protected volatile Disposable executionReports;
+  protected volatile BinanceUserDataStreamingService binanceUserDataStreamingService;
 
-  private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+  protected final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
   public BinanceStreamingTradeService(
-      BinanceUserDataStreamingService binanceUserDataStreamingService) {
+          BinanceUserDataStreamingService binanceUserDataStreamingService) {
     this.binanceUserDataStreamingService = binanceUserDataStreamingService;
   }
 
@@ -41,7 +42,7 @@ public class BinanceStreamingTradeService implements StreamingTradeService {
 
   public Observable<Order> getOrderChanges() {
     return getRawExecutionReports()
-        .filter(r -> !r.getExecutionType().equals(ExecutionType.REJECTED))
+            .filter(r -> !ExecutionType.REJECTED.equals(r.getExecutionType()))
         .map(ExecutionReportBinanceUserTransaction::toOrder);
   }
 
@@ -52,7 +53,7 @@ public class BinanceStreamingTradeService implements StreamingTradeService {
 
   public Observable<UserTrade> getUserTrades() {
     return getRawExecutionReports()
-        .filter(r -> r.getExecutionType().equals(ExecutionType.TRADE))
+            .filter(r -> ExecutionType.TRADE.equals(r.getExecutionType()))
         .map(ExecutionReportBinanceUserTransaction::toUserTrade);
   }
 
