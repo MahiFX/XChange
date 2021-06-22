@@ -257,6 +257,16 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Tra
     }
   }
 
+  @Override
+  public Collection<Order> getOrder(OrderQueryParams... params) throws IOException {
+    Collection<Order> allOrders = new ArrayList<>();
+    for (OrderQueryParams param : params) {
+      Collection<Order> order = getOrder(param.getOrderId());
+      allOrders.addAll(order);
+    }
+    return allOrders;
+  }
+
   public BigDecimal getMakerFee() throws IOException {
     return getBitfinexAccountInfos()[0].getMakerFees();
   }
