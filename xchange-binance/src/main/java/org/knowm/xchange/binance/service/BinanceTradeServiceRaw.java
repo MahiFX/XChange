@@ -1,15 +1,5 @@
 package org.knowm.xchange.binance.service;
 
-import static org.knowm.xchange.binance.BinanceResilience.ORDERS_PER_DAY_RATE_LIMITER;
-import static org.knowm.xchange.binance.BinanceResilience.ORDERS_PER_SECOND_RATE_LIMITER;
-import static org.knowm.xchange.binance.BinanceResilience.REQUEST_WEIGHT_RATE_LIMITER;
-import static org.knowm.xchange.client.ResilienceRegistries.NON_IDEMPOTENT_CALLS_RETRY_CONFIG_NAME;
-
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-
 import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.binance.dto.BinanceException;
@@ -22,11 +12,18 @@ import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+import static org.knowm.xchange.binance.BinanceResilience.*;
+import static org.knowm.xchange.client.ResilienceRegistries.NON_IDEMPOTENT_CALLS_RETRY_CONFIG_NAME;
+
 public class BinanceTradeServiceRaw extends BinanceBaseService {
 
-  protected BinanceTradeServiceRaw(
-      BinanceExchange exchange,
-      ResilienceRegistries resilienceRegistries) {
+  protected BinanceTradeServiceRaw(BinanceExchange exchange,
+                                   ResilienceRegistries resilienceRegistries) {
     super(exchange, resilienceRegistries);
   }
 
@@ -341,23 +338,6 @@ public class BinanceTradeServiceRaw extends BinanceBaseService {
         .call();
   }
 
-  public BinanceListenKey startUserDataStream() throws IOException {
-    return decorateApiCall(() -> binance.startUserDataStream(apiKey))
-        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
-        .call();
-  }
-
-  public void keepAliveDataStream(String listenKey) throws IOException {
-    decorateApiCall(() -> binance.keepAliveUserDataStream(apiKey, listenKey))
-        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
-        .call();
-  }
-
-  public void closeDataStream(String listenKey) throws IOException {
-    decorateApiCall(() -> binance.closeUserDataStream(apiKey, listenKey))
-        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
-        .call();
-  }
 
   protected int openOrdersPermits(Instrument pair) {
     return pair != null ? 1 : 40;

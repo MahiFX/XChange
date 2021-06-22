@@ -1,15 +1,15 @@
 package info.bitrich.xchangestream.binance;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import org.knowm.xchange.binance.BinanceAuthenticated;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * Binance user data streams must be established by first requesting a unique "listen key" via
@@ -26,7 +26,7 @@ class BinanceUserDataChannel implements AutoCloseable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BinanceUserDataChannel.class);
 
-  private final BinanceAuthenticated binance;
+  private final BinanceStreamingCommon binance;
   private final String apiKey;
   private final Runnable onApiCall;
   private final Disposable keepAlive;
@@ -38,11 +38,11 @@ class BinanceUserDataChannel implements AutoCloseable {
    * Creates the channel, establishing a listen key (immediately available from {@link
    * #getListenKey()}) and starting timers to ensure the channel is kept alive.
    *
-   * @param binance Access to binance services.
-   * @param apiKey The API key.
+   * @param binance   Access to binance services.
+   * @param apiKey    The API key.
    * @param onApiCall A callback to perform prior to any service calls.
    */
-  BinanceUserDataChannel(BinanceAuthenticated binance, String apiKey, Runnable onApiCall) {
+  BinanceUserDataChannel(BinanceStreamingCommon binance, String apiKey, Runnable onApiCall) {
     this.binance = binance;
     this.apiKey = apiKey;
     this.onApiCall = onApiCall;

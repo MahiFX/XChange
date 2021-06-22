@@ -6,17 +6,15 @@ import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import info.bitrich.xchangestream.service.netty.WebSocketClientCompressionAllowClientNoContextAndServerNoContextHandler;
 import io.netty.handler.codec.http.websocketx.extensions.WebSocketClientExtensionHandler;
 import io.reactivex.Observable;
-import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 public class BinanceUserDataStreamingService extends JsonNettyStreamingService {
 
   private static final Logger LOG = LoggerFactory.getLogger(BinanceUserDataStreamingService.class);
 
-  private static final String USER_FUTURES_API_BASE_URI = "wss://fstream.binance.com/ws/";
-  private static final String USER_FUTURES_SANDBOX_URI = "wss://testnet.binancefuture.com/ws/";
   private static final String USER_API_BASE_URI = "wss://stream.binance.com:9443/ws/";
   private static final String USER_API_SANDBOX_URI = "wss://testnet.binance.vision/ws/";
 
@@ -24,7 +22,7 @@ public class BinanceUserDataStreamingService extends JsonNettyStreamingService {
     return new BinanceUserDataStreamingService(baseUri + "ws/" + listenKey);
   }
 
-  private BinanceUserDataStreamingService(String url) {
+  protected BinanceUserDataStreamingService(String url) {
     super(url, Integer.MAX_VALUE);
   }
 

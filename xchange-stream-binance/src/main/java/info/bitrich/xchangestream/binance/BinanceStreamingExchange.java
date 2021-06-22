@@ -8,7 +8,6 @@ import info.bitrich.xchangestream.util.Events;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import org.apache.commons.lang3.StringUtils;
-import org.knowm.xchange.binance.BinanceAuthenticated;
 import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.binance.service.BinanceMarketDataService;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
@@ -116,9 +115,9 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
       }
 
       LOG.info("Connecting to authenticated web socket");
-      BinanceAuthenticated binance =
+      BinanceStreaming binance =
               ExchangeRestProxyBuilder.forInterface(
-                              BinanceAuthenticated.class, getExchangeSpecification())
+                              BinanceStreaming.class, getExchangeSpecification())
                       .build();
       userDataChannel =
               new BinanceUserDataChannel(binance, exchangeSpecification.getApiKey(), onApiCall);
