@@ -21,6 +21,7 @@ import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
+import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 import org.knowm.xchange.utils.DateUtils;
 
 public class BitfinexTradeService extends BitfinexTradeServiceRaw implements TradeService {
@@ -242,6 +243,16 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Tra
     } catch (BitfinexException e) {
       throw BitfinexErrorAdapter.adapt(e);
     }
+  }
+
+  @Override
+  public Collection<Order> getOrder(OrderQueryParams... params) throws IOException {
+    Collection<Order> allOrders = new ArrayList<>();
+    for (OrderQueryParams param : params) {
+      Collection<Order> order = getOrder(param.getOrderId());
+      allOrders.addAll(order);
+    }
+    return allOrders;
   }
 
   public BigDecimal getMakerFee() throws IOException {
