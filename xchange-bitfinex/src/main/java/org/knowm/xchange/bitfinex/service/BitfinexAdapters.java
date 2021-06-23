@@ -186,7 +186,10 @@ public final class BitfinexAdapters {
   public static OrderStatus adaptOrderStatus(BitfinexOrderStatusResponse order) {
 
     if (order.isCancelled()) return OrderStatus.CANCELED;
-    else if (order.getExecutedAmount().compareTo(BigDecimal.ZERO) == 0) return OrderStatus.NEW;
+    else if (order.getExecutedAmount().compareTo(BigDecimal.ZERO) == 0){
+      if (!order.isLive()) return OrderStatus.REJECTED;
+      return OrderStatus.NEW;
+    }
     else if (order.getExecutedAmount().compareTo(order.getOriginalAmount()) < 0)
       return OrderStatus.PARTIALLY_FILLED;
     else if (order.getExecutedAmount().compareTo(order.getOriginalAmount()) == 0)
