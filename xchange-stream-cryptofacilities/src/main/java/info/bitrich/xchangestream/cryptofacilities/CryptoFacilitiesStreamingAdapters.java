@@ -88,4 +88,17 @@ public class CryptoFacilitiesStreamingAdapters {
         Date timestamp = new Date(node.get("timestamp").asLong());
         return new LimitOrder(orderType, volume, instrument, null, timestamp, price);
     }
+
+    public static Order.OrderType adaptOrderType(int direction) {
+        switch (direction) {
+            case 0:
+                return Order.OrderType.BID;
+
+            case 1:
+                return Order.OrderType.ASK;
+
+            default:
+                throw new IllegalArgumentException("Unknown direction " + direction);
+        }
+    }
 }

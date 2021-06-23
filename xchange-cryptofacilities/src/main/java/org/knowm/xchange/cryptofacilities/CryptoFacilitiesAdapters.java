@@ -1,11 +1,5 @@
 package org.knowm.xchange.cryptofacilities;
 
-import java.math.BigDecimal;
-import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import org.knowm.xchange.cryptofacilities.dto.account.CryptoFacilitiesAccount;
 import org.knowm.xchange.cryptofacilities.dto.account.CryptoFacilitiesAccountInfo;
 import org.knowm.xchange.cryptofacilities.dto.account.CryptoFacilitiesAccounts;
@@ -32,6 +26,13 @@ import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.OpenOrders;
 import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.dto.trade.UserTrades;
+
+import java.math.BigDecimal;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /** @author Jean-Christophe Laruelle */
 public class CryptoFacilitiesAdapters {
@@ -141,7 +142,7 @@ public class CryptoFacilitiesAdapters {
     return new LimitOrder(
         adaptOrderType(ord.getDirection()),
         ord.getQuantity(),
-        new CurrencyPair(ord.getSymbol(), ord.getSymbol().substring(6, 9)),
+            adaptCurrencyPair(ord.getSymbol()),
         ord.getId(),
         ord.getTimestamp(),
         ord.getLimitPrice(),
@@ -171,12 +172,16 @@ public class CryptoFacilitiesAdapters {
     return new UserTrade.Builder()
         .type(adaptOrderType(fill.getSide()))
         .originalAmount(fill.getSize())
-        .currencyPair(new CurrencyPair(fill.getSymbol(), fill.getSymbol().substring(6, 9)))
+        .currencyPair(adaptCurrencyPair(fill.getSymbol()))
         .price(fill.getPrice())
         .timestamp(fill.getFillTime())
         .id(fill.getFillId())
         .orderId(fill.getOrderId())
         .build();
+  }
+
+  public static CurrencyPair adaptCurrencyPair(String symbol) {
+    return new CurrencyPair(symbol, symbol.substring(6, 9));
   }
 
   public static UserTrades adaptFills(CryptoFacilitiesFills cryptoFacilitiesFills) {

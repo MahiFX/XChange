@@ -23,8 +23,9 @@ public class CryptoFacilitiesStreamingExchange extends CryptoFacilitiesExchange 
     private static final String CF_API_URI = "wss://www.cryptofacilities.com/ws/v1";
     private static final String CF_API_BETA_URI = "wss://conformance.cryptofacilities.com/ws/v1";
 
-    private info.bitrich.xchangestream.cryptofacilities.CryptoFacilitiesStreamingService streamingService, privateStreamingService;
-    private info.bitrich.xchangestream.cryptofacilities.CryptoFacilitiesStreamingMarketDataService streamingMarketDataService;
+    private CryptoFacilitiesStreamingService streamingService, privateStreamingService;
+    private CryptoFacilitiesStreamingMarketDataService streamingMarketDataService;
+    private CryptoFacilitiesStreamingTradeService streamingTradeService;
 
     public CryptoFacilitiesStreamingExchange() {
     }
@@ -53,12 +54,14 @@ public class CryptoFacilitiesStreamingExchange extends CryptoFacilitiesExchange 
         String uri = pickUri(exchangeSpecification, useBeta);
 
         this.streamingService =
-                new info.bitrich.xchangestream.cryptofacilities.CryptoFacilitiesStreamingService(false, uri);
-        this.streamingMarketDataService = new info.bitrich.xchangestream.cryptofacilities.CryptoFacilitiesStreamingMarketDataService(streamingService);
+                new CryptoFacilitiesStreamingService(uri);
+        this.streamingMarketDataService = new CryptoFacilitiesStreamingMarketDataService(streamingService);
 
         if (StringUtils.isNotEmpty(exchangeSpecification.getApiKey())) {
             this.privateStreamingService =
-                    new info.bitrich.xchangestream.cryptofacilities.CryptoFacilitiesStreamingService(true, uri);
+                    new CryptoFacilitiesStreamingService(uri, exchangeSpecification.getApiKey(), exchangeSpecification.getSecretKey());
+
+            streamingTradeService = new CryptoFacilitiesStreamingTradeService(privateStreamingService);
         }
     }
 
@@ -114,8 +117,7 @@ public class CryptoFacilitiesStreamingExchange extends CryptoFacilitiesExchange 
 
     @Override
     public StreamingTradeService getStreamingTradeService() {
-//  Not yet implemented Trade side of Kraken Futures
-        return null;
+        return streamingTradeService;
     }
 
     @Override

@@ -41,6 +41,9 @@ import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -50,8 +53,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class NettyStreamingService<T> extends ConnectableService {
   private final Logger LOG = LoggerFactory.getLogger(this.getClass());
@@ -420,6 +421,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   }
 
   public void resubscribeChannels() {
+    LOG.info("Resubscribing to {} channels: {}", channels.size(), channels.keySet());
     for (Entry<String, Subscription> entry : channels.entrySet()) {
       try {
         Subscription subscription = entry.getValue();
