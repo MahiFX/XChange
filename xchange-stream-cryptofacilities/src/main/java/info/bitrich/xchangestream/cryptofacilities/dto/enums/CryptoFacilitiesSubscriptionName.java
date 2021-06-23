@@ -6,6 +6,7 @@ public enum CryptoFacilitiesSubscriptionName {
   trade,
   book,
   spread,
-  ownTrades,
-  openOrders
+  fills,
+  open_orders,
+  open_orders_verbose
 }

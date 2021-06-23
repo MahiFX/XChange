@@ -19,7 +19,8 @@ public enum CryptoFacilitiesEventType {
     pong,
     error,
     alert,
-    info;
+    info,
+    challenge;
 
     public static CryptoFacilitiesEventType getEvent(String event) {
         return Arrays.stream(CryptoFacilitiesEventType.values())
