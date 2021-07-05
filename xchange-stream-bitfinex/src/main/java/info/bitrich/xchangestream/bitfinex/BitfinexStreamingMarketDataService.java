@@ -101,7 +101,7 @@ public class BitfinexStreamingMarketDataService implements StreamingMarketDataSe
     String channelName = "trades";
     final String tradeType = args.length > 0 ? args[0].toString() : "te";
 
-    String pair = currencyPair.base.toString() + currencyPair.counter.toString();
+    String pair = BitfinexUtils.toPairStringV1(currencyPair);
     final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
     Observable<BitfinexWebSocketTradesTransaction> subscribedChannel =
