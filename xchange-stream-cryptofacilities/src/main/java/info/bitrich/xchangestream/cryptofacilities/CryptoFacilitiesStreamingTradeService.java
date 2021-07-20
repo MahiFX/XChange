@@ -110,7 +110,7 @@ public class CryptoFacilitiesStreamingTradeService implements StreamingTradeServ
         List<Order> adaptedOrders = new ArrayList<>();
 
         if (ArrayUtils.isEmpty(orders)) {
-            if (message.getCancel()) {
+            if (Boolean.TRUE.equals(message.getCancel())) {
                 adaptedOrders.add(new CryptoFacilitiesSimpleCancelOrder(
                         message.getOrderId(),
                         new Date()
