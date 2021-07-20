@@ -8,6 +8,7 @@ import info.bitrich.xchangestream.cryptofacilities.dto.CryptoFacilitiesOpenOrder
 import info.bitrich.xchangestream.cryptofacilities.dto.enums.CryptoFacilitiesSubscriptionName;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
+import org.apache.commons.lang3.ArrayUtils;
 import org.knowm.xchange.cryptofacilities.CryptoFacilitiesAdapters;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -17,10 +18,7 @@ import org.knowm.xchange.dto.trade.StopOrder;
 import org.knowm.xchange.dto.trade.UserTrade;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class CryptoFacilitiesStreamingTradeService implements StreamingTradeService {
     private final CryptoFacilitiesStreamingService streamingService;
@@ -109,11 +107,20 @@ public class CryptoFacilitiesStreamingTradeService implements StreamingTradeServ
     private Iterable<Order> adaptCryptoFacilitiesOrders(CryptoFacilitiesOpenOrdersMessage message) {
         CryptoFacilitiesOpenOrder[] orders = message.getOrders();
 
-        if (orders == null) {
-            return Collections.emptyList();
-        }
+        List<Order> adaptedOrders = new ArrayList<>();
 
-        List<Order> result = new ArrayList<>();
+        if (ArrayUtils.isEmpty(orders)) {
+            if (message.getCancel()) {
+                adaptedOrders.add(new CryptoFacilitiesSimpleCancelOrder(
+                        message.getOrderId(),
+                        new Date()
+                ));
+
+                return adaptedOrders;
+            } else {
+                return Collections.emptyList();
+            }
+        }
 
         for (CryptoFacilitiesOpenOrder order : orders) {
             String orderId = order.getOrderId();
@@ -130,7 +137,7 @@ public class CryptoFacilitiesStreamingTradeService implements StreamingTradeServ
             else // this is an order update (not the full order, it may only update one field)
                 throw new IllegalArgumentException("Unsupported type " + orderType);
 
-            result.add(
+            adaptedOrders.add(
                     builder
                             .id(orderId)
                             .originalAmount(order.getSize())
@@ -140,7 +147,8 @@ public class CryptoFacilitiesStreamingTradeService implements StreamingTradeServ
                             .userReference(order.getClientOrderId())
                             .build());
         }
-        return result;
+
+        return adaptedOrders;
     }
 
     private Iterable<UserTrade> adaptCryptoFacilitiesFills(CryptoFacilitiesFillsMessage cryptoFacilitiesFillsMessage) {
@@ -170,7 +178,7 @@ public class CryptoFacilitiesStreamingTradeService implements StreamingTradeServ
             return order.getFilledSize().compareTo(BigDecimal.ZERO) > 0 ? Order.OrderStatus.PARTIALLY_FILLED : Order.OrderStatus.NEW;
         } else if (order.getFilledSize().compareTo(order.getSize()) == 0) {
             return Order.OrderStatus.FILLED;
-        } else if (order.getFilledSize().compareTo(BigDecimal.ZERO) == 0)  {
+        } else if (order.getFilledSize().compareTo(BigDecimal.ZERO) == 0) {
             return Order.OrderStatus.CANCELED;
         } else {
             return Order.OrderStatus.PARTIALLY_FILLED;

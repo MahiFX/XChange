@@ -6,6 +6,7 @@ import java.util.Arrays;
 
 public class CryptoFacilitiesOpenOrdersMessage {
     private final String feed;
+    private final String orderId;
     private final String account;
     private final CryptoFacilitiesOpenOrder order;
     private final CryptoFacilitiesOpenOrder[] orders;
@@ -14,12 +15,14 @@ public class CryptoFacilitiesOpenOrdersMessage {
 
     public CryptoFacilitiesOpenOrdersMessage(
             @JsonProperty("feed") String feed,
+            @JsonProperty("order_id") String orderId,
             @JsonProperty("account") String account,
             @JsonProperty("order") CryptoFacilitiesOpenOrder order,
             @JsonProperty("orders") CryptoFacilitiesOpenOrder[] orders,
             @JsonProperty("is_cancel") Boolean isCancel,
             @JsonProperty("reason") String reason) {
         this.feed = feed;
+        this.orderId = orderId;
         this.account = account;
         this.order = order;
         this.orders = orders;
@@ -31,13 +34,17 @@ public class CryptoFacilitiesOpenOrdersMessage {
         return feed;
     }
 
+    public String getOrderId() {
+        return orderId;
+    }
+
     public String getAccount() {
         return account;
     }
 
     public CryptoFacilitiesOpenOrder[] getOrders() {
         if (orders == null && order != null) {
-            return new CryptoFacilitiesOpenOrder[] {order};
+            return new CryptoFacilitiesOpenOrder[]{order};
         }
 
         return orders;
