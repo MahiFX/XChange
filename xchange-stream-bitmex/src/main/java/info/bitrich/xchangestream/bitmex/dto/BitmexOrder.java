@@ -2,11 +2,12 @@ package info.bitrich.xchangestream.bitmex.dto;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.math.BigDecimal;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
+
+import java.math.BigDecimal;
 
 public class BitmexOrder extends BitmexMarketDataEvent {
 
@@ -81,18 +82,18 @@ public class BitmexOrder extends BitmexMarketDataEvent {
 
   public Order toOrder() {
     Order.Builder order;
-    if (ordType == null && BitmexOrder.OrderStatus.CANCELED.equals(ordStatus)){
+    if (ordType == null && BitmexOrder.OrderStatus.CANCELED.equals(ordStatus)) {
       order = new BitmexCancelOrder.BitmexCancelOrderBuilder(getInstrument());
-    } else if (ordType.equals("Market")) {
+    } else if ("Market".equals(ordType)) {
       order =
-          new MarketOrder.Builder(
-              side.equals("Buy") ? Order.OrderType.BID : Order.OrderType.ASK,
-                  getInstrument());
+              new MarketOrder.Builder(
+                      "Buy".equals(side) ? Order.OrderType.BID : Order.OrderType.ASK,
+                      getInstrument());
     } else {
       order =
-          new LimitOrder.Builder(
-              side.equals("Buy") ? Order.OrderType.BID : Order.OrderType.ASK,
-                  getInstrument());
+              new LimitOrder.Builder(
+                      "Buy".equals(side) ? Order.OrderType.BID : Order.OrderType.ASK,
+                      getInstrument());
     }
     order.id(orderID).averagePrice(avgPx).originalAmount(orderQty).cumulativeAmount(cumQty).timestamp(getDate()).userReference(clOrdID);
 
