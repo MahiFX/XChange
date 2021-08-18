@@ -6,6 +6,10 @@ import java.math.BigDecimal;
 import java.util.Date;
 import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
 import org.knowm.xchange.bitmex.dto.trade.BitmexSide;
+import org.knowm.xchange.currency.Currency;
+import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.trade.UserTrade;
 
 /** @author Nikita Belenkiy on 05/06/2018. */
 public class BitmexExecution {
@@ -465,5 +469,20 @@ public class BitmexExecution {
         + ", timestamp="
         + timestamp
         + '}';
+  }
+
+  public UserTrade toUserTrade() {
+    return new UserTrade(
+            BitmexSide.BUY.equals(side) ? Order.OrderType.BID : Order.OrderType.ASK,
+            BigDecimal.valueOf(lastQty),
+            new CurrencyPair(symbol),
+            lastPx,
+            timestamp,
+            execID,
+            orderID,
+            BigDecimal.valueOf(execCost),
+            new Currency(currency),
+            clOrdID
+    );
   }
 }
