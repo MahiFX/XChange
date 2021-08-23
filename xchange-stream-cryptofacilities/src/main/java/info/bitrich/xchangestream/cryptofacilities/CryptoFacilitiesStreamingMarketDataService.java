@@ -10,7 +10,6 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.marketdata.Trade;
-import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +61,6 @@ public class CryptoFacilitiesStreamingMarketDataService implements StreamingMark
 
                     return false;
                 })
-
                 .map(objectNode -> info.bitrich.xchangestream.cryptofacilities.CryptoFacilitiesStreamingAdapters.adaptFuturesOrderbookMessage(orderbookSubscription.orderBook, currencyPair, objectNode));
 
         return Observable.merge(
@@ -78,7 +76,14 @@ public class CryptoFacilitiesStreamingMarketDataService implements StreamingMark
 
     @Override
     public Observable<Trade> getTrades(CurrencyPair currencyPair, Object... args) {
-        throw new NotAvailableFromExchangeException("getTrades operation not supported by Kraken Futures API");
+        String channelName = getChannelName(CryptoFacilitiesSubscriptionName.trade, currencyPair);
+
+        Observable<ObjectNode> subscribe = subscribe(channelName, 1, null);
+
+        return subscribe
+                .flatMap(objectNode ->
+                        Observable.fromIterable(CryptoFacilitiesStreamingAdapters.adaptTrades(currencyPair, objectNode))
+                );
     }
 
     public Observable<ObjectNode> subscribe(String channelName, int maxItems, Integer depth) {

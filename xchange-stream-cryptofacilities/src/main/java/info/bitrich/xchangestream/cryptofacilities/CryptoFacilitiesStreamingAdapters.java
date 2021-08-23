@@ -7,11 +7,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.dto.trade.LimitOrder;
+import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.instrument.Instrument;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -87,6 +91,28 @@ public class CryptoFacilitiesStreamingAdapters {
         BigDecimal volume = new BigDecimal(node.get("qty").asText()).stripTrailingZeros();
         Date timestamp = new Date(node.get("timestamp").asLong());
         return new LimitOrder(orderType, volume, instrument, null, timestamp, price);
+    }
+
+    public static List<Trade> adaptTrades(Instrument instrument, ObjectNode node) {
+        if (node == null) return null;
+
+        ArrayNode jsonTrades = node.withArray("trades");
+
+        List<Trade> trades = new ArrayList<>(jsonTrades.size());
+        for (JsonNode trade : jsonTrades) {
+            trades.add(
+                    new Trade.Builder()
+                            .type("sell".equals(trade.get("side").textValue()) ? Order.OrderType.ASK : Order.OrderType.BID)
+                            .originalAmount(trade.get("qty").decimalValue())
+                            .instrument(instrument)
+                            .price(trade.get("price").decimalValue())
+                            .timestamp(new Date(trade.get("time").asLong()))
+                            .id(trade.get("uid").asText())
+                            .build()
+            );
+        }
+
+        return trades;
     }
 
     public static Order.OrderType adaptOrderType(int direction) {
