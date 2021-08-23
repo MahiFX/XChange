@@ -145,24 +145,32 @@ public class CryptoFacilitiesStreamingService extends JsonNettyStreamingService 
         String feed = message.get("feed").asText();
 
         if (feed.contains("book")) {
-            if (message.has("product_id")) {
-                channelName = "book" + CryptoFacilitiesStreamingMarketDataService.KRAKEN_CHANNEL_DELIMITER + message.get("product_id").asText();
-            }
-            if (message.has("product_ids")) {
-                channelName = "book" + CryptoFacilitiesStreamingMarketDataService.KRAKEN_CHANNEL_DELIMITER + mapper.treeToValue(message.get("product_ids"), String[].class)[0].trim();
-            }
-
+            channelName = productIdChannel("book", message);
         } else if (feed.startsWith("open_orders_verbose")) {
             channelName = CryptoFacilitiesSubscriptionName.open_orders_verbose.name();
 
         } else if (feed.startsWith("fills")) {
             channelName = CryptoFacilitiesSubscriptionName.fills.name();
-
+        } else if (feed.startsWith("trade")) {
+            channelName = productIdChannel("trade", message);
         }
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("ChannelName {}", StringUtils.isBlank(channelName) ? "not defined" : channelName);
         }
+        return channelName;
+    }
+
+    private String productIdChannel(String baseChannelName, JsonNode message) throws IOException {
+        String channelName = null;
+
+        if (message.has("product_id")) {
+            channelName = baseChannelName + CryptoFacilitiesStreamingMarketDataService.KRAKEN_CHANNEL_DELIMITER + message.get("product_id").asText();
+        }
+        if (message.has("product_ids")) {
+            channelName = baseChannelName + CryptoFacilitiesStreamingMarketDataService.KRAKEN_CHANNEL_DELIMITER + mapper.treeToValue(message.get("product_ids"), String[].class)[0].trim();
+        }
+
         return channelName;
     }
 
