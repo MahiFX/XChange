@@ -96,23 +96,29 @@ public class CryptoFacilitiesStreamingAdapters {
     public static List<Trade> adaptTrades(Instrument instrument, ObjectNode node) {
         if (node == null) return null;
 
-        ArrayNode jsonTrades = node.withArray("trades");
+        List<Trade> trades = new ArrayList<>();
+        if (node.has("trades")) {
+            ArrayNode jsonTrades = node.withArray("trades");
 
-        List<Trade> trades = new ArrayList<>(jsonTrades.size());
-        for (JsonNode trade : jsonTrades) {
-            trades.add(
-                    new Trade.Builder()
-                            .type("sell".equals(trade.get("side").textValue()) ? Order.OrderType.ASK : Order.OrderType.BID)
-                            .originalAmount(trade.get("qty").decimalValue())
-                            .instrument(instrument)
-                            .price(trade.get("price").decimalValue())
-                            .timestamp(new Date(trade.get("time").asLong()))
-                            .id(trade.get("uid").asText())
-                            .build()
-            );
+            for (JsonNode trade : jsonTrades) {
+                trades.add(processTrade(instrument, trade));
+            }
+        } else {
+            trades.add(processTrade(instrument, node));
         }
 
         return trades;
+    }
+
+    private static Trade processTrade(Instrument instrument, JsonNode tradeNode) {
+        return new Trade.Builder()
+                .type("sell".equals(tradeNode.get("side").textValue()) ? Order.OrderType.ASK : Order.OrderType.BID)
+                .originalAmount(tradeNode.get("qty").decimalValue())
+                .instrument(instrument)
+                .price(tradeNode.get("price").decimalValue())
+                .timestamp(new Date(tradeNode.get("time").asLong()))
+                .id(tradeNode.get("uid").asText())
+                .build();
     }
 
     public static Order.OrderType adaptOrderType(int direction) {
