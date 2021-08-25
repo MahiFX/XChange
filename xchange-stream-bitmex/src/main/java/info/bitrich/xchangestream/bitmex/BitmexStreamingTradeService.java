@@ -9,6 +9,8 @@ import io.reactivex.subjects.Subject;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.UserTrade;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,6 +20,8 @@ import java.util.stream.Collectors;
  * Created by Declan
  */
 public class BitmexStreamingTradeService implements StreamingTradeService {
+    private static final Logger LOG = LoggerFactory.getLogger(BitmexStreamingTradeService.class);
+
     private static final String ORDER_CHANGES_CHANNEL_NAME = "order";
     private static final String USER_TRADES_CHANNEL_NAME = "execution";
 
@@ -34,6 +38,7 @@ public class BitmexStreamingTradeService implements StreamingTradeService {
     }
 
     private void startOrdersSubscription() {
+        LOG.info("Starting BitMEX orders subscription");
         streamingService.subscribeBitmexChannel(ORDER_CHANGES_CHANNEL_NAME)
                 .flatMapIterable(
                         s -> {
@@ -58,6 +63,7 @@ public class BitmexStreamingTradeService implements StreamingTradeService {
     }
 
     private void startUserTradesSubscription() {
+        LOG.info("Starting BitMEX execution subscription");
         streamingService.subscribeBitmexChannel(USER_TRADES_CHANNEL_NAME)
                 .flatMapIterable(
                         s -> {
@@ -65,6 +71,7 @@ public class BitmexStreamingTradeService implements StreamingTradeService {
                             return Arrays.stream(bitmexExecutions)
                                     .collect(Collectors.toList());
                         })
+                .filter(e -> "Trade".equals(e.getExecType()))
                 .subscribe(userTradesPublisher::onNext);
     }
 

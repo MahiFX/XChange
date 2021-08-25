@@ -471,11 +471,15 @@ public class BitmexExecution {
         + '}';
   }
 
+  private CurrencyPair getInstrument() {
+    return new CurrencyPair(symbol.substring(0, 3), symbol.substring(3));
+  }
+
   public UserTrade toUserTrade() {
     return new UserTrade(
             BitmexSide.BUY.equals(side) ? Order.OrderType.BID : Order.OrderType.ASK,
             BigDecimal.valueOf(lastQty),
-            new CurrencyPair(symbol),
+            getInstrument(),
             lastPx,
             timestamp,
             execID,
