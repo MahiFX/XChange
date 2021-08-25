@@ -40,7 +40,7 @@ public class BitmexStreamingService extends JsonNettyStreamingService {
 
   private static final Logger LOG = LoggerFactory.getLogger(BitmexStreamingService.class);
   private static final Set<String> SIMPLE_TABLES =
-      ImmutableSet.of("order", "funding", "settlement", "position", "wallet", "margin");
+      ImmutableSet.of("order", "funding", "settlement", "position", "wallet", "margin", "execution");
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final List<ObservableEmitter<Long>> delayEmitters = new LinkedList<>();
