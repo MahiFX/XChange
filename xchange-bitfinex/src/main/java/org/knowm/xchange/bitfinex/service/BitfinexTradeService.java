@@ -21,6 +21,7 @@ import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.OpenOrders;
 import org.knowm.xchange.dto.trade.StopOrder;
 import org.knowm.xchange.dto.trade.UserTrades;
+import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.CancelAllOrders;
@@ -88,6 +89,11 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Tra
         newOrder = placeBitfinexMarketOrder(marketOrder, BitfinexOrderType.MARGIN_MARKET);
       else newOrder = placeBitfinexMarketOrder(marketOrder, BitfinexOrderType.MARKET);
 
+      if (newOrder.isCancelled()) {
+        throw new ExchangeException("Order was immediately cancelled on placement. Order Request: " + marketOrder +
+                ", Order Response: " + newOrder);
+      }
+
       return String.valueOf(newOrder.getId());
     } catch (BitfinexException e) {
       throw BitfinexErrorAdapter.adapt(e);
@@ -99,6 +105,12 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Tra
     try {
       BitfinexOrderType type = BitfinexAdapters.adaptOrderFlagsToType(limitOrder.getOrderFlags());
       BitfinexOrderStatusResponse newOrder = placeBitfinexLimitOrder(limitOrder, type);
+
+      if (newOrder.isCancelled()) {
+        throw new ExchangeException("Order was immediately cancelled on placement. Order Request: " + limitOrder +
+                ", Order Response: " + newOrder);
+      }
+
       return String.valueOf(newOrder.getId());
     } catch (BitfinexException e) {
       throw BitfinexErrorAdapter.adapt(e);
