@@ -334,20 +334,19 @@ public class BitfinexTradeServiceRaw extends BitfinexBaseService {
   }
 
   public boolean cancelBitfinexOrder(String orderId) throws IOException {
-
     try {
-      decorateApiCall(
+      BitfinexOrderStatusResponse cancelOrderResponse = decorateApiCall(
               () ->
-                  bitfinex.cancelOrders(
-                      apiKey,
-                      payloadCreator,
-                      signatureCreator,
-                      new BitfinexCancelOrderRequest(
-                          String.valueOf(exchange.getNonceFactory().createValue()),
-                          Long.valueOf(orderId))))
-          .withRateLimiter(rateLimiter(BITFINEX_RATE_LIMITER))
-          .call();
-      return true;
+                      bitfinex.cancelOrders(
+                              apiKey,
+                              payloadCreator,
+                              signatureCreator,
+                              new BitfinexCancelOrderRequest(
+                                      String.valueOf(exchange.getNonceFactory().createValue()),
+                                      Long.valueOf(orderId))))
+              .withRateLimiter(rateLimiter(BITFINEX_RATE_LIMITER))
+              .call();
+      return cancelOrderResponse.isCancelled();
     } catch (BitfinexException e) {
       if (e.getMessage().equals("Order could not be cancelled.")) {
         return false;
