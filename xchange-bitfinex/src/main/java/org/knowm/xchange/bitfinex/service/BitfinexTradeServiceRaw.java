@@ -1,44 +1,12 @@
 package org.knowm.xchange.bitfinex.service;
 
-import static org.knowm.xchange.bitfinex.BitfinexResilience.BITFINEX_RATE_LIMITER;
-
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.bitfinex.BitfinexExchange;
-import org.knowm.xchange.bitfinex.dto.BitfinexException;
 import org.knowm.xchange.bitfinex.v1.BitfinexOrderType;
 import org.knowm.xchange.bitfinex.v1.BitfinexUtils;
 import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexWithdrawalRequest;
 import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexWithdrawalResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexAccountInfosResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexActiveCreditsRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexActivePositionsResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelAllOrdersRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelOfferRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelOrderMultiRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelOrderRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCreditResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexFundingTradeResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexLimitOrder;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOfferRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOrder;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOrderMultiRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOrderMultiResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOrderRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNonceOnlyRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOfferStatusRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOfferStatusResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOrderFlags;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOrderStatusRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOrderStatusResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOrdersHistoryRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexPastFundingTradesRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexPastTradesRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexReplaceOrderRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexTradeResponse;
+import org.knowm.xchange.bitfinex.v1.dto.trade.*;
 import org.knowm.xchange.bitfinex.v2.dto.EmptyRequest;
 import org.knowm.xchange.bitfinex.v2.dto.trade.ActiveOrder;
 import org.knowm.xchange.bitfinex.v2.dto.trade.OrderTrade;
@@ -52,6 +20,13 @@ import org.knowm.xchange.dto.trade.FloatingRateLoanOrder;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+
+import static org.knowm.xchange.bitfinex.BitfinexResilience.BITFINEX_RATE_LIMITER;
 
 public class BitfinexTradeServiceRaw extends BitfinexBaseService {
 
@@ -334,7 +309,6 @@ public class BitfinexTradeServiceRaw extends BitfinexBaseService {
   }
 
   public boolean cancelBitfinexOrder(String orderId) throws IOException {
-    try {
       BitfinexOrderStatusResponse cancelOrderResponse = decorateApiCall(
               () ->
                       bitfinex.cancelOrders(
@@ -347,18 +321,10 @@ public class BitfinexTradeServiceRaw extends BitfinexBaseService {
               .withRateLimiter(rateLimiter(BITFINEX_RATE_LIMITER))
               .call();
       return cancelOrderResponse.isCancelled();
-    } catch (BitfinexException e) {
-      if (e.getMessage().equals("Order could not be cancelled.")) {
-        return false;
-      } else {
-        throw e;
-      }
-    }
   }
 
   public boolean cancelAllBitfinexOrders() throws IOException {
 
-    try {
       decorateApiCall(
               () ->
                   bitfinex.cancelAllOrders(
@@ -370,13 +336,6 @@ public class BitfinexTradeServiceRaw extends BitfinexBaseService {
           .withRateLimiter(rateLimiter(BITFINEX_RATE_LIMITER))
           .call();
       return true;
-    } catch (BitfinexException e) {
-      if (e.getMessage().equals("Orders could not be cancelled.")) {
-        return false;
-      } else {
-        throw e;
-      }
-    }
   }
 
   public boolean cancelBitfinexOrderMulti(List<String> orderIds) throws IOException {
