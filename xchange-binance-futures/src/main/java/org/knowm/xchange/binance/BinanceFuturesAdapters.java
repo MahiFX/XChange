@@ -2,6 +2,8 @@ package org.knowm.xchange.binance;
 
 import org.knowm.xchange.binance.dto.BinanceFuturesOrder;
 import org.knowm.xchange.binance.dto.OrderType;
+import org.knowm.xchange.binance.dto.trade.BinanceOrderFlags;
+import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import org.knowm.xchange.binance.service.BinanceTradeService;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
@@ -10,8 +12,12 @@ import org.knowm.xchange.dto.trade.StopOrder;
 import org.knowm.xchange.instrument.Instrument;
 
 import java.util.Date;
+import java.util.Optional;
 
 public class BinanceFuturesAdapters {
+    private BinanceFuturesAdapters() {
+    }
+
     public static Order adaptOrder(BinanceFuturesOrder binanceFuturesOrder) {
         Order.Builder orderBuilder;
         Order.OrderType orderType = BinanceAdapters.convert(binanceFuturesOrder.getSide());
@@ -38,5 +44,19 @@ public class BinanceFuturesAdapters {
         }
 
         return orderBuilder.build();
+    }
+
+    public static Optional<TimeInForce> timeInForceFromOrder(Order order) {
+        Optional<TimeInForce> timeInForce = BinanceAdapters.timeInForceFromOrder(order);
+
+        return timeInForce.map(tif -> {
+            if (TimeInForce.GTC.equals(tif)) {
+                if (order.hasFlag(BinanceOrderFlags.LIMIT_MAKER)) {
+                    return TimeInForce.GTX;
+                }
+            }
+
+            return tif;
+        });
     }
 }
