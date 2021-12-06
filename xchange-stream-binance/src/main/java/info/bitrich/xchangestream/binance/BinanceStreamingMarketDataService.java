@@ -41,8 +41,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static info.bitrich.xchangestream.binance.BinanceSubscriptionType.KLINE;
@@ -64,6 +64,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
   private final String orderBookUpdateFrequencyParameter;
   private final boolean realtimeOrderBookTicker;
   private final int oderBookFetchLimitParameter;
+  private final boolean tickerRealtimeSubscriptionParameter;
 
   private final Map<Instrument, Observable<BinanceTicker24h>> tickerSubscriptions;
   private final Map<Instrument, Observable<BinanceBookTicker>> bookTickerSubscriptions;
@@ -106,6 +107,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
     this.oderBookFetchLimitParameter = oderBookFetchLimitParameter;
     this.binanceOrderBookProvider = binanceOrderBookProvider;
     this.onApiCall = onApiCall;
+    this.tickerRealtimeSubscriptionParameter = realtimeOrderBookTicker;
     this.tickerSubscriptions = new ConcurrentHashMap<>();
     this.bookTickerSubscriptions = new ConcurrentHashMap<>();
     this.orderbookSubscriptions = new ConcurrentHashMap<>();
@@ -290,7 +292,11 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
    */
   public void openSubscriptions(ProductSubscription productSubscription, KlineSubscription klineSubscription) {
     klineSubscription.getKlines().forEach((this::initKlineSubscription));
-    productSubscription.getTicker().forEach(this::initTickerSubscription);
+    if (tickerRealtimeSubscriptionParameter) {
+      productSubscription.getTicker().forEach(this::initBookTickerSubscription);
+    } else {
+      productSubscription.getTicker().forEach(this::initTickerSubscription);
+    }
     productSubscription.getOrderBook().forEach(this::initRawOrderBookUpdatesSubscription);
     productSubscription.getTrades().forEach(this::initTradeSubscription);
   }
@@ -375,22 +381,27 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
   private void initTickerSubscription(Instrument instrument) {
     if (realtimeOrderBookTicker) {
       bookTickerSubscriptions.put(
-          instrument, triggerObservableBody(rawBookTickerStream(instrument)).share());
+              instrument, triggerObservableBody(rawBookTickerStream(instrument)).share());
     } else {
       tickerSubscriptions.put(
-          instrument, triggerObservableBody(rawTickerStream(instrument)).share());
+              instrument, triggerObservableBody(rawTickerStream(instrument)).share());
     }
+  }
+
+  private void initBookTickerSubscription(Instrument currencyPair) {
+    bookTickerSubscriptions.put(
+            currencyPair, triggerObservableBody(rawBookTickerStream(currencyPair)).share());
   }
 
   private void initRawOrderBookUpdatesSubscription(Instrument instrument) {
     orderBookRawUpdatesSubscriptions.put(
-        instrument, triggerObservableBody(rawOrderBookUpdates(instrument)));
+            instrument, triggerObservableBody(rawOrderBookUpdates(instrument)));
   }
 
   private Observable<BinanceTicker24h> rawTickerStream(Instrument instrument) {
     return service
-        .subscribeChannel(
-            channelFromCurrency(instrument, BinanceSubscriptionType.TICKER.getType()))
+            .subscribeChannel(
+                    channelFromCurrency(instrument, BinanceSubscriptionType.TICKER.getType()))
         .map(
             it ->
                 this.<TickerBinanceWebsocketTransaction>readTransaction(it, TICKER_TYPE, "ticker"))
@@ -400,14 +411,14 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
 
   private Observable<BinanceBookTicker> rawBookTickerStream(Instrument instrument) {
     return service
-        .subscribeChannel(
-            channelFromCurrency(instrument, BinanceSubscriptionType.BOOK_TICKER.getType()))
-        .map(
-            it ->
-                this.<BookTickerBinanceWebSocketTransaction>readTransaction(
-                    it, BOOK_TICKER_TYPE, "book ticker"))
-        .filter(transaction -> BinanceAdapters.adaptSymbol(transaction.getData().getTicker().getSymbol(), instrument instanceof FuturesContract).equals(instrument))
-        .map(transaction -> transaction.getData().getTicker());
+            .subscribeChannel(
+                    channelFromCurrency(instrument, BinanceSubscriptionType.BOOK_TICKER.getType()))
+            .map(
+                    it ->
+                            this.<BookTickerBinanceWebSocketTransaction>readTransaction(
+                                    it, BOOK_TICKER_TYPE, "book ticker"))
+            .filter(transaction -> BinanceAdapters.adaptSymbol(transaction.getData().getTicker().getSymbol(), instrument instanceof FuturesContract).equals(instrument))
+            .map(transaction -> transaction.getData().getTicker());
   }
 
   private final class OrderbookSubscription {
@@ -574,28 +585,28 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
     BinanceOrderbook orderBookDiff = depthTransaction.getOrderBook();
 
     Stream<OrderBookUpdate> bidStream =
-        orderBookDiff.bids.entrySet().stream()
-            .map(
-                entry ->
-                    new OrderBookUpdate(
-                        OrderType.BID,
-                        entry.getValue(),
-                        instrument,
-                        entry.getKey(),
-                        depthTransaction.getEventTime(),
-                        entry.getValue()));
+            orderBookDiff.bids.entrySet().stream()
+                    .map(
+                            entry ->
+                                    new OrderBookUpdate(
+                                            OrderType.BID,
+                                            entry.getValue(),
+                                            instrument,
+                                            entry.getKey(),
+                                            depthTransaction.getTransactTime(),
+                                            entry.getValue()));
 
     Stream<OrderBookUpdate> askStream =
-        orderBookDiff.asks.entrySet().stream()
-            .map(
-                entry ->
-                    new OrderBookUpdate(
-                        OrderType.ASK,
-                        entry.getValue(),
-                        instrument,
-                        entry.getKey(),
-                        depthTransaction.getEventTime(),
-                        entry.getValue()));
+            orderBookDiff.asks.entrySet().stream()
+                    .map(
+                            entry ->
+                                    new OrderBookUpdate(
+                                            OrderType.ASK,
+                                            entry.getValue(),
+                                            instrument,
+                                            entry.getKey(),
+                                            depthTransaction.getTransactTime(),
+                                            entry.getValue()));
 
     return Stream.concat(bidStream, askStream);
   }

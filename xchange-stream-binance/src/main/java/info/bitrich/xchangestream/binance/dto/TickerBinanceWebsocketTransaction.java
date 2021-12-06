@@ -1,19 +1,19 @@
 package info.bitrich.xchangestream.binance.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.math.BigDecimal;
-
 import org.knowm.xchange.binance.dto.marketdata.BinanceTicker24h;
+
+import java.math.BigDecimal;
 
 public class TickerBinanceWebsocketTransaction extends ProductBinanceWebSocketTransaction {
 
   private final BinanceTicker24h ticker;
 
   public TickerBinanceWebsocketTransaction(
-      @JsonProperty("e") String eventType,
-      @JsonProperty("E") String eventTime,
-      @JsonProperty("s") String symbol,
-      @JsonProperty("p") BigDecimal priceChange,
+          @JsonProperty("e") String eventType,
+          @JsonProperty("E") String eventTime,
+          @JsonProperty("s") String symbol,
+          @JsonProperty("p") BigDecimal priceChange,
       @JsonProperty("P") BigDecimal priceChangePercent,
       @JsonProperty("w") BigDecimal weightedAvgPrice,
       @JsonProperty("x") BigDecimal prevClosePrice,
@@ -34,7 +34,7 @@ public class TickerBinanceWebsocketTransaction extends ProductBinanceWebSocketTr
       @JsonProperty("L") Long lastId,
       @JsonProperty("n") Long count) {
 
-    super(eventType, eventTime, symbol);
+    super(eventType, eventTime, null, symbol);
 
     ticker =
         new BinanceTicker24h(

@@ -1,10 +1,5 @@
 package org.knowm.xchange.bitfinex.service;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import org.knowm.xchange.bitfinex.BitfinexErrorAdapter;
 import org.knowm.xchange.bitfinex.BitfinexExchange;
 import org.knowm.xchange.bitfinex.dto.BitfinexException;
@@ -16,27 +11,20 @@ import org.knowm.xchange.bitfinex.v2.dto.trade.Trade;
 import org.knowm.xchange.client.ResilienceRegistries;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.trade.LimitOrder;
-import org.knowm.xchange.dto.trade.MarketOrder;
-import org.knowm.xchange.dto.trade.OpenOrders;
-import org.knowm.xchange.dto.trade.StopOrder;
-import org.knowm.xchange.dto.trade.UserTrades;
+import org.knowm.xchange.dto.trade.*;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.CancelAllOrders;
-import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
-import org.knowm.xchange.service.trade.params.CancelOrderParams;
-import org.knowm.xchange.service.trade.params.DefaultTradeHistoryParamsTimeSpan;
-import org.knowm.xchange.service.trade.params.TradeHistoryParamCurrencyPair;
-import org.knowm.xchange.service.trade.params.TradeHistoryParamLimit;
-import org.knowm.xchange.service.trade.params.TradeHistoryParamPaging;
-import org.knowm.xchange.service.trade.params.TradeHistoryParams;
-import org.knowm.xchange.service.trade.params.TradeHistoryParamsSorted;
-import org.knowm.xchange.service.trade.params.TradeHistoryParamsTimeSpan;
+import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 import org.knowm.xchange.utils.DateUtils;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class BitfinexTradeService extends BitfinexTradeServiceRaw implements TradeService {
 
@@ -267,16 +255,6 @@ public class BitfinexTradeService extends BitfinexTradeServiceRaw implements Tra
     } catch (BitfinexException e) {
       throw BitfinexErrorAdapter.adapt(e);
     }
-  }
-
-  @Override
-  public Collection<Order> getOrder(OrderQueryParams... params) throws IOException {
-    Collection<Order> allOrders = new ArrayList<>();
-    for (OrderQueryParams param : params) {
-      Collection<Order> order = getOrder(param.getOrderId());
-      allOrders.addAll(order);
-    }
-    return allOrders;
   }
 
   public BigDecimal getMakerFee() throws IOException {

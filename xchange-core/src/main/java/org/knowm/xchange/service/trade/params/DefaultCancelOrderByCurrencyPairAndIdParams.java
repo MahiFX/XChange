@@ -3,7 +3,7 @@ package org.knowm.xchange.service.trade.params;
 import org.knowm.xchange.currency.CurrencyPair;
 
 public class DefaultCancelOrderByCurrencyPairAndIdParams
-        implements CancelOrderByPairAndIdParams {
+        implements CancelOrderByCurrencyPair, CancelOrderByIdParams {
 
   private CurrencyPair currencyPair;
   private String orderId;

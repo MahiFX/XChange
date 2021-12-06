@@ -29,7 +29,7 @@ public class FundingRateWebsocketTransaction extends ProductBinanceWebSocketTran
             @JsonProperty("P") BigDecimal estimatedSettlePrice,
             @JsonProperty("r") BigDecimal fundingRate,
             @JsonProperty("T") Date nextFundingTime) {
-        super(eventType, eventTime, symbol);
+        super(eventType, eventTime, symbol, null);
         this.markPrice = markPrice;
         this.indexPrice = indexPrice;
         this.estimatedSettlePrice = estimatedSettlePrice;

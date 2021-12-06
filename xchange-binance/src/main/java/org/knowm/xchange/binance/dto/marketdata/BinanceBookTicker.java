@@ -20,11 +20,11 @@ public final class BinanceBookTicker {
   private Ticker ticker;
 
   public BinanceBookTicker(
-      @JsonProperty("bidPrice") BigDecimal bidPrice,
-      @JsonProperty("bidQty") BigDecimal bidQty,
-      @JsonProperty("askPrice") BigDecimal askPrice,
-      @JsonProperty("askQty") BigDecimal askQty,
-      @JsonProperty("symbol") String symbol) {
+          @JsonProperty("bidPrice") BigDecimal bidPrice,
+          @JsonProperty("bidQty") BigDecimal bidQty,
+          @JsonProperty("askPrice") BigDecimal askPrice,
+          @JsonProperty("askQty") BigDecimal askQty,
+          @JsonProperty("symbol") String symbol) {
     this.bidPrice = bidPrice;
     this.bidQty = bidQty;
     this.askPrice = askPrice;

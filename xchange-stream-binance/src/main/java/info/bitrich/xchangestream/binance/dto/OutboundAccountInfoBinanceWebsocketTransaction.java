@@ -1,11 +1,12 @@
 package info.bitrich.xchangestream.binance.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.knowm.xchange.dto.account.Balance;
+
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.knowm.xchange.dto.account.Balance;
 
 public class OutboundAccountInfoBinanceWebsocketTransaction
     extends BaseBinanceWebSocketTransaction {
@@ -34,7 +35,7 @@ public class OutboundAccountInfoBinanceWebsocketTransaction
       @JsonProperty("u") long lastUpdateTimestamp,
       @JsonProperty("B") List<BinanceWebsocketBalance> balances,
       @JsonProperty("P") List<String> permissions) {
-    super(eventType, eventTime);
+    super(eventType, eventTime, null);
     this.makerCommissionRate = makerCommissionRate;
     this.takerCommissionRate = takerCommissionRate;
     this.buyerCommissionRate = buyerCommissionRate;

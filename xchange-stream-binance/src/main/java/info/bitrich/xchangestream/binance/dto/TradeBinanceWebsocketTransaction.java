@@ -19,7 +19,7 @@ public class TradeBinanceWebsocketTransaction extends ProductBinanceWebSocketTra
       @JsonProperty("T") long timestamp,
       @JsonProperty("m") boolean buyerMarketMaker,
       @JsonProperty("M") boolean ignore) {
-    super(eventType, eventTime, symbol);
+    super(eventType, eventTime, null, symbol);
 
     rawTrade =
         new BinanceRawTrade(

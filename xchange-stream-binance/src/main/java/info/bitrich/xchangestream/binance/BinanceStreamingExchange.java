@@ -122,25 +122,26 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
       userDataChannel =
               new BinanceUserDataChannel(binance, exchangeSpecification.getApiKey(), onApiCall);
       try {
-        completables.add(createAndConnectUserDataService(userDataChannel.getListenKey()));
+          completables.add(createAndConnectUserDataService(userDataChannel.getListenKey()));
       } catch (NoActiveChannelException e) {
-        throw new IllegalStateException("Failed to establish user data channel", e);
+          throw new IllegalStateException("Failed to establish user data channel", e);
       }
     }
 
-    streamingMarketDataService = streamingMarketDataService(
-            streamingService,
-            (BinanceMarketDataService) marketDataService,
-            onApiCall,
-            orderBookUpdateFrequencyParameter);
-    streamingAccountService = new BinanceStreamingAccountService(userDataStreamingService);
-    streamingTradeService = new BinanceStreamingTradeService(userDataStreamingService);
+      streamingMarketDataService = streamingMarketDataService(
+              streamingService,
+              (BinanceMarketDataService) marketDataService,
+              onApiCall,
+              orderBookUpdateFrequencyParameter
+      );
+      streamingAccountService = new BinanceStreamingAccountService(userDataStreamingService);
+      streamingTradeService = new BinanceStreamingTradeService(userDataStreamingService);
 
-    return Completable.concat(completables)
-            .doOnComplete(
-                    () -> streamingMarketDataService.openSubscriptions(subscriptions, klineSubscription))
-            .doOnComplete(() -> streamingAccountService.openSubscriptions())
-            .doOnComplete(() -> streamingTradeService.openSubscriptions());
+      return Completable.concat(completables)
+              .doOnComplete(
+                      () -> streamingMarketDataService.openSubscriptions(subscriptions, klineSubscription))
+              .doOnComplete(() -> streamingAccountService.openSubscriptions())
+              .doOnComplete(() -> streamingTradeService.openSubscriptions());
   }
 
   protected BinanceStreamingMarketDataService streamingMarketDataService(BinanceStreamingService streamingService, BinanceMarketDataService marketDataService, Runnable onApiCall, String orderBookUpdateFrequencyParameter) {

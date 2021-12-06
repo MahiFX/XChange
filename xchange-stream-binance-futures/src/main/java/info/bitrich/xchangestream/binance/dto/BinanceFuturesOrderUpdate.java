@@ -8,14 +8,17 @@ import java.math.BigDecimal;
 public class BinanceFuturesOrderUpdate {
     private final String eventType;
     private final String eventTime;
+    private final String transactTime;
     private final OrderDetails orderDetails;
 
     public BinanceFuturesOrderUpdate(
             @JsonProperty("e") String eventType,
             @JsonProperty("E") String eventTime,
+            @JsonProperty("T") String transactTime,
             @JsonProperty("o") OrderDetails orderDetails) {
         this.eventType = eventType;
         this.eventTime = eventTime;
+        this.transactTime = transactTime;
         this.orderDetails = orderDetails;
     }
 
@@ -24,6 +27,7 @@ public class BinanceFuturesOrderUpdate {
         return new ExecutionReportBinanceUserTransaction(
                 eventType,
                 eventTime,
+                transactTime,
                 orderDetails.symbol,
                 orderDetails.clientOrderId,
                 orderDetails.side,

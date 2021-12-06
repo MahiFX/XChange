@@ -21,7 +21,7 @@ public class OutboundAccountPositionBinanceWebsocketTransaction
       @JsonProperty("u") long lastUpdateTimestamp,
       @JsonProperty("B") List<BinanceWebsocketBalance> balances
   ) {
-    super(eventType, eventTime);
+    super(eventType, eventTime, null);
     this.lastUpdateTimestamp = lastUpdateTimestamp;
     this.balances = balances;
   }

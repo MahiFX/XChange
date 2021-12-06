@@ -9,8 +9,9 @@ public class ProductBinanceWebSocketTransaction extends BaseBinanceWebSocketTran
   public ProductBinanceWebSocketTransaction(
       @JsonProperty("e") String eventType,
       @JsonProperty("E") String eventTime,
+      @JsonProperty("T") String transactTime,
       @JsonProperty("s") String symbol) {
-    super(eventType, eventTime);
+    super(eventType, eventTime, transactTime);
     this.symbol = symbol;
   }
 

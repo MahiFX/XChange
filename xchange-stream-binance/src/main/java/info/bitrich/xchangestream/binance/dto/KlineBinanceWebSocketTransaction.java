@@ -23,7 +23,7 @@ public class KlineBinanceWebSocketTransaction extends BaseBinanceWebSocketTransa
             @JsonProperty("E") String eventTime,
             @JsonProperty("s") String symbol,
             @JsonProperty("k") Map<String, Object> kline) {
-        super(eventType, eventTime);
+        super(eventType, eventTime, null);
         this.symbol = symbol;
         this.kline = kline;
         this.klineInterval =  Arrays.stream(KlineInterval.values())

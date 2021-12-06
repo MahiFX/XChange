@@ -17,15 +17,16 @@ public class DepthBinanceWebSocketTransaction extends ProductBinanceWebSocketTra
   private final long pu;
 
   public DepthBinanceWebSocketTransaction(
-      @JsonProperty("e") String eventType,
-      @JsonProperty("E") String eventTime,
-      @JsonProperty("s") String symbol,
-      @JsonProperty("U") long firstUpdateId,
-      @JsonProperty("u") long lastUpdateId,
-      @JsonProperty("pu") long pu,
-      @JsonProperty("b") List<Object[]> _bids,
-      @JsonProperty("a") List<Object[]> _asks) {
-    super(eventType, eventTime, symbol);
+          @JsonProperty("e") String eventType,
+          @JsonProperty("E") String eventTime,
+          @JsonProperty("T") String transactTime,
+          @JsonProperty("s") String symbol,
+          @JsonProperty("U") long firstUpdateId,
+          @JsonProperty("u") long lastUpdateId,
+          @JsonProperty("pu") long pu,
+          @JsonProperty("b") List<Object[]> _bids,
+          @JsonProperty("a") List<Object[]> _asks) {
+    super(eventType, eventTime, transactTime, symbol);
     this.firstUpdateId = firstUpdateId;
     this.lastUpdateId = lastUpdateId;
     this.pu = pu;
