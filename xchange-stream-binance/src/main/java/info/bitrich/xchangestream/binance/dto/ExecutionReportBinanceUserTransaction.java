@@ -1,9 +1,6 @@
 package info.bitrich.xchangestream.binance.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
 import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.binance.dto.trade.BinanceOrder;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
@@ -13,6 +10,9 @@ import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.UserTrade;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class ExecutionReportBinanceUserTransaction extends ProductBinanceWebSocketTransaction {
 
@@ -51,6 +51,7 @@ public class ExecutionReportBinanceUserTransaction extends ProductBinanceWebSock
   public ExecutionReportBinanceUserTransaction(
       @JsonProperty("e") String eventType,
       @JsonProperty("E") String eventTime,
+      @JsonProperty("T") String transactTime,
       @JsonProperty("s") String symbol,
       @JsonProperty("c") String clientOrderId,
       @JsonProperty("S") String side,
@@ -74,7 +75,7 @@ public class ExecutionReportBinanceUserTransaction extends ProductBinanceWebSock
       @JsonProperty("w") boolean working,
       @JsonProperty("m") boolean buyerMarketMaker,
       @JsonProperty("Z") BigDecimal cumulativeQuoteAssetTransactedQuantity) {
-    super(eventType, eventTime, symbol);
+    super(eventType, eventTime, transactTime, symbol);
     this.clientOrderId = clientOrderId;
     this.side = OrderSide.valueOf(side);
     this.orderType = OrderType.valueOf(orderType);

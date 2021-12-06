@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_HIGHER_UPDATE_FREQUENCY;
+import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_REALTIME_TICKER;
 
 public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange implements StreamingExchange {
     private static final Logger LOG = LoggerFactory.getLogger(BinanceStreamingExchange.class);
@@ -35,6 +36,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
 
     private Runnable onApiCall;
     private String orderBookUpdateFrequencyParameter = "";
+    private boolean tickerRealtimeSubscriptionParameter = false;
 
     private BinanceStreamingService streamingService;
     private BinanceUserDataStreamingService userDataStreamingService;
@@ -58,6 +60,13 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
         if (userHigherFrequency) {
             orderBookUpdateFrequencyParameter = "@100ms";
         }
+
+        tickerRealtimeSubscriptionParameter =
+                MoreObjects.firstNonNull(
+                        (Boolean)
+                                exchangeSpecification.getExchangeSpecificParametersItem(
+                                        USE_REALTIME_TICKER),
+                        Boolean.FALSE);
     }
 
     private String streamingUri(ProductSubscription subscription) {
@@ -76,7 +85,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     private String buildSubscriptionStreams(ProductSubscription subscription) {
         return Stream.of(
                 buildSubscriptionStrings(
-                        subscription.getTicker(), BinanceSubscriptionType.TICKER.getType()),
+                        subscription.getTicker(), tickerRealtimeSubscriptionParameter ? BinanceSubscriptionType.BOOK_TICKER.getType() : BinanceSubscriptionType.TICKER.getType()),
                 buildSubscriptionStrings(
                         subscription.getOrderBook(), BinanceSubscriptionType.DEPTH.getType()),
                 buildSubscriptionStrings(
@@ -145,7 +154,8 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
                 streamingService,
                 getBinanceOrderBookProvider(),
                 onApiCall,
-                orderBookUpdateFrequencyParameter);
+                orderBookUpdateFrequencyParameter,
+                tickerRealtimeSubscriptionParameter);
         streamingTradeService = new BinanceFuturesStreamingTradeService(userDataStreamingService);
 
         return Completable.concat(completables)

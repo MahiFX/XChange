@@ -29,6 +29,8 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
     private static final String WS_SANDBOX_API_BASE_URI = "wss://testnet.binance.vision/";
     protected static final String USE_HIGHER_UPDATE_FREQUENCY =
             "Binance_Orderbook_Use_Higher_Frequency";
+    protected static final String USE_REALTIME_TICKER =
+            "Binance_Ticker_Use_Realtime";
 
     private BinanceStreamingService streamingService;
     private BinanceUserDataStreamingService userDataStreamingService;
@@ -40,6 +42,7 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
     private BinanceUserDataChannel userDataChannel;
     private Runnable onApiCall;
     private String orderBookUpdateFrequencyParameter = "";
+    private boolean tickerRealtimeSubscriptionParameter = false;
 
     @Override
     protected void initServices() {
@@ -55,6 +58,13 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
         if (userHigherFrequency) {
             orderBookUpdateFrequencyParameter = "@100ms";
         }
+
+        tickerRealtimeSubscriptionParameter =
+                MoreObjects.firstNonNull(
+                        (Boolean)
+                                exchangeSpecification.getExchangeSpecificParametersItem(
+                                        USE_REALTIME_TICKER),
+                        Boolean.FALSE);
     }
 
     /**
@@ -108,7 +118,8 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
                 streamingService,
                 (BinanceMarketDataService) marketDataService,
                 onApiCall,
-                orderBookUpdateFrequencyParameter);
+                orderBookUpdateFrequencyParameter,
+                tickerRealtimeSubscriptionParameter);
         streamingAccountService = new BinanceStreamingAccountService(userDataStreamingService);
         streamingTradeService = new BinanceStreamingTradeService(userDataStreamingService);
 
@@ -118,7 +129,7 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
                 .doOnComplete(() -> streamingTradeService.openSubscriptions());
     }
 
-    private BinanceStreamingMarketDataService streamingMarketDataService(BinanceStreamingService streamingService, BinanceMarketDataService marketDataService, Runnable onApiCall, String orderBookUpdateFrequencyParameter) {
+    private BinanceStreamingMarketDataService streamingMarketDataService(BinanceStreamingService streamingService, BinanceMarketDataService marketDataService, Runnable onApiCall, String orderBookUpdateFrequencyParameter, boolean tickerRealtimeSubscriptionParameter) {
         return new BinanceStreamingMarketDataService(
                 streamingService,
                 currencyPair -> {
@@ -129,7 +140,8 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
                     }
                 },
                 onApiCall,
-                orderBookUpdateFrequencyParameter
+                orderBookUpdateFrequencyParameter,
+                tickerRealtimeSubscriptionParameter
         );
     }
 

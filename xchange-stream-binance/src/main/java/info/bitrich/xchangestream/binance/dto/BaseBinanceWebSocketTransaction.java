@@ -1,6 +1,8 @@
 package info.bitrich.xchangestream.binance.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.Date;
 
 public class BaseBinanceWebSocketTransaction {
@@ -42,11 +44,13 @@ public class BaseBinanceWebSocketTransaction {
 
   protected final BinanceWebSocketTypes eventType;
   protected final Date eventTime;
+  protected final Date transactTime;
 
   public BaseBinanceWebSocketTransaction(
-      @JsonProperty("e") String _eventType, @JsonProperty("E") String _eventTime) {
+      @JsonProperty("e") String _eventType, @JsonProperty("E") String _eventTime, @JsonProperty("T") String _transactTime) {
     eventType = BinanceWebSocketTypes.fromTransactionValue(_eventType);
     eventTime = new Date(Long.parseLong(_eventTime));
+    transactTime = StringUtils.isNotEmpty(_transactTime) ? new Date(Long.parseLong(_transactTime)) : null;
   }
 
   public BinanceWebSocketTypes getEventType() {
@@ -55,5 +59,9 @@ public class BaseBinanceWebSocketTransaction {
 
   public Date getEventTime() {
     return eventTime;
+  }
+
+  public Date getTransactTime() {
+    return transactTime;
   }
 }
