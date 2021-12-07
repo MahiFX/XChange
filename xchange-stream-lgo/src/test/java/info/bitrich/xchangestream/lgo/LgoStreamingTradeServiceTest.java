@@ -1,34 +1,8 @@
 package info.bitrich.xchangestream.lgo;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.databind.JsonNode;
-import info.bitrich.xchangestream.lgo.domain.LgoDoneOrderEvent;
-import info.bitrich.xchangestream.lgo.domain.LgoFailedOrderEvent;
-import info.bitrich.xchangestream.lgo.domain.LgoInvalidOrderEvent;
-import info.bitrich.xchangestream.lgo.domain.LgoOpenOrderEvent;
-import info.bitrich.xchangestream.lgo.domain.LgoOrderEvent;
-import info.bitrich.xchangestream.lgo.domain.LgoPendingOrderEvent;
-import info.bitrich.xchangestream.lgo.domain.LgoReceivedOrderEvent;
+import info.bitrich.xchangestream.lgo.domain.*;
 import io.reactivex.Observable;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.TimeZone;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +18,24 @@ import org.knowm.xchange.lgo.service.LgoKeyService;
 import org.knowm.xchange.lgo.service.LgoSignatureService;
 import org.mockito.ArgumentCaptor;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.TimeZone;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 public class LgoStreamingTradeServiceTest {
 
@@ -254,11 +246,12 @@ public class LgoStreamingTradeServiceTest {
     assertThat(trades.get(0))
         .usingRecursiveComparison()
         .isEqualTo(
-            new UserTrade.Builder()
-                .type(Order.OrderType.ASK)
-                .originalAmount(new BigDecimal("0.50000000"))
-                .currencyPair(CurrencyPair.BTC_USD)
-                .price(new BigDecimal("955.3000"))
+                new UserTrade.Builder()
+                        .type(Order.OrderType.ASK)
+                        .originalAmount(new BigDecimal("0.50000000"))
+                        .currencyPair(CurrencyPair.BTC_USD)
+                        .price(new BigDecimal("955.3000"))
+                        .creationTimestamp(trades.get(0).getCreationTimestamp())
                 .timestamp(date)
                 .id("4441691")
                 .orderId("156508560418400001")
