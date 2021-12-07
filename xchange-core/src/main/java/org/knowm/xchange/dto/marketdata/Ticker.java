@@ -3,14 +3,15 @@ package org.knowm.xchange.dto.marketdata;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.Objects;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.utils.Assert;
 import org.knowm.xchange.utils.DateUtils;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.Objects;
 
 /**
  * A class encapsulating the information a "Ticker" can contain. Some fields can be empty if not
@@ -36,6 +37,9 @@ public final class Ticker implements Serializable {
   /** the timestamp of the ticker according to the exchange's server, null if not provided */
   private final Date timestamp;
 
+  /** Local timestamp at which this event was created (i.e. time received) */
+  private final Date creationTimestamp;
+
   private final BigDecimal bidSize;
   private final BigDecimal askSize;
   private final BigDecimal percentageChange;
@@ -59,22 +63,24 @@ public final class Ticker implements Serializable {
    * @param percentageChange Price percentage change. Is compared against the last price value. Will
    *     be null if not provided and cannot be calculated. Should be represented as percentage (e.g.
    *     0.5 equal 0.5%, 1 equal 1%, 50 equal 50%, 100 equal 100%)
+   * @param creationTimestamp Local timestamp at which this event was created (i.e. time received)
    */
   private Ticker(
-      Instrument instrument,
-      BigDecimal open,
-      BigDecimal last,
-      BigDecimal bid,
-      BigDecimal ask,
-      BigDecimal high,
-      BigDecimal low,
-      BigDecimal vwap,
-      BigDecimal volume,
-      BigDecimal quoteVolume,
-      Date timestamp,
-      BigDecimal bidSize,
-      BigDecimal askSize,
-      BigDecimal percentageChange) {
+          Instrument instrument,
+          BigDecimal open,
+          BigDecimal last,
+          BigDecimal bid,
+          BigDecimal ask,
+          BigDecimal high,
+          BigDecimal low,
+          BigDecimal vwap,
+          BigDecimal volume,
+          BigDecimal quoteVolume,
+          Date timestamp,
+          BigDecimal bidSize,
+          BigDecimal askSize,
+          BigDecimal percentageChange,
+          Date creationTimestamp) {
     this.open = open;
     this.instrument = instrument;
     this.last = last;
@@ -89,6 +95,7 @@ public final class Ticker implements Serializable {
     this.bidSize = bidSize;
     this.askSize = askSize;
     this.percentageChange = percentageChange;
+    this.creationTimestamp = creationTimestamp;
   }
 
   public Instrument getInstrument() {
@@ -165,6 +172,11 @@ public final class Ticker implements Serializable {
     return timestamp;
   }
 
+  /** @return Local timestamp at which this order was created (i.e. time received on market data feeds / time sent on orders) */
+  public Date getCreationTimestamp() {
+    return creationTimestamp;
+  }
+
   public BigDecimal getBidSize() {
     return bidSize;
   }
@@ -232,6 +244,7 @@ public final class Ticker implements Serializable {
     private BigDecimal volume;
     private BigDecimal quoteVolume;
     private Date timestamp;
+    private Date creationTimestamp;
     private BigDecimal bidSize;
     private BigDecimal askSize;
     private BigDecimal percentageChange;
@@ -258,7 +271,8 @@ public final class Ticker implements Serializable {
               timestamp,
               bidSize,
               askSize,
-              percentageChange);
+              percentageChange,
+              creationTimestamp != null ? creationTimestamp : new Date());
 
       isBuilt = true;
 
@@ -341,6 +355,11 @@ public final class Ticker implements Serializable {
     public Builder timestamp(Date timestamp) {
 
       this.timestamp = timestamp;
+      return this;
+    }
+
+    public Builder creationTimestamp(Date creationTimestamp) {
+      this.creationTimestamp = creationTimestamp;
       return this;
     }
 
