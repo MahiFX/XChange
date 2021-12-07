@@ -2,9 +2,6 @@ package org.knowm.xchange.dto.trade;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.Objects;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order.OrderType;
@@ -12,6 +9,10 @@ import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.TradeHistoryParams;
+
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.Objects;
 
 /** Data object representing a user trade */
 @JsonDeserialize(builder = UserTrade.Builder.class)
@@ -47,18 +48,47 @@ public class UserTrade extends Trade {
    * @param orderUserReference The id that the user has insert to the trade
    */
   public UserTrade(
-      OrderType type,
-      BigDecimal originalAmount,
-      Instrument instrument,
-      BigDecimal price,
-      Date timestamp,
-      String id,
-      String orderId,
-      BigDecimal feeAmount,
-      Currency feeCurrency,
-      String orderUserReference) {
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          BigDecimal price,
+          Date timestamp,
+          String id,
+          String orderId,
+          BigDecimal feeAmount,
+          Currency feeCurrency,
+          String orderUserReference) {
+    this(type, originalAmount, instrument, price, new Date(), timestamp, id, orderId, feeAmount, feeCurrency, orderUserReference);
+  }
 
-    super(type, originalAmount, instrument, price, timestamp, id, null, null);
+  /**
+   * This constructor is called to construct user's trade objects (in {@link
+   * TradeService#getTradeHistory(TradeHistoryParams)} implementations).
+   *  @param type The trade type (BID side or ASK side)
+   * @param originalAmount The depth of this trade
+   * @param instrument The exchange identifier (e.g. "BTC/USD")
+   * @param price The price (either the bid or the ask)
+   * @param creationTimestamp Local timestamp at which the trade was received
+   * @param timestamp The timestamp of the trade
+   * @param id The id of the trade
+   * @param orderId The id of the order responsible for execution of this trade
+   * @param feeAmount The fee that was charged by the exchange for this trade
+   * @param feeCurrency The symbol of the currency in which the fee was charged
+   * @param orderUserReference The id that the user has insert to the trade
+   */
+  public UserTrade(
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          BigDecimal price,
+          Date creationTimestamp, Date timestamp,
+          String id,
+          String orderId,
+          BigDecimal feeAmount,
+          Currency feeCurrency,
+          String orderUserReference) {
+
+    super(type, originalAmount, instrument, price, creationTimestamp, timestamp, id, null, null);
 
     this.orderId = orderId;
     this.feeAmount = feeAmount;
@@ -216,6 +246,7 @@ public class UserTrade extends Trade {
           originalAmount,
           instrument,
           price,
+          creationTimestamp,
           timestamp,
           id,
           orderId,

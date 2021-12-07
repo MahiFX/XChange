@@ -3,14 +3,15 @@ package org.knowm.xchange.dto.marketdata;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.Objects;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order.OrderType;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.marketdata.MarketDataService;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.Objects;
 
 /** Data object representing a Trade */
 @JsonDeserialize(builder = Trade.Builder.class)
@@ -30,6 +31,9 @@ public class Trade implements Serializable {
   /** The price */
   protected final BigDecimal price;
 
+  /** Local timestamp at which the trade was received */
+  private final Date creationTimestamp;
+
   /** The timestamp of the trade according to the exchange's server, null if not provided */
   protected final Date timestamp;
 
@@ -42,7 +46,7 @@ public class Trade implements Serializable {
 
   /**
    * This constructor is called to create a public Trade object in {@link
-   * MarketDataService#getTrades(org.knowm.xchange.currency.CurrencyPair, Object...)}
+   * MarketDataService#getTrades(CurrencyPair, Object...)}
    * implementations) since it's missing the orderId and fee parameters.
    *
    * @param type The trade type (BID side or ASK side)
@@ -55,19 +59,47 @@ public class Trade implements Serializable {
    * @param takerOrderId The orderId of the taker in the trade
    */
   public Trade(
-      OrderType type,
-      BigDecimal originalAmount,
-      Instrument instrument,
-      BigDecimal price,
-      Date timestamp,
-      String id,
-      String makerOrderId,
-      String takerOrderId) {
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          BigDecimal price,
+          Date timestamp,
+          String id,
+          String makerOrderId,
+          String takerOrderId) {
+    this(type, originalAmount, instrument, price, new Date(), timestamp, id, makerOrderId, takerOrderId);
+  }
+
+  /**
+   * This constructor is called to create a public Trade object in {@link
+   * MarketDataService#getTrades(org.knowm.xchange.currency.CurrencyPair, Object...)}
+   * implementations) since it's missing the orderId and fee parameters.
+   *  @param type The trade type (BID side or ASK side)
+   * @param originalAmount The depth of this trade
+   * @param price The price (either the bid or the ask)
+   * @param creationTimestamp Local timestamp at which the trade was received
+   * @param timestamp The timestamp of the trade according to the exchange's server, null if not
+   *     provided
+   * @param id The id of the trade
+   * @param makerOrderId The orderId of the maker in the trade
+   * @param takerOrderId The orderId of the taker in the trade
+   */
+  public Trade(
+          OrderType type,
+          BigDecimal originalAmount,
+          Instrument instrument,
+          BigDecimal price,
+          Date creationTimestamp,
+          Date timestamp,
+          String id,
+          String makerOrderId,
+          String takerOrderId) {
 
     this.type = type;
     this.originalAmount = originalAmount;
     this.instrument = instrument;
     this.price = price;
+    this.creationTimestamp = creationTimestamp;
     this.timestamp = timestamp;
     this.id = id;
     this.makerOrderId = makerOrderId;
@@ -110,6 +142,10 @@ public class Trade implements Serializable {
   public BigDecimal getPrice() {
 
     return price;
+  }
+
+  public Date getCreationTimestamp() {
+    return creationTimestamp;
   }
 
   public Date getTimestamp() {
@@ -180,6 +216,7 @@ public class Trade implements Serializable {
     protected BigDecimal originalAmount;
     protected Instrument instrument;
     protected BigDecimal price;
+    protected Date creationTimestamp;
     protected Date timestamp;
     protected String id;
     protected String makerOrderId;
@@ -192,6 +229,7 @@ public class Trade implements Serializable {
           .instrument(trade.getInstrument())
           .price(trade.getPrice())
           .timestamp(trade.getTimestamp())
+          .creationTimestamp(trade.getCreationTimestamp())
           .id(trade.getId());
     }
 
@@ -236,6 +274,12 @@ public class Trade implements Serializable {
       return this;
     }
 
+    public Builder creationTimestamp(Date creationTimestamp) {
+
+      this.creationTimestamp = creationTimestamp;
+      return this;
+    }
+
     public Builder id(String id) {
 
       this.id = id;
@@ -257,7 +301,7 @@ public class Trade implements Serializable {
     public Trade build() {
 
       return new Trade(
-          type, originalAmount, instrument, price, timestamp, id, makerOrderId, takerOrderId);
+          type, originalAmount, instrument, price, creationTimestamp != null ? creationTimestamp : new Date(), timestamp, id, makerOrderId, takerOrderId);
     }
   }
 }
