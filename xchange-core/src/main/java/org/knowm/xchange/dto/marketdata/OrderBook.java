@@ -26,6 +26,8 @@ public final class OrderBook implements Serializable {
   private final List<LimitOrder> bids;
   /** the timestamp of the orderbook according to the exchange's server, null if not provided */
   private Date timeStamp;
+  /** Local timestamp at which the book was last updated (i.e. time received) */
+  private Date creationTimestamp;
 
   /**
    * Constructor
@@ -117,6 +119,10 @@ public final class OrderBook implements Serializable {
     return timeStamp;
   }
 
+  public Date getCreationTimestamp() {
+    return creationTimestamp;
+  }
+
   public List<LimitOrder> getAsks() {
 
     return asks;
@@ -143,6 +149,7 @@ public final class OrderBook implements Serializable {
 
     update(getOrders(limitOrder.getType()), limitOrder);
     updateDate(limitOrder.getTimestamp());
+    updateCreationTimestamp(limitOrder.getCreationTimestamp());
   }
 
   // Replace the amount for limitOrder's price in the provided list.
@@ -184,6 +191,7 @@ public final class OrderBook implements Serializable {
     }
 
     updateDate(limitOrder.getTimestamp());
+    updateCreationTimestamp(limitOrder.getCreationTimestamp());
   }
 
   public void clear() {
@@ -197,6 +205,14 @@ public final class OrderBook implements Serializable {
 
     if (updateDate != null && (timeStamp == null || updateDate.after(timeStamp))) {
       this.timeStamp = updateDate;
+    }
+  }
+
+  // Replace timeStamp if the provided date is non-null and in the future
+  // TODO should this raise an exception if the order timestamp is in the past?
+  private void updateCreationTimestamp(Date creationTimestamp) {
+    if (creationTimestamp != null && (this.creationTimestamp == null || creationTimestamp.after(this.creationTimestamp))) {
+      this.creationTimestamp = creationTimestamp;
     }
   }
 
