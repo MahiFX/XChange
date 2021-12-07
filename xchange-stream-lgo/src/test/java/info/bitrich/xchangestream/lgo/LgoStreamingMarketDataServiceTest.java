@@ -46,23 +46,27 @@ public class LgoStreamingMarketDataServiceTest {
     Observable<Trade> trades = service.getTrades(CurrencyPair.BTC_USD);
 
     verify(streamingService).subscribeChannel("trades-BTC-USD");
-    assertThat(trades.blockingFirst())
+    Trade first = trades.blockingFirst();
+    assertThat(first)
         .isEqualToComparingFieldByField(
             new Trade.Builder()
                 .type(Order.OrderType.ASK)
                 .originalAmount(new BigDecimal("4.36920000"))
                 .currencyPair(CurrencyPair.BTC_USD)
                 .price(new BigDecimal("428.5000"))
+                .creationTimestamp(first.getCreationTimestamp())
                 .timestamp(dateFormat.parse("2019-07-19T12:25:01.596Z"))
                 .id("3128770")
                 .build());
-    assertThat(trades.blockingLast())
+    Trade last = trades.blockingLast();
+    assertThat(last)
         .isEqualToComparingFieldByField(
             new Trade.Builder()
                 .type(Order.OrderType.BID)
                 .originalAmount(new BigDecimal("1.85390000"))
                 .currencyPair(CurrencyPair.BTC_USD)
                 .price(new BigDecimal("420.3000"))
+                .creationTimestamp(last.getCreationTimestamp())
                 .timestamp(dateFormat.parse("2019-07-19T12:25:05.860Z"))
                 .id("3128771")
                 .build());
