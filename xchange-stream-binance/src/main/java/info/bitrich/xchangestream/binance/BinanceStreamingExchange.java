@@ -224,7 +224,9 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
     }
 
     private BinanceStreamingService createStreamingService(ProductSubscription subscription) {
-        return new BinanceStreamingService(streamingUri(subscription), subscription);
+        BinanceStreamingService streamingService = new BinanceStreamingService(streamingUri(subscription), subscription);
+        applyStreamingSpecification(getExchangeSpecification(), streamingService);
+        return streamingService;
     }
 
     private String streamingUri(ProductSubscription subscription) {
