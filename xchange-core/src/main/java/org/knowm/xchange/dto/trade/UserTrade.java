@@ -177,6 +177,7 @@ public class UserTrade extends Trade {
           .originalAmount(trade.getOriginalAmount())
           .instrument(trade.getInstrument())
           .price(trade.getPrice())
+          .creationTimestamp(trade.getCreationTimestamp())
           .timestamp(trade.getTimestamp())
           .id(trade.getId())
           .orderId(trade.getOrderId())
@@ -207,6 +208,11 @@ public class UserTrade extends Trade {
     @Override
     public Builder price(BigDecimal price) {
       return (Builder) super.price(price);
+    }
+
+    @Override
+    public Builder creationTimestamp(Date creationTimestamp) {
+      return (Builder) super.creationTimestamp(creationTimestamp);
     }
 
     @Override
@@ -246,7 +252,7 @@ public class UserTrade extends Trade {
           originalAmount,
           instrument,
           price,
-          creationTimestamp,
+          creationTimestamp != null ? creationTimestamp : new Date(),
           timestamp,
           id,
           orderId,
