@@ -1,24 +1,7 @@
 package org.knowm.xchange.lgo;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.TimeZone;
-import java.util.stream.Collectors;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,6 +33,24 @@ import org.knowm.xchange.lgo.dto.product.LgoProducts;
 import org.knowm.xchange.lgo.dto.product.LgoProductsTest;
 import org.knowm.xchange.lgo.dto.trade.LgoUserTrade;
 import org.knowm.xchange.lgo.dto.trade.LgoUserTrades;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.TimeZone;
+import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class LgoAdaptersTest {
 
@@ -223,6 +224,7 @@ public class LgoAdaptersTest {
                 .originalAmount(new BigDecimal("0.00500000"))
                 .currencyPair(CurrencyPair.BTC_USD)
                 .price(new BigDecimal("3854.0000"))
+                .creationTimestamp(userTrades.getUserTrades().get(0).getCreationTimestamp())
                 .timestamp(dateFormat.parse("2019-03-05T16:37:17.220Z"))
                 .id("2")
                 .orderId("155180383648300001")
@@ -236,6 +238,7 @@ public class LgoAdaptersTest {
                 .originalAmount(new BigDecimal("0.00829566"))
                 .currencyPair(CurrencyPair.BTC_USD)
                 .price(new BigDecimal("2410.9000"))
+                .creationTimestamp(userTrades.getUserTrades().get(1).getCreationTimestamp())
                 .timestamp(dateFormat.parse("2019-06-20T15:37:21.855Z"))
                 .id("2477363")
                 .orderId("156104504046400001")
