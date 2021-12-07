@@ -208,7 +208,9 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     }
 
     private BinanceStreamingService createStreamingService(ProductSubscription subscription) {
-        return new BinanceFuturesStreamingService(streamingUri(subscription), subscription);
+        BinanceFuturesStreamingService streamingService = new BinanceFuturesStreamingService(streamingUri(subscription), subscription);
+        applyStreamingSpecification(getExchangeSpecification(), streamingService);
+        return streamingService;
     }
 
     @Override
