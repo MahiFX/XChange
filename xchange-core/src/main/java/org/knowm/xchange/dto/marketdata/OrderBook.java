@@ -56,7 +56,21 @@ public final class OrderBook implements Serializable {
    * @param sort True if the asks and bids need to be sorted
    */
   public OrderBook(Date timeStamp, List<LimitOrder> asks, List<LimitOrder> bids, boolean sort) {
+    this(null, timeStamp, asks, bids, sort);
+  }
 
+  /**
+   * Constructor
+   *
+   * @param creationTimestamp - Local timestamp at which the book was last updated (i.e. time received)
+   * @param timeStamp - the timestamp of the orderbook according to the exchange's server, null if
+   *     not provided
+   * @param asks The ASK orders
+   * @param bids The BID orders
+   * @param sort True if the asks and bids need to be sorted
+   */
+  public OrderBook(Date creationTimestamp, Date timeStamp, List<LimitOrder> asks, List<LimitOrder> bids, boolean sort) {
+    this.creationTimestamp = creationTimestamp;
     this.timeStamp = timeStamp;
     if (sort) {
       this.asks = new ArrayList<>(asks);
