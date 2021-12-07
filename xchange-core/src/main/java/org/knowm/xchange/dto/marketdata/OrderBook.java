@@ -24,10 +24,10 @@ public final class OrderBook implements Serializable {
   private final List<LimitOrder> asks;
   /** the bids */
   private final List<LimitOrder> bids;
-  /** the timestamp of the orderbook according to the exchange's server, null if not provided */
-  private Date timeStamp;
   /** Local timestamp at which the book was last updated (i.e. time received) */
   private Date creationTimestamp;
+  /** the timestamp of the orderbook according to the exchange's server, null if not provided */
+  private Date timeStamp;
 
   /**
    * Constructor
@@ -92,7 +92,21 @@ public final class OrderBook implements Serializable {
    * @param sort True if the asks and bids need to be sorted
    */
   public OrderBook(Date timeStamp, Stream<LimitOrder> asks, Stream<LimitOrder> bids, boolean sort) {
+    this(null, timeStamp, asks, bids, sort);
+  }
 
+  /**
+   * Constructor
+   *
+   * @param creationTimestamp - Local timestamp at which the book was last updated (i.e. time received)
+   * @param timeStamp - the timestamp of the orderbook according to the exchange's server, null if
+   *     not provided
+   * @param asks The ASK orders
+   * @param bids The BID orders
+   * @param sort True if the asks and bids need to be sorted
+   */
+  public OrderBook(Date creationTimestamp, Date timeStamp, Stream<LimitOrder> asks, Stream<LimitOrder> bids, boolean sort) {
+    this.creationTimestamp = creationTimestamp;
     this.timeStamp = timeStamp;
     if (sort) {
       this.asks = asks.sorted().collect(Collectors.toList());
