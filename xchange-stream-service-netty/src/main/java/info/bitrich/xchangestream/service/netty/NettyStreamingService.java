@@ -10,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -53,6 +54,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 public abstract class NettyStreamingService<T> extends ConnectableService {
   private final Logger LOG = LoggerFactory.getLogger(this.getClass());
@@ -85,7 +87,9 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   private final Duration retryDuration;
   private final Duration connectionTimeout;
   private final int idleTimeoutSeconds;
-  private volatile NioEventLoopGroup eventLoopGroup;
+  private Supplier<? extends EventLoopGroup> eventLoopGroupFactory = () -> new NioEventLoopGroup(2);
+  private volatile EventLoopGroup eventLoopGroup;
+  private Class<? extends SocketChannel> socketChannelClass = NioSocketChannel.class;
   protected final Map<String, Subscription> channels = new ConcurrentHashMap<>();
   private boolean compressedMessages = false;
 
@@ -192,7 +196,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
                         this::messageHandler);
 
                 if (eventLoopGroup == null || eventLoopGroup.isShutdown()) {
-                  eventLoopGroup = new NioEventLoopGroup(2);
+                  eventLoopGroup = eventLoopGroupFactory.get();
                 }
 
                 new Bootstrap()
@@ -201,7 +205,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
                         ChannelOption.CONNECT_TIMEOUT_MILLIS,
                         java.lang.Math.toIntExact(connectionTimeout.toMillis()))
                     .option(ChannelOption.SO_KEEPALIVE, true)
-                    .channel(NioSocketChannel.class)
+                    .channel(socketChannelClass)
                     .handler(
                         new ChannelInitializer<SocketChannel>() {
                           @Override
@@ -552,6 +556,14 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
 
   public void useCompressedMessages(boolean compressedMessages) {
     this.compressedMessages = compressedMessages;
+  }
+
+  public void setEventLoopGroupFactory(Supplier<? extends EventLoopGroup> eventLoopGroupFactory) {
+    this.eventLoopGroupFactory = eventLoopGroupFactory;
+  }
+
+  public void setSocketChannelClass(Class<? extends SocketChannel> socketChannelClass) {
+    this.socketChannelClass = socketChannelClass;
   }
 
   public void setAcceptAllCertificates(boolean acceptAllCertificates) {
