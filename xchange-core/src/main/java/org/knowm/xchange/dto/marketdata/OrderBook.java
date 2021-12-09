@@ -315,13 +315,12 @@ public final class OrderBook implements Serializable {
 
   @Override
   public String toString() {
-
     return "OrderBook [timestamp: "
         + timeStamp
         + ", asks="
-        + (asks != null ? asks.toString() : "null")
+        + asks
         + ", bids="
-        + (bids != null ? bids.toString() : "null")
+        + bids
         + "]";
   }
 }

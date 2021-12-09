@@ -3,11 +3,15 @@ package info.bitrich.xchangestream.core;
 import info.bitrich.xchangestream.service.ConnectableService;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel.State;
 import info.bitrich.xchangestream.service.netty.NettyStreamingService;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
+
+import java.util.function.Supplier;
 
 public interface StreamingExchange extends Exchange {
   String PREFER_PERPETUAL_FUTURES = "Prefer_Futures";
@@ -17,12 +21,14 @@ public interface StreamingExchange extends Exchange {
   String SOCKS_PROXY_PORT = "SOCKS_Proxy_Port";
   String AUTO_RECONNECT = "Auto_Reconnect";
   String L3_ORDERBOOK = "L3_Orderbook";
+  String NETTY_SOCKET_CHANNEL_CLASS = "Netty_Socket_Channel_Class";
+  String NETTY_EVENTLOOP_FACTORY = "Netty_EventLoop_Factory";
 
   /**
    * Connects to the WebSocket API of the exchange.
    *
    * @param args Product subscription is used only in certain exchanges where you need to specify
-   *     subscriptions during the connect phase.
+   *             subscriptions during the connect phase.
    * @return {@link Completable} that completes upon successful connection.
    */
   Completable connect(ProductSubscription... args);
@@ -139,12 +145,22 @@ public interface StreamingExchange extends Exchange {
     }
 
     Boolean enable_logging_handler =
-        (Boolean) exchangeSpec.getExchangeSpecificParametersItem(ENABLE_LOGGING_HANDLER);
+            (Boolean) exchangeSpec.getExchangeSpecificParametersItem(ENABLE_LOGGING_HANDLER);
     if (enable_logging_handler != null && enable_logging_handler) {
       streamingService.setEnableLoggingHandler(true);
     }
     Boolean autoReconnect =
-        (Boolean) exchangeSpec.getExchangeSpecificParametersItem(AUTO_RECONNECT);
+            (Boolean) exchangeSpec.getExchangeSpecificParametersItem(AUTO_RECONNECT);
     if (autoReconnect != null) streamingService.setAutoReconnect(autoReconnect);
+
+    Supplier<? extends EventLoopGroup> eventLoopFactory = (Supplier<? extends EventLoopGroup>) exchangeSpec.getExchangeSpecificParametersItem(NETTY_EVENTLOOP_FACTORY);
+    if (eventLoopFactory != null) {
+      streamingService.setEventLoopGroupFactory(eventLoopFactory);
+    }
+
+    Class<? extends SocketChannel> socketChannelClass = (Class<? extends SocketChannel>) exchangeSpec.getExchangeSpecificParametersItem(NETTY_SOCKET_CHANNEL_CLASS);
+    if (socketChannelClass != null) {
+      streamingService.setSocketChannelClass(socketChannelClass);
+    }
   }
 }
