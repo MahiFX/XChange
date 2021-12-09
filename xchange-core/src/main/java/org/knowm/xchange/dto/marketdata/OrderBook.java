@@ -319,9 +319,9 @@ public final class OrderBook implements Serializable {
     return "OrderBook [timestamp: "
         + timeStamp
         + ", asks="
-        + asks.toString()
+        + (asks != null ? asks.toString() : "null")
         + ", bids="
-        + bids.toString()
+        + (bids != null ? bids.toString() : "null")
         + "]";
   }
 }
