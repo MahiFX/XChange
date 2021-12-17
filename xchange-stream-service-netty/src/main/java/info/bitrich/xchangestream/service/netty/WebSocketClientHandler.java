@@ -15,11 +15,14 @@ import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException;
 import io.netty.util.CharsetUtil;
+import io.netty.util.concurrent.EventExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> {
   private static final Logger LOG = LoggerFactory.getLogger(WebSocketClientHandler.class);
+  private static final ThreadLocal<EventExecutor> executorThreadLocal = new ThreadLocal<>();
+
   private final StringBuilder currentMessage = new StringBuilder();
 
   public interface WebSocketMessageHandler {
@@ -82,9 +85,9 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
 
     WebSocketFrame frame = (WebSocketFrame) msg;
     if (frame instanceof TextWebSocketFrame) {
-      dealWithTextFrame((TextWebSocketFrame) frame);
+      dealWithTextFrame(ctx, (TextWebSocketFrame) frame);
     } else if (frame instanceof ContinuationWebSocketFrame) {
-      dealWithContinuation((ContinuationWebSocketFrame) frame);
+      dealWithContinuation(ctx, (ContinuationWebSocketFrame) frame);
     } else if (frame instanceof PingWebSocketFrame) {
       LOG.debug("WebSocket Client received ping");
       ch.writeAndFlush(new PongWebSocketFrame(frame.content().retain()));
@@ -96,20 +99,38 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
     }
   }
 
-  private void dealWithTextFrame(TextWebSocketFrame frame) {
+  private void dealWithTextFrame(ChannelHandlerContext ctx, TextWebSocketFrame frame) {
     if (frame.isFinalFragment()) {
-      handler.onMessage(frame.text());
+      try {
+        executorThreadLocal.set(ctx.executor());
+        handler.onMessage(frame.text());
+
+      } finally {
+        executorThreadLocal.set(null);
+
+      }
       return;
     }
     currentMessage.append(frame.text());
   }
 
-  private void dealWithContinuation(ContinuationWebSocketFrame frame) {
+  private void dealWithContinuation(ChannelHandlerContext ctx, ContinuationWebSocketFrame frame) {
     currentMessage.append(frame.text());
     if (frame.isFinalFragment()) {
-      handler.onMessage(currentMessage.toString());
+      try {
+        executorThreadLocal.set(ctx.executor());
+        handler.onMessage(currentMessage.toString());
+
+      } finally {
+        executorThreadLocal.set(null);
+
+      }
       currentMessage.setLength(0);
     }
+  }
+
+  public static EventExecutor getCurrentThreadExecutor() {
+    return executorThreadLocal.get();
   }
 
   @Override
