@@ -3,7 +3,9 @@ package info.bitrich.xchangestream.deribit;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
+import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import io.reactivex.Completable;
+import io.reactivex.Observable;
 import org.knowm.xchange.deribit.v2.DeribitExchange;
 
 public class DeribitStreamingExchange extends DeribitExchange implements StreamingExchange {
@@ -34,6 +36,21 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
     @Override
     public StreamingMarketDataService getStreamingMarketDataService() {
         return streamingMarketDataService;
+    }
+
+    @Override
+    public Observable<ConnectionStateModel.State> connectionStateObservable() {
+        return streamingService.subscribeConnectionState();
+    }
+
+    @Override
+    public Observable<Throwable> reconnectFailure() {
+        return streamingService.subscribeReconnectFailure();
+    }
+
+    @Override
+    public Observable<Object> connectionSuccess() {
+        return streamingService.subscribeConnectionSuccess();
     }
 
     @Override
