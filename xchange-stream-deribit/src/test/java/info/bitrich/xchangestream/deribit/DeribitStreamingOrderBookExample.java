@@ -9,6 +9,8 @@ import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 public class DeribitStreamingOrderBookExample {
     private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingOrderBookExample.class);
 
@@ -24,8 +26,9 @@ public class DeribitStreamingOrderBookExample {
         CurrencyPair currencyPair = new CurrencyPair("BTC-PERPETUAL");
         Observable<OrderBook> orderBook = deribitStreamingExchange.getStreamingMarketDataService().getOrderBook(currencyPair);
 
+        AtomicLong counter = new AtomicLong(0);
         orderBook.subscribe(book -> {
-            logger.info("Received book: " + book);
+            logger.info("Received book update #" + counter.incrementAndGet());
         });
 
         Thread.sleep(Long.MAX_VALUE);
