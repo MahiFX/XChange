@@ -78,7 +78,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
         AtomicLong lastChangeId = new AtomicLong(-1);
         Disposable safeToIgnore = marketDataUpdateMessageObservable.forEach(update -> {
-            if (lastChangeId.get() == -1) {
+            if (lastChangeId.get() == -1 || update.getPrevChangeId() == null) {
                 lastChangeId.set(update.getChangeId());
             } else {
                 if (!lastChangeId.compareAndSet(update.getPrevChangeId(), update.getChangeId())) {
