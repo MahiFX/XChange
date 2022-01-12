@@ -80,20 +80,33 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
                 lastChangeId.set(update.getChangeId());
             } else {
                 if (!lastChangeId.compareAndSet(update.getPrevChangeId(), update.getChangeId())) {
-                    // Clear book
-                    orderBook.accept(DeribitMarketDataUpdateMessage.EMPTY);
-
-                    // Close existing streams
-                    disconnectStreamDisposable.dispose();
-                    orderBookSubscriptionDisposable.dispose();
-
-                    // Schedule automatic resubscribe
-                    executor.schedule(() -> {
-                        setupOrderBookSubscriptions(currencyPair, orderBook);
-                    }, 500, TimeUnit.MILLISECONDS);
+                    executor.schedule(
+                            () -> closeAndReconnectOrderBook(
+                                    currencyPair,
+                                    orderBook,
+                                    disconnectStreamDisposable,
+                                    orderBookSubscriptionDisposable),
+                            10,
+                            TimeUnit.MILLISECONDS
+                    );
                 }
             }
         });
+    }
+
+    private void closeAndReconnectOrderBook(CurrencyPair instrument, DeribitOrderBook orderBook, Disposable... disposables) {
+        // Dispose disposables
+        for (Disposable disposable : disposables) {
+            disposable.dispose();
+        }
+
+        // Clear order book
+        orderBook.accept(DeribitMarketDataUpdateMessage.EMPTY);
+
+        // Schedule reconnection
+        executor.schedule(() -> {
+            setupOrderBookSubscriptions(instrument, orderBook);
+        }, 500, TimeUnit.MILLISECONDS);
     }
 
     @Override
