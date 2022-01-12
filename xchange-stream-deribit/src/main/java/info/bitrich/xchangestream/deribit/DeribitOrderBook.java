@@ -80,13 +80,15 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
     private void processSnapshotOrders(Object[][] orders, Map<BigDecimal, BigDecimal> mapForInsert) {
         mapForInsert.clear();
 
-        for (Object[] order : orders) {
-            assert order.length == 3;
+        if (orders != null) {
+            for (Object[] order : orders) {
+                assert order.length == 3;
 
-            BigDecimal price = (BigDecimal) order[1];
-            BigDecimal quantity = (BigDecimal) order[2];
+                BigDecimal price = (BigDecimal) order[1];
+                BigDecimal quantity = (BigDecimal) order[2];
 
-            mapForInsert.put(price, quantity);
+                mapForInsert.put(price, quantity);
+            }
         }
     }
 
@@ -96,27 +98,29 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
     }
 
     private void processIncrementOrders(Object[][] orders, Map<BigDecimal, BigDecimal> mapForInsert) {
-        for (Object[] order : orders) {
-            assert order.length == 3;
+        if (orders != null) {
+            for (Object[] order : orders) {
+                assert order.length == 3;
 
-            String action = (String) order[0];
-            BigDecimal price = (BigDecimal) order[1];
-            BigDecimal quantity = (BigDecimal) order[2];
+                String action = (String) order[0];
+                BigDecimal price = (BigDecimal) order[1];
+                BigDecimal quantity = (BigDecimal) order[2];
 
-            switch (action) {
-                case "delete":
-                    mapForInsert.remove(price);
-                    break;
-                case "change":
-                    BigDecimal oldValue = mapForInsert.put(price, quantity);
-                    assert oldValue != null;
-                    break;
-                case "new":
-                    BigDecimal expectNull = mapForInsert.put(price, quantity);
-                    assert expectNull == null;
-                    break;
-                default:
-                    throw new RuntimeException("Unexpected order action: " + action);
+                switch (action) {
+                    case "delete":
+                        mapForInsert.remove(price);
+                        break;
+                    case "change":
+                        BigDecimal oldValue = mapForInsert.put(price, quantity);
+                        assert oldValue != null;
+                        break;
+                    case "new":
+                        BigDecimal expectNull = mapForInsert.put(price, quantity);
+                        assert expectNull == null;
+                        break;
+                    default:
+                        throw new RuntimeException("Unexpected order action: " + action);
+                }
             }
         }
     }
