@@ -45,6 +45,8 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
     private void setupOrderBookSubscriptions(CurrencyPair currencyPair, DeribitOrderBook orderBook) {
         String channelName = "book." + currencyPair.toString().replace("/", "-") + ".raw";
 
+        logger.debug("Subscribing to orderBook channel: " + channelName);
+
         Disposable disconnectStreamDisposable = streamingService.subscribeDisconnect()
                 .map(o -> {
                     logger.debug("Clearing order book for {} due to disconnect: {}", currencyPair, o);
