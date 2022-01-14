@@ -13,14 +13,15 @@ import org.knowm.xchange.dto.trade.LimitOrder;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<DeribitMarketDataUpdateMessage> {
     private final CurrencyPair instrument;
 
     private final Subject<OrderBook> orderBookSubject = PublishSubject.<OrderBook>create().toSerialized();
 
-    private final Map<BigDecimal, BigDecimal> bidPriceToBidQuantity = new TreeMap<>(Comparator.reverseOrder());
-    private final Map<BigDecimal, BigDecimal> offerPriceToOfferQuantity = new TreeMap<>();
+    private final Map<BigDecimal, BigDecimal> bidPriceToBidQuantity = new ConcurrentSkipListMap<>(Comparator.reverseOrder());
+    private final Map<BigDecimal, BigDecimal> offerPriceToOfferQuantity = new ConcurrentSkipListMap<>();
 
     public DeribitOrderBook(CurrencyPair instrument) {
         this.instrument = instrument;
