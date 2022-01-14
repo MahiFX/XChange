@@ -121,7 +121,7 @@ public class DeribitTradeData {
     @JsonIgnore
     public Trade toTrade(CurrencyPair currencyPair) {
         return new Trade(
-                "Buy".equals(direction) ? Order.OrderType.BID : Order.OrderType.ASK,
+                "buy".equals(direction) ? Order.OrderType.BID : Order.OrderType.ASK,
                 amount,
                 currencyPair,
                 price,
