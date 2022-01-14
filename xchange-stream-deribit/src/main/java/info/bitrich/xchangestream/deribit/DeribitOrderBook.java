@@ -32,7 +32,7 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
     }
 
     @Override
-    public void accept(DeribitMarketDataUpdateMessage deribitMarketDataUpdateMessage) {
+    public synchronized void accept(DeribitMarketDataUpdateMessage deribitMarketDataUpdateMessage) {
         if (deribitMarketDataUpdateMessage.getPrevChangeId() == null) {
             handleSnapshot(deribitMarketDataUpdateMessage);
         } else {
