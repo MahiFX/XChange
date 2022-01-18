@@ -2,6 +2,7 @@ package info.bitrich.xchangestream.deribit;
 
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
+import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import io.reactivex.Observable;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -19,18 +20,29 @@ public class DeribitStreamingOrderBookExample {
                 .createExchange(DeribitStreamingExchange.class)
                 .getDefaultExchangeSpecification();
 
+        exchangeSpecification.setApiKey("YOUR_CLIENT_ID");
+        exchangeSpecification.setSecretKey("YOUR_CLIENT_SECRET");
+
+        exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
+
         StreamingExchange deribitStreamingExchange = StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
         deribitStreamingExchange.connect().blockingAwait();
 
-        CurrencyPair currencyPair = new CurrencyPair("BTC-PERPETUAL");
-        Observable<OrderBook> orderBook = deribitStreamingExchange.getStreamingMarketDataService().getOrderBook(currencyPair);
+        subscribe(deribitStreamingExchange.getStreamingMarketDataService(), "BTC-PERPETUAL");
+        subscribe(deribitStreamingExchange.getStreamingMarketDataService(), "ETH-PERPETUAL");
+
+        Thread.sleep(Long.MAX_VALUE);
+    }
+
+    public static void subscribe(StreamingMarketDataService streamingMarketDataService, String instrument) {
+        CurrencyPair currencyPair = new CurrencyPair(instrument);
+
+        Observable<OrderBook> orderBook = streamingMarketDataService.getOrderBook(currencyPair);
 
         AtomicLong counter = new AtomicLong(0);
         orderBook.subscribe(book -> {
-            logger.info("Received book update #" + counter.incrementAndGet());
+            logger.info("Received book update for instrument {}: #{}", instrument, counter.incrementAndGet());
         });
-
-        Thread.sleep(Long.MAX_VALUE);
     }
 }

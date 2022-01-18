@@ -23,11 +23,11 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
         this.useTestnet = Boolean.TRUE.equals(getExchangeSpecification().getExchangeSpecificParametersItem(USE_SANDBOX));
 
         this.streamingService = createStreamingService();
-        this.streamingMarketDataService = new DeribitStreamingMarketDataService(streamingService);
+        this.streamingMarketDataService = new DeribitStreamingMarketDataService(streamingService, getExchangeSpecification());
     }
 
     private DeribitStreamingService createStreamingService() {
-        DeribitStreamingService streamingService = new DeribitStreamingService(useTestnet ? WS_TESTNET_API_URL : WS_API_URL);
+        DeribitStreamingService streamingService = new DeribitStreamingService(useTestnet ? WS_TESTNET_API_URL : WS_API_URL, getExchangeSpecification());
         applyStreamingSpecification(getExchangeSpecification(), streamingService);
 
         return streamingService;

@@ -9,6 +9,7 @@ import info.bitrich.xchangestream.deribit.dto.DeribitTradeData;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Ticker;
@@ -30,20 +31,32 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private final DeribitStreamingService streamingService;
+    private final ExchangeSpecification exchangeSpecification;
 
     private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
-    public DeribitStreamingMarketDataService(DeribitStreamingService streamingService) {
+    public DeribitStreamingMarketDataService(DeribitStreamingService streamingService, ExchangeSpecification exchangeSpecification) {
         this.streamingService = streamingService;
+        this.exchangeSpecification = exchangeSpecification;
     }
 
     @Override
     public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
+        authenticate();
+
         DeribitOrderBook orderBook = new DeribitOrderBook(currencyPair);
 
         setupOrderBookSubscriptions(currencyPair, orderBook);
 
         return orderBook;
+    }
+
+    private void authenticate() {
+        try {
+            streamingService.authenticate(exchangeSpecification.getApiKey(), exchangeSpecification.getSecretKey());
+        } catch (Throwable t) {
+            throw new RuntimeException(t);
+        }
     }
 
     private void setupOrderBookSubscriptions(CurrencyPair currencyPair, DeribitOrderBook orderBook) {
@@ -137,6 +150,8 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
     @Override
     public Observable<Trade> getTrades(CurrencyPair currencyPair, Object... args) {
+        authenticate();
+
         String channelName = "trades." + instrumentName(currencyPair) + ".raw";
 
         logger.debug("Subscribing to trade channel: " + channelName);

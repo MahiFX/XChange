@@ -2,10 +2,10 @@ package info.bitrich.xchangestream.deribit.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class DeribitSubscribeMessage {
-    private final DeribitSubscribeParams params;
+public class DeribitAuthMessage {
+    private final DeribitAuthParams params;
 
-    public DeribitSubscribeMessage(DeribitSubscribeParams params) {
+    public DeribitAuthMessage(DeribitAuthParams params) {
         this.params = params;
     }
 
@@ -16,11 +16,11 @@ public class DeribitSubscribeMessage {
 
     @JsonProperty("method")
     public String getMethod() {
-        return "private/subscribe";
+        return "public/auth";
     }
 
     @JsonProperty("params")
-    public DeribitSubscribeParams getParams() {
+    public DeribitAuthParams getParams() {
         return params;
     }
 }
