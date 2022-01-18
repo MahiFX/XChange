@@ -19,6 +19,11 @@ public class DeribitStreamingTradeExample {
                 .createExchange(DeribitStreamingExchange.class)
                 .getDefaultExchangeSpecification();
 
+        exchangeSpecification.setApiKey("YOUR_CLIENT_ID");
+        exchangeSpecification.setSecretKey("YOUR_CLIENT_SECRET");
+
+        exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
+
         StreamingExchange deribitStreamingExchange = StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
         deribitStreamingExchange.connect().blockingAwait();
