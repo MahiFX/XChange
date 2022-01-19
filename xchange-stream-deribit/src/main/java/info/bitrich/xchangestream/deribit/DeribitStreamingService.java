@@ -16,6 +16,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 public class DeribitStreamingService extends JsonNettyStreamingService {
+    public static final String NO_CHANNEL_CHANNEL_NAME = "DERIBIT_NO_CHANNEL";
+
     private static final String HMAC_SHA256_ALGO = "HmacSHA256";
     private final ExchangeSpecification exchangeSpecification;
 
@@ -34,11 +36,13 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
             }
         }
 
-        throw new IOException("Failed to read channel from message: " + message);
+        return NO_CHANNEL_CHANNEL_NAME;
     }
 
     @Override
     public String getSubscribeMessage(String channelName, Object... args) throws IOException {
+        if (NO_CHANNEL_CHANNEL_NAME.equals(channelName)) return "";
+
         DeribitSubscribeMessage subscribeMessage = new DeribitSubscribeMessage(new DeribitSubscribeParams(channelName));
 
         return objectMapper.writeValueAsString(subscribeMessage);
