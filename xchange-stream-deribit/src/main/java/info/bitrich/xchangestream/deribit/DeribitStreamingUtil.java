@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 
+import java.util.Objects;
+
 public class DeribitStreamingUtil {
 
     private DeribitStreamingUtil() {
@@ -14,6 +16,8 @@ public class DeribitStreamingUtil {
     public static String getType(Order.OrderType type) {
         return (type == Order.OrderType.BID) ? "buy" : "sell";
     }
+
+    public static Order.OrderType convertDirectionToType(String direction) {return (Objects.equals(direction, "buy")) ? Order.OrderType.BID : Order.OrderType.ASK;}
 
     public static String instrumentName(CurrencyPair currencyPair) {
         return currencyPair.toString().replace("/", "-");
