@@ -8,6 +8,7 @@ import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import org.knowm.xchange.deribit.v2.DeribitExchange;
+import org.knowm.xchange.service.trade.TradeService;
 
 public class DeribitStreamingExchange extends DeribitExchange implements StreamingExchange {
     private static final String WS_API_URL = "wss://www.deribit.com/ws/api/v2";
@@ -17,7 +18,7 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
 
     private DeribitStreamingService streamingService;
     private DeribitStreamingMarketDataService streamingMarketDataService;
-    private StreamingTradeService streamingTradeService;
+    private DeribitStreamingTradeService streamingTradeService;
 
     @Override
     protected void initServices() {
@@ -43,6 +44,11 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
 
     @Override
     public StreamingTradeService getStreamingTradeService() {
+        return streamingTradeService;
+    }
+
+    @Override
+    public TradeService getTradeService() {
         return streamingTradeService;
     }
 
