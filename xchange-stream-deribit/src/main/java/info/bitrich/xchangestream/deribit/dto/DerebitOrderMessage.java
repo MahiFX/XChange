@@ -6,7 +6,7 @@ public class DerebitOrderMessage {
     private final DerebitOrderParams params;
     private final String method;
 
-    public DerebitOrderMessage(DerebitOrderParams params, String method) {
+    public DerebitOrderMessage(@JsonProperty("params") DerebitOrderParams params, @JsonProperty("method") String method) {
         this.params = params;
         this.method = method;
     }
