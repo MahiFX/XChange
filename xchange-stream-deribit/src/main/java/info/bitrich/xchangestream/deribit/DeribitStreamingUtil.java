@@ -4,10 +4,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.dto.Order;
 
 public class DeribitStreamingUtil {
 
     private DeribitStreamingUtil() {
+    }
+
+    public static String getType(Order.OrderType type) {
+        return (type == Order.OrderType.BID) ? "buy" : "sell";
     }
 
     public static String instrumentName(CurrencyPair currencyPair) {

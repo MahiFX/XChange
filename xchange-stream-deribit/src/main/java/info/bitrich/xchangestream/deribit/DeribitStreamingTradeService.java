@@ -2,6 +2,8 @@ package info.bitrich.xchangestream.deribit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.core.StreamingTradeService;
+import info.bitrich.xchangestream.deribit.dto.DerebitOrderMessage;
+import info.bitrich.xchangestream.deribit.dto.DerebitOrderParams;
 import info.bitrich.xchangestream.deribit.dto.DeribitOrderUpdate;
 import info.bitrich.xchangestream.deribit.dto.DeribitUserTrade;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
@@ -82,12 +84,30 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
 
     @Override
     public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
-        throw new NotYetImplementedForExchangeException();
+        DerebitOrderParams derebitOrderParams = new DerebitOrderParams(
+                limitOrder.getInstrument().toString(),
+                limitOrder.getOriginalAmount(),
+                limitOrder.getLimitPrice(),
+                "limit",
+                limitOrder.getUserReference()
+                );
+        DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + DeribitStreamingUtil.getType(limitOrder.getType()));
+        streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
+        return null;
     }
 
     @Override
     public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
-        throw new NotYetImplementedForExchangeException();
+        DerebitOrderParams derebitOrderParams = new DerebitOrderParams(
+                marketOrder.getInstrument().toString(),
+                marketOrder.getOriginalAmount(),
+                null,
+                "market",
+                marketOrder.getUserReference()
+        );
+        DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + DeribitStreamingUtil.getType(marketOrder.getType()));
+        streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
+        return null;
     }
 
     private void authenticate() {
