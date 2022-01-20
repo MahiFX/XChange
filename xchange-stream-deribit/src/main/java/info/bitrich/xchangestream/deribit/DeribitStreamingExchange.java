@@ -3,6 +3,7 @@ package info.bitrich.xchangestream.deribit;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
+import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
@@ -16,6 +17,7 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
 
     private DeribitStreamingService streamingService;
     private DeribitStreamingMarketDataService streamingMarketDataService;
+    private StreamingTradeService streamingTradeService;
 
     @Override
     protected void initServices() {
@@ -24,6 +26,7 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
 
         this.streamingService = createStreamingService();
         this.streamingMarketDataService = new DeribitStreamingMarketDataService(streamingService, getExchangeSpecification());
+        this.streamingTradeService = new DeribitStreamingTradeService(streamingService, getExchangeSpecification());
     }
 
     private DeribitStreamingService createStreamingService() {
@@ -36,6 +39,11 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
     @Override
     public StreamingMarketDataService getStreamingMarketDataService() {
         return streamingMarketDataService;
+    }
+
+    @Override
+    public StreamingTradeService getStreamingTradeService() {
+        return streamingTradeService;
     }
 
     @Override
