@@ -1,7 +1,5 @@
 package info.bitrich.xchangestream.deribit;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.deribit.dto.DeribitMarketDataUpdateMessage;
@@ -24,6 +22,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static info.bitrich.xchangestream.deribit.DeribitStreamingUtil.instrumentName;
+import static info.bitrich.xchangestream.deribit.DeribitStreamingUtil.tryGetDataAsType;
 
 public class DeribitStreamingMarketDataService implements StreamingMarketDataService {
     private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingMarketDataService.class);
@@ -75,7 +76,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
         Observable<DeribitMarketDataUpdateMessage> marketDataUpdateMessageObservable = streamingService.subscribeChannel(channelName)
                 .map(json -> {
-                    DeribitMarketDataUpdateMessage marketDataUpdate = tryGetDataAsType(json, DeribitMarketDataUpdateMessage.class);
+                    DeribitMarketDataUpdateMessage marketDataUpdate = tryGetDataAsType(mapper, json, DeribitMarketDataUpdateMessage.class);
 
                     if (marketDataUpdate != null) {
                         return marketDataUpdate;
@@ -110,24 +111,6 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
         });
     }
 
-    private <T> T tryGetDataAsType(JsonNode json, Class<T> dataType) throws JsonProcessingException {
-        if (json.has("params")) {
-            JsonNode params = json.get("params");
-
-            if (params.has("data")) {
-                JsonNode data = params.get("data");
-
-                return mapper.treeToValue(data, dataType);
-            }
-        }
-
-        return null;
-    }
-
-    private String instrumentName(CurrencyPair currencyPair) {
-        return currencyPair.toString().replace("/", "-");
-    }
-
     private void closeAndReconnectOrderBook(CurrencyPair instrument, DeribitOrderBook orderBook, Disposable... disposables) {
         // Dispose disposables
         for (Disposable disposable : disposables) {
@@ -158,7 +141,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
         Observable<DeribitTradeData[]> tradeData = streamingService.subscribeChannel(channelName)
                 .map(json -> {
-                    DeribitTradeData[] deribitTradeData = tryGetDataAsType(json, DeribitTradeData[].class);
+                    DeribitTradeData[] deribitTradeData = tryGetDataAsType(mapper, json, DeribitTradeData[].class);
 
                     if (deribitTradeData != null) {
                         return deribitTradeData;
