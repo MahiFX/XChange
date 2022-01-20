@@ -36,4 +36,8 @@ public class DeribitStreamingUtil {
 
         return null;
     }
+
+    public static Order.OrderType getType(String side) {
+        return "buy".equalsIgnoreCase(side) ? Order.OrderType.BID : Order.OrderType.ASK;
+    }
 }
