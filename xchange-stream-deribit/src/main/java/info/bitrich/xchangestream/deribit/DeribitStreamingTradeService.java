@@ -14,7 +14,6 @@ import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.UserTrade;
-import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,12 +84,12 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     @Override
     public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
         DerebitOrderParams derebitOrderParams = new DerebitOrderParams(
-                limitOrder.getInstrument().toString(),
+                DeribitStreamingUtil.instrumentName(limitOrder.getInstrument()),
                 limitOrder.getOriginalAmount(),
                 limitOrder.getLimitPrice(),
                 "limit",
                 limitOrder.getUserReference()
-                );
+        );
         DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + DeribitStreamingUtil.getType(limitOrder.getType()));
         streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
         return null;
@@ -99,7 +98,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     @Override
     public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
         DerebitOrderParams derebitOrderParams = new DerebitOrderParams(
-                marketOrder.getInstrument().toString(),
+                DeribitStreamingUtil.instrumentName(marketOrder.getInstrument()),
                 marketOrder.getOriginalAmount(),
                 null,
                 "market",
