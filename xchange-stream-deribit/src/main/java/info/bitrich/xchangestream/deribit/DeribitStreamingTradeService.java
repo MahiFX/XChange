@@ -19,6 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -69,16 +71,23 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
 
         return streamingService.subscribeChannel(channelName)
                 .map(json -> {
-                    DeribitUserTrade deribitUserTrade = DeribitStreamingUtil.tryGetDataAsType(mapper, json, DeribitUserTrade.class);
+                    DeribitUserTrade[] deribitUserTrade = DeribitStreamingUtil.tryGetDataAsType(mapper, json, DeribitUserTrade[].class);
 
                     if (deribitUserTrade == null) {
-                        return DeribitUserTrade.EMPTY;
+                        return new DeribitUserTrade[0];
                     } else {
                         return deribitUserTrade;
                     }
                 })
-                .filter(update -> update != DeribitUserTrade.EMPTY)
-                .map(DeribitUserTrade::toUserTrade);
+                .flatMapIterable(dut -> {
+                    List<UserTrade> userTrades = new ArrayList<>();
+
+                    for (DeribitUserTrade deribitUserTrade : dut) {
+                        userTrades.add(deribitUserTrade.toUserTrade());
+                    }
+
+                    return userTrades;
+                });
     }
 
     @Override
