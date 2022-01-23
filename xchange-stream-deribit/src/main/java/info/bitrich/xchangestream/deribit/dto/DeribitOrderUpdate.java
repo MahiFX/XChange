@@ -2,6 +2,7 @@ package info.bitrich.xchangestream.deribit.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import info.bitrich.xchangestream.deribit.DeribitStreamingUtil;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
@@ -353,6 +354,11 @@ public class DeribitOrderUpdate {
         OrderState(String state) {
             this.state = state;
         }
+
+        @JsonValue
+        public String getState() {
+            return state;
+        }
     }
 
     public enum TimeInForce {
@@ -365,6 +371,11 @@ public class DeribitOrderUpdate {
 
         TimeInForce(String name) {
             this.name = name;
+        }
+
+        @JsonValue
+        public String getName() {
+            return name;
         }
     }
 }
