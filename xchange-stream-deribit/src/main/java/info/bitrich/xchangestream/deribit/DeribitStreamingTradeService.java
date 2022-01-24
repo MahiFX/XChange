@@ -2,10 +2,7 @@ package info.bitrich.xchangestream.deribit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.core.StreamingTradeService;
-import info.bitrich.xchangestream.deribit.dto.DerebitOrderMessage;
-import info.bitrich.xchangestream.deribit.dto.DerebitOrderParams;
-import info.bitrich.xchangestream.deribit.dto.DeribitOrderUpdate;
-import info.bitrich.xchangestream.deribit.dto.DeribitUserTrade;
+import info.bitrich.xchangestream.deribit.dto.*;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import org.knowm.xchange.ExchangeSpecification;
@@ -21,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -97,8 +95,9 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                 limitOrder.getOriginalAmount(),
                 limitOrder.getLimitPrice(),
                 "limit",
-                limitOrder.getUserReference()
-        );
+                limitOrder.getUserReference(),
+                getTimeInForce(limitOrder),
+                limitOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
         DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + DeribitStreamingUtil.getType(limitOrder.getType()));
         streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
         return null;
@@ -111,10 +110,21 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                 marketOrder.getOriginalAmount(),
                 null,
                 "market",
-                marketOrder.getUserReference()
-        );
+                marketOrder.getUserReference(),
+                getTimeInForce(marketOrder),
+                marketOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
         DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + DeribitStreamingUtil.getType(marketOrder.getType()));
         streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
+        return null;
+    }
+
+    private DeribitTimeInForce getTimeInForce(Order order) {
+        Set<Order.IOrderFlags> flags = order.getOrderFlags();
+
+        for (Order.IOrderFlags flag : flags) {
+            if (flag instanceof DeribitTimeInForce) return (DeribitTimeInForce) flag;
+        }
+
         return null;
     }
 
