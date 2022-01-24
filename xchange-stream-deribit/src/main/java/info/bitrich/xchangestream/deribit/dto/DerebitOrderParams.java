@@ -10,18 +10,24 @@ public class DerebitOrderParams {
     private final BigDecimal price;
     private final String type;
     private final String label;
+    private final DeribitTimeInForce timeInForce;
+    private final Boolean postOnly;
 
     public DerebitOrderParams(
             @JsonProperty("instrument_name") String instrument,
             @JsonProperty("amount") BigDecimal amount,
             @JsonProperty("price") BigDecimal price,
             @JsonProperty("type") String type,
-            @JsonProperty("label") String label) {
+            @JsonProperty("label") String label,
+            @JsonProperty("time_in_force") DeribitTimeInForce timeInForce,
+            @JsonProperty("post_only") Boolean postOnly) {
         this.instrument = instrument;
         this.amount = amount;
         this.price = price;
         this.type = type;
         this.label = label;
+        this.timeInForce = timeInForce;
+        this.postOnly = postOnly;
     }
 
     @JsonProperty("instrument_name")
@@ -47,5 +53,15 @@ public class DerebitOrderParams {
     @JsonProperty("label")
     public String getLabel() {
         return label;
+    }
+
+    @JsonProperty("time_in_force")
+    public DeribitTimeInForce getTimeInForce() {
+        return timeInForce;
+    }
+
+    @JsonProperty("post_only")
+    public Boolean getPostOnly() {
+        return postOnly;
     }
 }

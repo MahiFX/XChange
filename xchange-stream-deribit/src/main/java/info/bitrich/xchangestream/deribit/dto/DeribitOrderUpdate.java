@@ -28,7 +28,7 @@ public class DeribitOrderUpdate {
     private final boolean blockTrade;
     private final String originalOrderType;
     private final BigDecimal price;
-    private final TimeInForce timeInForce;
+    private final DeribitTimeInForce timeInForce;
     private final boolean autoReplaced;
     private final Date lastUpdateTimestamp;
     private final boolean postOnly;
@@ -65,7 +65,7 @@ public class DeribitOrderUpdate {
             @JsonProperty("block_trade") boolean blockTrade,
             @JsonProperty("original_order_type") String originalOrderType,
             @JsonProperty("price") BigDecimal price,
-            @JsonProperty("time_in_force") TimeInForce timeInForce,
+            @JsonProperty("time_in_force") DeribitTimeInForce timeInForce,
             @JsonProperty("auto_replaced") boolean autoReplaced,
             @JsonProperty("last_update_timestamp") Date lastUpdateTimestamp,
             @JsonProperty("post_only") boolean postOnly,
@@ -190,7 +190,7 @@ public class DeribitOrderUpdate {
     }
 
     @JsonProperty("time_in_force")
-    public TimeInForce getTimeInForce() {
+    public DeribitTimeInForce getTimeInForce() {
         return timeInForce;
     }
 
@@ -358,24 +358,6 @@ public class DeribitOrderUpdate {
         @JsonValue
         public String getState() {
             return state;
-        }
-    }
-
-    public enum TimeInForce {
-        GTC("good_til_cancelled"),
-        GTD("good_til_day"),
-        FOK("fill_or_kill"),
-        IOC("immediate_or_cancel");
-
-        private final String name;
-
-        TimeInForce(String name) {
-            this.name = name;
-        }
-
-        @JsonValue
-        public String getName() {
-            return name;
         }
     }
 }
