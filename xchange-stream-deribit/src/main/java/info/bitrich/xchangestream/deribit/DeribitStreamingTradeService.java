@@ -93,7 +93,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
 
     @Override
     public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
-        DerebitOrderParams derebitOrderParams = new DerebitOrderParams(
+        DeribitOrderParams deribitOrderParams = new DeribitOrderParams(
                 DeribitStreamingUtil.instrumentName(limitOrder.getInstrument()),
                 limitOrder.getOriginalAmount(),
                 limitOrder.getLimitPrice(),
@@ -102,12 +102,12 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                 getTimeInForce(limitOrder),
                 limitOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
 
-        return sendDeribitOrderMessage(derebitOrderParams, DeribitStreamingUtil.getDirection(limitOrder.getType()));
+        return sendDeribitOrderMessage(deribitOrderParams, DeribitStreamingUtil.getDirection(limitOrder.getType()));
     }
 
     @Override
     public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
-        DerebitOrderParams derebitOrderParams = new DerebitOrderParams(
+        DeribitOrderParams deribitOrderParams = new DeribitOrderParams(
                 DeribitStreamingUtil.instrumentName(marketOrder.getInstrument()),
                 marketOrder.getOriginalAmount(),
                 null,
@@ -116,13 +116,13 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                 getTimeInForce(marketOrder),
                 marketOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
 
-        return sendDeribitOrderMessage(derebitOrderParams, DeribitStreamingUtil.getDirection(marketOrder.getType()));
+        return sendDeribitOrderMessage(deribitOrderParams, DeribitStreamingUtil.getDirection(marketOrder.getType()));
     }
 
-    private String sendDeribitOrderMessage(DerebitOrderParams derebitOrderParams, String direction) throws IOException {
+    private String sendDeribitOrderMessage(DeribitOrderParams deribitOrderParams, String direction) throws IOException {
         long messageId = messageCounter.incrementAndGet();
-        DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + direction, messageId);
-        streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
+        DeribitOrderMessage deribitOrderMessage = new DeribitOrderMessage(deribitOrderParams, "private/" + direction, messageId);
+        streamingService.sendMessage(mapper.writeValueAsString(deribitOrderMessage));
 
         JsonNode jsonNode;
         try {
@@ -145,6 +145,34 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
         }
 
         return null;
+    }
+
+    @Override
+    public boolean cancelOrder(String orderId) throws IOException {
+        long messageId = messageCounter.incrementAndGet();
+        streamingService.sendMessage(mapper.writeValueAsString(new DeribitCancelOrderMessage(messageId, orderId)));
+
+        JsonNode jsonNode;
+
+        try {
+            jsonNode = streamingService.waitForNoChannelMessage(messageId);
+        } catch (Throwable t) {
+            return false;
+        }
+
+        if (jsonNode != null) {
+            if (jsonNode.has("result")) {
+                JsonNode result = jsonNode.get("result");
+
+                if (result.has("order_state")) {
+                    String state = result.get("order_state").asText();
+
+                    return "cancelled".equals(state) || "untriggered".equals(state);
+                }
+            }
+        }
+
+        return false;
     }
 
     private DeribitTimeInForce getTimeInForce(Order order) {
