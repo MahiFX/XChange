@@ -2,6 +2,8 @@ package info.bitrich.xchangestream.deribit;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import info.bitrich.xchangestream.deribit.dto.*;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import org.knowm.xchange.ExchangeSpecification;
@@ -14,16 +16,39 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 public class DeribitStreamingService extends JsonNettyStreamingService {
     public static final String NO_CHANNEL_CHANNEL_NAME = "DERIBIT_NO_CHANNEL";
+    public static final long WAIT_FOR_NO_CHANNEL_MESSAGE_MS = Long.getLong("DeribitStreamingService.WAIT_FOR_NO_CHANNEL_MESSAGE_MS", 500);
 
     private static final String HMAC_SHA256_ALGO = "HmacSHA256";
     private final ExchangeSpecification exchangeSpecification;
 
+    private final Cache<Long, Object> noChannelMessageCache = CacheBuilder.newBuilder().maximumSize(200).build();
+
     public DeribitStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification) {
         super(apiUrl);
         this.exchangeSpecification = exchangeSpecification;
+
+        subscribeConnectionSuccess().subscribe(o -> {
+            subscribeChannel(NO_CHANNEL_CHANNEL_NAME)
+                    .forEach(json -> {
+
+                        if (json.has("id")) {
+                            Long id = json.get("id").asLong();
+
+                            Object cached = noChannelMessageCache.get(id, () -> json);
+
+                            //noinspection ObjectEquality - desired
+                            if (json != cached && cached != null) {
+                                cached.notifyAll();
+                            } else {
+                                noChannelMessageCache.put(id, json);
+                            }
+                        }
+                    });
+        });
     }
 
     @Override
@@ -64,6 +89,25 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
         }
 
         super.resubscribeChannels();
+    }
+
+    public JsonNode waitForNoChannelMessage(long id) throws ExecutionException, InterruptedException {
+        Object wait = new Object();
+
+        Object result = noChannelMessageCache.get(id, () -> wait);
+
+        if (result instanceof JsonNode) {
+            return (JsonNode) result;
+        } else {
+            // Small race condition here.
+            // If the message arrives before we start waiting, result could be released before we start waiting.
+            // Worst case is that we end up waiting for timeout when we could return instantly
+
+            result.wait(WAIT_FOR_NO_CHANNEL_MESSAGE_MS);
+        }
+
+        Object finalResult = noChannelMessageCache.getIfPresent(id);
+        return (JsonNode) finalResult;
     }
 
     public void authenticate(String clientId, String clientSecret) throws NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {

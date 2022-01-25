@@ -5,10 +5,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class DerebitOrderMessage {
     private final DerebitOrderParams params;
     private final String method;
+    private final Long id;
 
-    public DerebitOrderMessage(@JsonProperty("params") DerebitOrderParams params, @JsonProperty("method") String method) {
+    public DerebitOrderMessage(
+            @JsonProperty("params") DerebitOrderParams params,
+            @JsonProperty("method") String method,
+            @JsonProperty("id") Long id) {
         this.params = params;
         this.method = method;
+        this.id = id;
     }
 
     @JsonProperty("params")
@@ -24,5 +29,10 @@ public class DerebitOrderMessage {
     @JsonProperty("method")
     public String getMethod() {
         return method;
+    }
+
+    @JsonProperty("id")
+    public Long getId() {
+        return id;
     }
 }

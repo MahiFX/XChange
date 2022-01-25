@@ -13,7 +13,7 @@ public class DeribitStreamingUtil {
     private DeribitStreamingUtil() {
     }
 
-    public static String getType(Order.OrderType type) {
+    public static String getDirection(Order.OrderType type) {
         return (type == Order.OrderType.BID) ? "buy" : "sell";
     }
 
