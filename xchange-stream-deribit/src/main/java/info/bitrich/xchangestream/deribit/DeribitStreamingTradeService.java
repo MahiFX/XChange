@@ -1,5 +1,6 @@
 package info.bitrich.xchangestream.deribit;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.deribit.dto.*;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class DeribitStreamingTradeService implements StreamingTradeService, TradeService {
     private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingTradeService.class);
@@ -31,6 +33,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     private final ExchangeSpecification exchangeSpecification;
 
     private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+    private final AtomicLong messageCounter = new AtomicLong(0);
 
     public DeribitStreamingTradeService(DeribitStreamingService streamingService, ExchangeSpecification exchangeSpecification) {
         this.streamingService = streamingService;
@@ -98,9 +101,8 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                 limitOrder.getUserReference(),
                 getTimeInForce(limitOrder),
                 limitOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
-        DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + DeribitStreamingUtil.getType(limitOrder.getType()));
-        streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
-        return null;
+
+        return sendDeribitOrderMessage(derebitOrderParams, DeribitStreamingUtil.getDirection(limitOrder.getType()));
     }
 
     @Override
@@ -113,8 +115,35 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                 marketOrder.getUserReference(),
                 getTimeInForce(marketOrder),
                 marketOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
-        DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + DeribitStreamingUtil.getType(marketOrder.getType()));
+
+        return sendDeribitOrderMessage(derebitOrderParams, DeribitStreamingUtil.getDirection(marketOrder.getType()));
+    }
+
+    private String sendDeribitOrderMessage(DerebitOrderParams derebitOrderParams, String direction) throws IOException {
+        long messageId = messageCounter.incrementAndGet();
+        DerebitOrderMessage derebitOrderMessage = new DerebitOrderMessage(derebitOrderParams, "private/" + direction, messageId);
         streamingService.sendMessage(mapper.writeValueAsString(derebitOrderMessage));
+
+        JsonNode jsonNode;
+        try {
+            jsonNode = streamingService.waitForNoChannelMessage(messageId);
+        } catch (Throwable t) {
+            return null;
+        }
+
+        if (jsonNode != null) {
+            if (jsonNode.has("result")) {
+                JsonNode result = jsonNode.get("result");
+                if (result.has("order")) {
+                    JsonNode order = result.get("order");
+
+                    if (order.has("order_id")) {
+                        return order.get("order_id").asText();
+                    }
+                }
+            }
+        }
+
         return null;
     }
 
