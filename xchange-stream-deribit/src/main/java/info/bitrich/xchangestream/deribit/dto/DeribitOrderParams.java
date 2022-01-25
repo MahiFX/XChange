@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
 
-public class DerebitOrderParams {
+public class DeribitOrderParams {
     private final String instrument;
     private final BigDecimal amount;
     private final BigDecimal price;
@@ -13,7 +13,7 @@ public class DerebitOrderParams {
     private final DeribitTimeInForce timeInForce;
     private final Boolean postOnly;
 
-    public DerebitOrderParams(
+    public DeribitOrderParams(
             @JsonProperty("instrument_name") String instrument,
             @JsonProperty("amount") BigDecimal amount,
             @JsonProperty("price") BigDecimal price,
