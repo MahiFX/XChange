@@ -17,9 +17,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class DeribitStreamingService extends JsonNettyStreamingService {
     public static final String NO_CHANNEL_CHANNEL_NAME = "DERIBIT_NO_CHANNEL";
@@ -44,8 +43,8 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
                             Object cached = noChannelMessageCache.getIfPresent(id);
                             noChannelMessageCache.put(id, json);
 
-                            if (cached instanceof Lock) {
-                                ((Lock) cached).unlock();
+                            if (cached instanceof Semaphore) {
+                                ((Semaphore) cached).release();
                             }
                         }
                     });
@@ -93,25 +92,21 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     public JsonNode waitForNoChannelMessage(long id) throws ExecutionException, InterruptedException {
-        Lock waitForMessageLock = new ReentrantLock();
-        waitForMessageLock.lock();
-        try {
-            Object result = noChannelMessageCache.get(id, () -> waitForMessageLock);
+        Semaphore waitForMessage = new Semaphore(1);
+        waitForMessage.acquire();
 
-            if (result instanceof JsonNode) {
-                return (JsonNode) result;
-            } else {
-                waitForMessageLock.tryLock(WAIT_FOR_NO_CHANNEL_MESSAGE_MS, TimeUnit.MILLISECONDS);
-                try {
-                    Object finalResult = noChannelMessageCache.getIfPresent(id);
-                    return (JsonNode) finalResult;
-                } finally {
-                    waitForMessageLock.unlock();
-                }
-            }
-        } finally {
-            waitForMessageLock.unlock();
+        Object result = noChannelMessageCache.get(id, () -> waitForMessage);
+
+        if (result instanceof JsonNode) {
+            return (JsonNode) result;
+        } else {
+            // RxJava thread will release the Semaphore on message arrival, allowing this acquire
+            waitForMessage.tryAcquire(WAIT_FOR_NO_CHANNEL_MESSAGE_MS, TimeUnit.MILLISECONDS);
+
+            Object finalResult = noChannelMessageCache.getIfPresent(id);
+            return (JsonNode) finalResult;
         }
+
     }
 
     public void authenticate(String clientId, String clientSecret) throws NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {
