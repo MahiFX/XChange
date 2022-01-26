@@ -12,7 +12,10 @@ import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.UserTrade;
+import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
+import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
+import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,6 +148,15 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
         }
 
         return null;
+    }
+
+    @Override
+    public boolean cancelOrder(CancelOrderParams orderParams) throws IOException {
+        if (orderParams instanceof CancelOrderByIdParams) {
+            return cancelOrder(((CancelOrderByIdParams) orderParams).getOrderId());
+        }
+
+        throw new NotYetImplementedForExchangeException();
     }
 
     @Override
