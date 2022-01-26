@@ -17,6 +17,9 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DeribitStreamingService extends JsonNettyStreamingService {
     public static final String NO_CHANNEL_CHANNEL_NAME = "DERIBIT_NO_CHANNEL";
@@ -38,13 +41,11 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
                         if (json.has("id")) {
                             Long id = json.get("id").asLong();
 
-                            Object cached = noChannelMessageCache.get(id, () -> json);
+                            Object cached = noChannelMessageCache.getIfPresent(id);
+                            noChannelMessageCache.put(id, json);
 
-                            //noinspection ObjectEquality - desired
-                            if (json != cached && cached != null) {
-                                cached.notifyAll();
-                            } else {
-                                noChannelMessageCache.put(id, json);
+                            if (cached instanceof Lock) {
+                                ((Lock) cached).unlock();
                             }
                         }
                     });
@@ -92,22 +93,25 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     public JsonNode waitForNoChannelMessage(long id) throws ExecutionException, InterruptedException {
-        Object wait = new Object();
+        Lock waitForMessageLock = new ReentrantLock();
+        waitForMessageLock.lock();
+        try {
+            Object result = noChannelMessageCache.get(id, () -> waitForMessageLock);
 
-        Object result = noChannelMessageCache.get(id, () -> wait);
-
-        if (result instanceof JsonNode) {
-            return (JsonNode) result;
-        } else {
-            // Small race condition here.
-            // If the message arrives before we start waiting, result could be released before we start waiting.
-            // Worst case is that we end up waiting for timeout when we could return instantly
-
-            result.wait(WAIT_FOR_NO_CHANNEL_MESSAGE_MS);
+            if (result instanceof JsonNode) {
+                return (JsonNode) result;
+            } else {
+                waitForMessageLock.tryLock(WAIT_FOR_NO_CHANNEL_MESSAGE_MS, TimeUnit.MILLISECONDS);
+                try {
+                    Object finalResult = noChannelMessageCache.getIfPresent(id);
+                    return (JsonNode) finalResult;
+                } finally {
+                    waitForMessageLock.unlock();
+                }
+            }
+        } finally {
+            waitForMessageLock.unlock();
         }
-
-        Object finalResult = noChannelMessageCache.getIfPresent(id);
-        return (JsonNode) finalResult;
     }
 
     public void authenticate(String clientId, String clientSecret) throws NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {
