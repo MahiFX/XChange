@@ -8,7 +8,7 @@
         <version>5.0.10-MAHI-SNAPSHOT</version>
     </parent>
 
-    <name>XChange Stream Deribit</name>
+    <name>XChange Deribit Stream</name>
     <artifactId>xchange-stream-deribit</artifactId>
 
     <dependencies>
