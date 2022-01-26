@@ -56,8 +56,8 @@ public class DeribitOrderParams {
     }
 
     @JsonProperty("time_in_force")
-    public String getTimeInForce() {
-        return timeInForce.getName();
+    public DeribitTimeInForce getTimeInForce() {
+        return timeInForce;
     }
 
     @JsonProperty("post_only")
