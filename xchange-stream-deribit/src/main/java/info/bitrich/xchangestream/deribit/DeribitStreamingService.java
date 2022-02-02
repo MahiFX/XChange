@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 public class DeribitStreamingService extends JsonNettyStreamingService {
     public static final String NO_CHANNEL_CHANNEL_NAME = "DERIBIT_NO_CHANNEL";
-    public static final long WAIT_FOR_NO_CHANNEL_MESSAGE_MS = Long.getLong("DeribitStreamingService.WAIT_FOR_NO_CHANNEL_MESSAGE_MS", 500);
+    public static final long WAIT_FOR_NO_CHANNEL_MESSAGE_MS = Long.getLong("DeribitStreamingService.WAIT_FOR_NO_CHANNEL_MESSAGE_MS", 2000);
 
     private static final String HMAC_SHA256_ALGO = "HmacSHA256";
     private final ExchangeSpecification exchangeSpecification;
