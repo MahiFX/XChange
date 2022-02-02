@@ -12,6 +12,7 @@ import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.UserTrade;
+import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
@@ -144,6 +145,9 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                         return order.get("order_id").asText();
                     }
                 }
+            } else if (jsonNode.has("error")) {
+                JsonNode error = jsonNode.get("error");
+                throw new ExchangeException("Error sending message: " + (error.has("message") ? error.get("message").asText() : "UNKNOWN_ERROR"));
             }
         }
 
