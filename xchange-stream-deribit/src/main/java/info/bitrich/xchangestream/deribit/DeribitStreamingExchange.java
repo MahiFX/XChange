@@ -12,6 +12,7 @@ import org.knowm.xchange.service.trade.TradeService;
 
 public class DeribitStreamingExchange extends DeribitExchange implements StreamingExchange {
     private static final String WS_API_URL = "wss://www.deribit.com/ws/api/v2";
+    private static final String WS_GATEWAY_API_URL = "wss://gateway.deribit.com:8022/ws/api/v2";
     private static final String WS_TESTNET_API_URL = "wss://test.deribit.com/ws/api/v2";
 
     private boolean useTestnet;
@@ -31,10 +32,22 @@ public class DeribitStreamingExchange extends DeribitExchange implements Streami
     }
 
     private DeribitStreamingService createStreamingService() {
-        DeribitStreamingService streamingService = new DeribitStreamingService(useTestnet ? WS_TESTNET_API_URL : WS_API_URL, getExchangeSpecification());
+        DeribitStreamingService streamingService = new DeribitStreamingService(getApiUrl(), getExchangeSpecification());
         applyStreamingSpecification(getExchangeSpecification(), streamingService);
 
         return streamingService;
+    }
+
+    private String getApiUrl() {
+        if (useTestnet) {
+            return WS_TESTNET_API_URL;
+        } else {
+            if (getExchangeSpecification().getSslUri().contains("gateway.deribit.com")) {
+                return WS_GATEWAY_API_URL;
+            } else {
+                return WS_API_URL;
+            }
+        }
     }
 
     @Override
