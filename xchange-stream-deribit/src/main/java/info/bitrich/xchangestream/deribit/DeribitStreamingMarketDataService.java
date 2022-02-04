@@ -1,6 +1,7 @@
 package info.bitrich.xchangestream.deribit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.deribit.dto.DeribitMarketDataUpdateMessage;
 import info.bitrich.xchangestream.deribit.dto.DeribitTradeData;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +36,9 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
     private final DeribitStreamingService streamingService;
     private final ExchangeSpecification exchangeSpecification;
 
+    private final Map<CurrencyPair, Observable<OrderBook>> orderbookSubscriptions = Maps.newHashMap();
+    private final Map<CurrencyPair, Observable<Trade>> tradeSubscriptions = Maps.newHashMap();
+
     private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
     public DeribitStreamingMarketDataService(DeribitStreamingService streamingService, ExchangeSpecification exchangeSpecification) {
@@ -43,13 +48,53 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
     @Override
     public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
-        authenticate();
+        return orderbookSubscriptions.computeIfAbsent(
+                currencyPair,
+                c -> {
+                    authenticate();
 
-        DeribitOrderBook orderBook = new DeribitOrderBook(currencyPair);
+                    DeribitOrderBook orderBook = new DeribitOrderBook(c);
 
-        setupOrderBookSubscriptions(currencyPair, orderBook);
+                    setupOrderBookSubscriptions(c, orderBook);
 
-        return orderBook;
+                    return orderBook.share();
+                }
+        );
+    }
+
+    @Override
+    public Observable<Trade> getTrades(CurrencyPair currencyPair, Object... args) {
+        return tradeSubscriptions.computeIfAbsent(
+                currencyPair,
+                cPair1 -> {
+                    authenticate();
+
+                    String channelName = "trades." + instrumentName(currencyPair) + ".raw";
+
+                    logger.debug("Subscribing to trade channel: " + channelName);
+
+                    Observable<DeribitTradeData[]> tradeData = streamingService.subscribeChannel(channelName)
+                            .map(json -> {
+                                DeribitTradeData[] deribitTradeData = tryGetDataAsType(mapper, json, DeribitTradeData[].class);
+
+                                if (deribitTradeData != null) {
+                                    return deribitTradeData;
+                                } else {
+                                    return new DeribitTradeData[0];
+                                }
+                            });
+
+                    return tradeData.flatMapIterable(dtdArr -> {
+                        List<Trade> trades = new ArrayList<>();
+
+                        for (DeribitTradeData deribitTradeData : dtdArr) {
+                            trades.add(deribitTradeData.toTrade(currencyPair));
+                        }
+
+                        return trades;
+                    }).share();
+                }
+        );
     }
 
     private void authenticate() {
@@ -129,35 +174,5 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
     @Override
     public Observable<Ticker> getTicker(CurrencyPair currencyPair, Object... args) {
         throw new NotAvailableFromExchangeException();
-    }
-
-    @Override
-    public Observable<Trade> getTrades(CurrencyPair currencyPair, Object... args) {
-        authenticate();
-
-        String channelName = "trades." + instrumentName(currencyPair) + ".raw";
-
-        logger.debug("Subscribing to trade channel: " + channelName);
-
-        Observable<DeribitTradeData[]> tradeData = streamingService.subscribeChannel(channelName)
-                .map(json -> {
-                    DeribitTradeData[] deribitTradeData = tryGetDataAsType(mapper, json, DeribitTradeData[].class);
-
-                    if (deribitTradeData != null) {
-                        return deribitTradeData;
-                    } else {
-                        return new DeribitTradeData[0];
-                    }
-                });
-
-        return tradeData.flatMapIterable(dtdArr -> {
-            List<Trade> trades = new ArrayList<>();
-
-            for (DeribitTradeData deribitTradeData : dtdArr) {
-                trades.add(deribitTradeData.toTrade(currencyPair));
-            }
-
-            return trades;
-        });
     }
 }
