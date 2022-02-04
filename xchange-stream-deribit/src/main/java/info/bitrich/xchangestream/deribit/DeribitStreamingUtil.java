@@ -18,7 +18,8 @@ public class DeribitStreamingUtil {
     }
 
     public static Order.OrderType convertDirectionToType(String direction) {
-        return (Objects.equals(direction, "buy")) ? Order.OrderType.BID : Order.OrderType.ASK;
+        // Side taker perspective
+        return Objects.equals(direction, "buy") ? Order.OrderType.ASK : Order.OrderType.BID;
     }
 
     public static String instrumentName(Instrument instrument) {
