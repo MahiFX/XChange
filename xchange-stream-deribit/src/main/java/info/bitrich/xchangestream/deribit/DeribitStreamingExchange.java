@@ -12,7 +12,7 @@ import org.knowm.xchange.service.trade.TradeService;
 
 public class DeribitStreamingExchange extends DeribitExchange implements StreamingExchange {
     private static final String WS_API_URL = "wss://www.deribit.com/ws/api/v2";
-    private static final String WS_GATEWAY_API_URL = "wss://gateway.deribit.com:8022/ws/api/v2";
+    private static final String WS_GATEWAY_API_URL = "ws://gateway.deribit.com:8022/ws/api/v2";
     private static final String WS_TESTNET_API_URL = "wss://test.deribit.com/ws/api/v2";
 
     private boolean useTestnet;
