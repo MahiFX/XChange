@@ -1,11 +1,12 @@
 package info.bitrich.xchangestream.deribit.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Date;
 
 public class DeribitMarketDataUpdateMessage {
-    public static final DeribitMarketDataUpdateMessage EMPTY = new DeribitMarketDataUpdateMessage(null, null, null, null, null, null, null);
+    public static final DeribitMarketDataUpdateMessage NULL = new DeribitMarketDataUpdateMessage(null, null, null, null, null, null, null);
 
     private final Object[][] bids;
     private final Object[][] asks;
@@ -65,5 +66,10 @@ public class DeribitMarketDataUpdateMessage {
     @JsonProperty("type")
     public String getType() {
         return type;
+    }
+
+    @JsonIgnore
+    public static DeribitMarketDataUpdateMessage empty(Date timestamp) {
+        return new DeribitMarketDataUpdateMessage(null, null, null, null, null, timestamp, null);
     }
 }

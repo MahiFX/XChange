@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -113,7 +114,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
         Disposable disconnectStreamDisposable = streamingService.subscribeDisconnect()
                 .map(o -> {
                     logger.debug("Clearing order book for {} due to disconnect: {}", currencyPair, o);
-                    return DeribitMarketDataUpdateMessage.EMPTY;
+                    return DeribitMarketDataUpdateMessage.empty(new Date());
                 })
                 .subscribe(orderBook, t -> {
                     throw new RuntimeException(t);
@@ -126,12 +127,12 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
                     if (marketDataUpdate != null) {
                         return marketDataUpdate;
                     } else {
-                        return DeribitMarketDataUpdateMessage.EMPTY;
+                        return DeribitMarketDataUpdateMessage.NULL;
                     }
                 });
 
         Disposable orderBookSubscriptionDisposable = marketDataUpdateMessageObservable
-                .filter(update -> update != DeribitMarketDataUpdateMessage.EMPTY)
+                .filter(update -> update != DeribitMarketDataUpdateMessage.NULL)
                 .subscribe(orderBook, t -> {
                     throw new RuntimeException(t);
                 });
@@ -142,6 +143,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
                 lastChangeId.set(update.getChangeId());
             } else {
                 if (!lastChangeId.compareAndSet(update.getPrevChangeId(), update.getChangeId())) {
+                    logger.debug("Unexpected gap in Change IDs for {}. Reconnecting...", currencyPair);
                     executor.schedule(
                             () -> closeAndReconnectOrderBook(
                                     currencyPair,
@@ -163,7 +165,8 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
         }
 
         // Clear order book
-        orderBook.accept(DeribitMarketDataUpdateMessage.EMPTY);
+        logger.debug("Clearing order book for {} before reconnect", instrument);
+        orderBook.accept(DeribitMarketDataUpdateMessage.empty(new Date()));
 
         // Schedule reconnection
         executor.schedule(() -> {

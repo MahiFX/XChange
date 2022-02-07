@@ -51,7 +51,7 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
 
     private OrderBook generateOrderBook(Date timestamp) {
         List<LimitOrder> bids = new ArrayList<>(bidPriceToBidQuantity.size());
-        List<LimitOrder> offers = new ArrayList<>(bidPriceToBidQuantity.size());
+        List<LimitOrder> offers = new ArrayList<>(offerPriceToOfferQuantity.size());
 
         populateOrders(bids, bidPriceToBidQuantity, Order.OrderType.BID, instrument, timestamp);
         populateOrders(offers, offerPriceToOfferQuantity, Order.OrderType.ASK, instrument, timestamp);
