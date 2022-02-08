@@ -80,7 +80,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
                     String channelName = "trades." + instrumentName(currencyPair) + ".raw";
 
-                    logger.debug("Subscribing to trade channel: " + channelName);
+                    logger.info("Subscribing to trade channel: " + channelName);
 
                     Observable<DeribitTradeData[]> tradeData = streamingService.subscribeChannel(channelName)
                             .map(json -> {
@@ -117,11 +117,11 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
     private void subscribeDeribitOrderBook(CurrencyPair currencyPair, DeribitOrderBook deribitOrderBook) {
         String channelName = "book." + instrumentName(currencyPair) + ".raw";
 
-        logger.debug("Subscribing to orderBook channel: " + channelName);
+        logger.info("Subscribing to orderBook channel: " + channelName);
 
         Disposable disconnectStreamDisposable = streamingService.subscribeDisconnect()
                 .map(o -> {
-                    logger.debug("Clearing order book for {} due to disconnect: {}", currencyPair, o);
+                    logger.info("Clearing order book for {} due to disconnect: {}", currencyPair, o);
                     return DeribitMarketDataUpdateMessage.empty(new Date());
                 })
                 .subscribe(deribitOrderBook, t -> {
@@ -151,7 +151,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
                 lastChangeId.set(update.getChangeId());
             } else {
                 if (!lastChangeId.compareAndSet(update.getPrevChangeId(), update.getChangeId())) {
-                    logger.debug("Unexpected gap in Change IDs for {}. Reconnecting...", currencyPair);
+                    logger.info("Unexpected gap in Change IDs for {}. Reconnecting...", currencyPair);
                     executor.schedule(
                             () -> disposeAndResubscribeOrderBook(currencyPair, deribitOrderBook),
                             10,
@@ -172,11 +172,11 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
         if (disposables != null && !disposables.isDisposed()) {
             disposables.dispose();
         } else {
-            logger.debug("Unexpected! CompositeDisposable: {} for {} was null or already disposed...", disposables, instrument);
+            logger.info("Unexpected! CompositeDisposable: {} for {} was null or already disposed...", disposables, instrument);
         }
 
         // Clear order book
-        logger.debug("Clearing order book for {} before reconnect", instrument);
+        logger.info("Clearing order book for {} before reconnect", instrument);
         orderBook.accept(DeribitMarketDataUpdateMessage.empty(new Date()));
 
         // Schedule reconnection
