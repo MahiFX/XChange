@@ -10,12 +10,16 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.trade.LimitOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<DeribitMarketDataUpdateMessage> {
+    private static final Logger logger = LoggerFactory.getLogger(DeribitOrderBook.class);
+
     private final CurrencyPair instrument;
 
     private final Subject<OrderBook> orderBookSubject = PublishSubject.<OrderBook>create().toSerialized();
@@ -74,6 +78,7 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
     }
 
     private void handleSnapshot(DeribitMarketDataUpdateMessage deribitMarketDataUpdateMessage) {
+        logger.info("Received snapshot for: {}. Clearing order book and repopulating.", instrument);
         processSnapshotOrders(deribitMarketDataUpdateMessage.getBids(), bidPriceToBidQuantity);
         processSnapshotOrders(deribitMarketDataUpdateMessage.getAsks(), offerPriceToOfferQuantity);
     }
