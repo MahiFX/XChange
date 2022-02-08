@@ -1,12 +1,12 @@
 package info.bitrich.xchangestream.deribit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.deribit.dto.DeribitMarketDataUpdateMessage;
 import info.bitrich.xchangestream.deribit.dto.DeribitTradeData;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
+import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -17,10 +17,7 @@ import org.knowm.xchange.exceptions.NotAvailableFromExchangeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,8 +34,10 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
     private final DeribitStreamingService streamingService;
     private final ExchangeSpecification exchangeSpecification;
 
-    private final Map<CurrencyPair, Observable<OrderBook>> orderbookSubscriptions = Maps.newHashMap();
-    private final Map<CurrencyPair, Observable<Trade>> tradeSubscriptions = Maps.newHashMap();
+    private final Map<CurrencyPair, Observable<OrderBook>> orderBookSubscriptions = new HashMap<>();
+    private final Map<CurrencyPair, CompositeDisposable> orderBookDisposables = new HashMap<>();
+
+    private final Map<CurrencyPair, Observable<Trade>> tradeSubscriptions = new HashMap<>();
 
     private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
@@ -49,16 +48,25 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
     @Override
     public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
-        return orderbookSubscriptions.computeIfAbsent(
+        return orderBookSubscriptions.computeIfAbsent(
                 currencyPair,
                 c -> {
                     authenticate();
 
                     DeribitOrderBook orderBook = new DeribitOrderBook(c);
 
-                    setupOrderBookSubscriptions(c, orderBook);
+                    subscribeDeribitOrderBook(c, orderBook);
 
-                    return orderBook.share();
+                    return orderBook
+                            .doOnDispose(() -> {
+                                CompositeDisposable compositeDisposable = orderBookDisposables.remove(c);
+                                if (compositeDisposable != null && !compositeDisposable.isDisposed()) {
+                                    compositeDisposable.dispose();
+                                }
+
+                                orderBookSubscriptions.remove(c);
+                            })
+                            .share();
                 }
         );
     }
@@ -106,7 +114,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
         }
     }
 
-    private void setupOrderBookSubscriptions(CurrencyPair currencyPair, DeribitOrderBook orderBook) {
+    private void subscribeDeribitOrderBook(CurrencyPair currencyPair, DeribitOrderBook deribitOrderBook) {
         String channelName = "book." + instrumentName(currencyPair) + ".raw";
 
         logger.debug("Subscribing to orderBook channel: " + channelName);
@@ -116,7 +124,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
                     logger.debug("Clearing order book for {} due to disconnect: {}", currencyPair, o);
                     return DeribitMarketDataUpdateMessage.empty(new Date());
                 })
-                .subscribe(orderBook, t -> {
+                .subscribe(deribitOrderBook, t -> {
                     throw new RuntimeException(t);
                 });
 
@@ -131,37 +139,40 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
                     }
                 });
 
-        Disposable orderBookSubscriptionDisposable = marketDataUpdateMessageObservable
+        Disposable orderBookSubscription = marketDataUpdateMessageObservable
                 .filter(update -> update != DeribitMarketDataUpdateMessage.NULL)
-                .subscribe(orderBook, t -> {
+                .subscribe(deribitOrderBook, t -> {
                     throw new RuntimeException(t);
                 });
 
         AtomicLong lastChangeId = new AtomicLong(-1);
-        Disposable safeToIgnore = marketDataUpdateMessageObservable.forEach(update -> {
+        Disposable reconnectOnIdSkip = marketDataUpdateMessageObservable.forEach(update -> {
             if (lastChangeId.get() == -1 || update.getPrevChangeId() == null) {
                 lastChangeId.set(update.getChangeId());
             } else {
                 if (!lastChangeId.compareAndSet(update.getPrevChangeId(), update.getChangeId())) {
                     logger.debug("Unexpected gap in Change IDs for {}. Reconnecting...", currencyPair);
                     executor.schedule(
-                            () -> closeAndReconnectOrderBook(
-                                    currencyPair,
-                                    orderBook,
-                                    disconnectStreamDisposable,
-                                    orderBookSubscriptionDisposable),
+                            () -> disposeAndResubscribeOrderBook(currencyPair, deribitOrderBook),
                             10,
                             TimeUnit.MILLISECONDS
                     );
                 }
             }
         });
+
+        CompositeDisposable compositeDisposableForPair = orderBookDisposables.computeIfAbsent(currencyPair, cp -> new CompositeDisposable());
+        compositeDisposableForPair.add(disconnectStreamDisposable);
+        compositeDisposableForPair.add(orderBookSubscription);
+        compositeDisposableForPair.add(reconnectOnIdSkip);
     }
 
-    private void closeAndReconnectOrderBook(CurrencyPair instrument, DeribitOrderBook orderBook, Disposable... disposables) {
-        // Dispose disposables
-        for (Disposable disposable : disposables) {
-            disposable.dispose();
+    private void disposeAndResubscribeOrderBook(CurrencyPair instrument, DeribitOrderBook orderBook) {
+        CompositeDisposable disposables = orderBookDisposables.remove(instrument);
+        if (disposables != null && !disposables.isDisposed()) {
+            disposables.dispose();
+        } else {
+            logger.debug("Unexpected! CompositeDisposable: {} for {} was null or already disposed...", disposables, instrument);
         }
 
         // Clear order book
@@ -170,7 +181,7 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
         // Schedule reconnection
         executor.schedule(() -> {
-            setupOrderBookSubscriptions(instrument, orderBook);
+            subscribeDeribitOrderBook(instrument, orderBook);
         }, 500, TimeUnit.MILLISECONDS);
     }
 
