@@ -53,7 +53,13 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
                 c -> {
                     authenticate();
 
-                    DeribitOrderBook orderBook = new DeribitOrderBook(c);
+                    Object maxDepthObj = exchangeSpecification.getExchangeSpecificParametersItem(DeribitStreamingExchange.MAX_DEPTH_MD);
+                    int maxDepth = Integer.MAX_VALUE;
+                    if (maxDepthObj instanceof Integer) {
+                        maxDepth = (int) maxDepthObj;
+                    }
+
+                    DeribitOrderBook orderBook = new DeribitOrderBook(c, maxDepth);
 
                     subscribeDeribitOrderBook(c, orderBook);
 
