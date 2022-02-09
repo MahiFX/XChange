@@ -21,14 +21,16 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
     private static final Logger logger = LoggerFactory.getLogger(DeribitOrderBook.class);
 
     private final CurrencyPair instrument;
+    private final int depthLimit;
 
     private final Subject<OrderBook> orderBookSubject = PublishSubject.<OrderBook>create().toSerialized();
 
     private final Map<BigDecimal, BigDecimal> bidPriceToBidQuantity = new ConcurrentSkipListMap<>(Comparator.reverseOrder());
     private final Map<BigDecimal, BigDecimal> offerPriceToOfferQuantity = new ConcurrentSkipListMap<>();
 
-    public DeribitOrderBook(CurrencyPair instrument) {
+    public DeribitOrderBook(CurrencyPair instrument, int depthLimit) {
         this.instrument = instrument;
+        this.depthLimit = depthLimit;
     }
 
     @Override
@@ -54,8 +56,8 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
     }
 
     private OrderBook generateOrderBook(Date timestamp) {
-        List<LimitOrder> bids = new ArrayList<>(bidPriceToBidQuantity.size());
-        List<LimitOrder> offers = new ArrayList<>(offerPriceToOfferQuantity.size());
+        List<LimitOrder> bids = new ArrayList<>(depthLimit);
+        List<LimitOrder> offers = new ArrayList<>(depthLimit);
 
         populateOrders(bids, bidPriceToBidQuantity, Order.OrderType.BID, instrument, timestamp);
         populateOrders(offers, offerPriceToOfferQuantity, Order.OrderType.ASK, instrument, timestamp);
@@ -68,12 +70,17 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
     }
 
     private void populateOrders(List<LimitOrder> orders, Map<BigDecimal, BigDecimal> priceToQuantity, Order.OrderType type, CurrencyPair currencyPair, Date timestamp) {
+        int currentDepth = 0;
         for (Map.Entry<BigDecimal, BigDecimal> bigDecimalBigDecimalEntry : priceToQuantity.entrySet()) {
             BigDecimal price = bigDecimalBigDecimalEntry.getKey();
             BigDecimal quantity = bigDecimalBigDecimalEntry.getValue();
 
             LimitOrder order = new LimitOrder(type, quantity, currencyPair, null, timestamp, price);
             orders.add(order);
+
+            currentDepth += 1;
+
+            if (currentDepth == depthLimit) break;
         }
     }
 
