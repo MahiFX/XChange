@@ -63,9 +63,11 @@ public class DeribitOrderBook extends Observable<OrderBook> implements Consumer<
         populateOrders(offers, offerPriceToOfferQuantity, Order.OrderType.ASK, instrument, timestamp);
 
         return new OrderBook(
+                new Date(),
                 timestamp,
                 offers,
-                bids
+                bids,
+                false
         );
     }
 
