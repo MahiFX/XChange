@@ -48,16 +48,17 @@ public class DeribitStreamingMarketDataService implements StreamingMarketDataSer
 
     @Override
     public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
+        final int maxDepth;
+        if (args.length > 0 && args[0] instanceof Integer) {
+            maxDepth = (int) args[0];
+        } else {
+            maxDepth = Integer.MAX_VALUE;
+        }
+
         return orderBookSubscriptions.computeIfAbsent(
                 currencyPair,
                 c -> {
                     authenticate();
-
-                    Object maxDepthObj = exchangeSpecification.getExchangeSpecificParametersItem(DeribitStreamingExchange.MAX_DEPTH_MD);
-                    int maxDepth = Integer.MAX_VALUE;
-                    if (maxDepthObj instanceof Integer) {
-                        maxDepth = (int) maxDepthObj;
-                    }
 
                     DeribitOrderBook orderBook = new DeribitOrderBook(c, maxDepth);
 
