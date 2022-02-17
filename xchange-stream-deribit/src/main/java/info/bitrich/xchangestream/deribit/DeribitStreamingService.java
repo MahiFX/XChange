@@ -68,14 +68,14 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     public String getSubscribeMessage(String channelName, Object... args) throws IOException {
         if (NO_CHANNEL_CHANNEL_NAME.equals(channelName)) return "";
 
-        DeribitSubscribeMessage subscribeMessage = new DeribitSubscribeMessage(new DeribitSubscribeParams(channelName));
+        DeribitBaseMessage<DeribitSubscribeParams> subscribeMessage = new DeribitBaseMessage<>("private/subscribe", new DeribitSubscribeParams(channelName));
 
         return objectMapper.writeValueAsString(subscribeMessage);
     }
 
     @Override
     public String getUnsubscribeMessage(String channelName) throws IOException {
-        DeribitUnsubscribeMessage unsubscribeMessage = new DeribitUnsubscribeMessage(new DeribitSubscribeParams(channelName));
+        DeribitBaseMessage<DeribitSubscribeParams> unsubscribeMessage = new DeribitBaseMessage<>("public/unsubscribe", new DeribitSubscribeParams(channelName));
 
         return objectMapper.writeValueAsString(unsubscribeMessage);
     }
@@ -92,6 +92,10 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     public JsonNode waitForNoChannelMessage(long id) throws ExecutionException, InterruptedException {
+        return waitForNoChannelMessage(id, WAIT_FOR_NO_CHANNEL_MESSAGE_MS);
+    }
+
+    public JsonNode waitForNoChannelMessage(long id, long timeoutMs) throws ExecutionException, InterruptedException {
         Semaphore waitForMessage = new Semaphore(1);
         waitForMessage.acquire();
 
@@ -101,7 +105,7 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
             return (JsonNode) result;
         } else {
             // RxJava thread will release the Semaphore on message arrival, allowing this acquire
-            waitForMessage.tryAcquire(WAIT_FOR_NO_CHANNEL_MESSAGE_MS, TimeUnit.MILLISECONDS);
+            if (!waitForMessage.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) throw new RuntimeException("Didn't receive response with timeoutMs: " + timeoutMs);
 
             Object finalResult = noChannelMessageCache.getIfPresent(id);
             return (JsonNode) finalResult;
@@ -128,7 +132,7 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
 
         String signature = DigestUtils.bytesToHex(mac.doFinal(signatureData.getBytes(StandardCharsets.UTF_8)));
 
-        sendMessage(objectMapper.writeValueAsString(new DeribitAuthMessage(new DeribitAuthParams(
+        sendMessage(objectMapper.writeValueAsString(new DeribitBaseMessage<>("public/auth", new DeribitAuthParams(
                 clientId,
                 timestamp,
                 signature,

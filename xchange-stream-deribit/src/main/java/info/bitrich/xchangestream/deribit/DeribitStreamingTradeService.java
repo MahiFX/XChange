@@ -1,5 +1,6 @@
 package info.bitrich.xchangestream.deribit;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.core.StreamingTradeService;
@@ -7,8 +8,11 @@ import info.bitrich.xchangestream.deribit.dto.*;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.account.OpenPosition;
+import org.knowm.xchange.dto.account.OpenPositions;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.UserTrade;
@@ -125,7 +129,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
 
     private String sendDeribitOrderMessage(DeribitOrderParams deribitOrderParams, String direction) throws IOException {
         long messageId = messageCounter.incrementAndGet();
-        DeribitOrderMessage deribitOrderMessage = new DeribitOrderMessage(deribitOrderParams, "private/" + direction, messageId);
+        DeribitBaseMessage<DeribitOrderParams> deribitOrderMessage = new DeribitBaseMessage<>(messageId, "private/" + direction, deribitOrderParams);
         streamingService.sendMessage(mapper.writeValueAsString(deribitOrderMessage));
 
         JsonNode jsonNode;
@@ -166,7 +170,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     @Override
     public boolean cancelOrder(String orderId) throws IOException {
         long messageId = messageCounter.incrementAndGet();
-        streamingService.sendMessage(mapper.writeValueAsString(new DeribitCancelOrderMessage(messageId, orderId)));
+        streamingService.sendMessage(mapper.writeValueAsString(new DeribitBaseMessage<>(messageId, "private/cancel", new DeribitCancelOrderParams(orderId))));
 
         JsonNode jsonNode;
 
@@ -189,6 +193,31 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
         }
 
         return false;
+    }
+
+    public OpenPositions getOpenPositions(Currency currency) throws IOException {
+        long messageId = messageCounter.incrementAndGet();
+        streamingService.sendMessage(mapper.writeValueAsString(new DeribitBaseMessage<>(messageId, "private/get_positions", new DeribitOpenPositionParams(currency.getCurrencyCode()))));
+
+        JsonNode response;
+
+        try {
+            response = streamingService.waitForNoChannelMessage(messageId, 5_000);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to get open positions.", t);
+        }
+
+        List<OpenPosition> positions = new ArrayList<>();
+        if (response != null && response.has("result")) {
+            JsonNode result = response.get("result");
+            DeribitPosition[] deribitPositions = mapper.treeToValue(result, DeribitPosition[].class);
+
+            for (DeribitPosition deribitPosition : deribitPositions) {
+                positions.add(deribitPosition.toOpenPosition());
+            }
+        }
+
+        return new OpenPositions(positions);
     }
 
     private DeribitTimeInForce getTimeInForce(Order order) {
