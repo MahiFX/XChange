@@ -81,13 +81,11 @@ public class BitfinexStreamingMarketDataService implements StreamingMarketDataSe
     private String getDepthFromArg(String arg) {
         int requestedDepth = Integer.parseInt(arg);
 
-        int distanceTo100 = Math.abs(100 - requestedDepth);
-        int distanceTo25 = Math.abs(25 - requestedDepth);
-
-        if (distanceTo25 < distanceTo100) {
-            return "25";
-        } else {
+        // 25 and 100 are only supported values
+        if (requestedDepth > 25) {
             return "100";
+        } else {
+            return "25";
         }
     }
 
