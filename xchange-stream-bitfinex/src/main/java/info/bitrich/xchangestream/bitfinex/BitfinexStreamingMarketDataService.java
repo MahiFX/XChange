@@ -30,95 +30,110 @@ import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptOrderBook
 import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptTicker;
 import static org.knowm.xchange.bitfinex.service.BitfinexAdapters.adaptTrades;
 
-/** Created by Lukas Zaoralek on 7.11.17. */
+/**
+ * Created by Lukas Zaoralek on 7.11.17.
+ */
 public class BitfinexStreamingMarketDataService implements StreamingMarketDataService {
-  private static final Logger LOG = LoggerFactory.getLogger(BitfinexStreamingMarketDataService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BitfinexStreamingMarketDataService.class);
 
-  private final BitfinexStreamingService service;
+    private final BitfinexStreamingService service;
 
-  private final Map<CurrencyPair, BitfinexOrderbook> orderbooks = new HashMap<>();
+    private final Map<CurrencyPair, BitfinexOrderbook> orderbooks = new HashMap<>();
 
-  public BitfinexStreamingMarketDataService(BitfinexStreamingService service) {
-    this.service = service;
-  }
+    public BitfinexStreamingMarketDataService(BitfinexStreamingService service) {
+        this.service = service;
+    }
 
-  @Override
-  public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
-    String channelName = "book";
-    final String depth = args.length > 0 ? args[0].toString() : "100";
-    String pair = BitfinexUtils.toPairStringV1(currencyPair);
-    final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+    @Override
+    public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
+        String channelName = "book";
+        final String depth = args.length > 0 ? getDepthFromArg(args[0].toString()) : "100";
+        String pair = BitfinexUtils.toPairStringV1(currencyPair);
+        final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
-    Observable<BitfinexWebSocketOrderbookTransaction> subscribedChannel =
-        service
-            .subscribeChannel(channelName, new Object[] {pair, "P0", depth})
-            .map(
+        Observable<BitfinexWebSocketOrderbookTransaction> subscribedChannel =
+                service
+                        .subscribeChannel(channelName, new Object[]{pair, "P0", depth})
+                        .map(
+                                s -> {
+                                    if (s.get(1).get(0).isArray())
+                                        return mapper.treeToValue(s, BitfinexWebSocketSnapshotOrderbook.class);
+                                    else return mapper.treeToValue(s, BitfinexWebSocketUpdateOrderbook.class);
+                                });
+
+        Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
+                o -> {
+                    LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
+                    orderbooks.remove(currencyPair);
+                    return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
+                }
+        );
+
+        Observable<OrderBook> orderBookStream = subscribedChannel.map(
                 s -> {
-                  if (s.get(1).get(0).isArray())
-                    return mapper.treeToValue(s, BitfinexWebSocketSnapshotOrderbook.class);
-                  else return mapper.treeToValue(s, BitfinexWebSocketUpdateOrderbook.class);
+                    BitfinexOrderbook bitfinexOrderbook =
+                            s.toBitfinexOrderBook(orderbooks.getOrDefault(currencyPair, null));
+                    orderbooks.put(currencyPair, bitfinexOrderbook);
+                    return adaptOrderBook(bitfinexOrderbook.toBitfinexDepth(), currencyPair);
                 });
 
-      Observable<OrderBook> disconnectStream = service.subscribeDisconnect().map(
-              o -> {
-                  LOG.warn("Invalidating {} book due to disconnect {}", currencyPair, o);
-                  orderbooks.remove(currencyPair);
-                  return new OrderBook(new Date(), Collections.emptyList(), Collections.emptyList());
-              }
-      );
+        return Observable.merge(
+                orderBookStream,
+                disconnectStream
+        );
+    }
 
-      Observable<OrderBook> orderBookStream = subscribedChannel.map(
-              s -> {
-                  BitfinexOrderbook bitfinexOrderbook =
-                          s.toBitfinexOrderBook(orderbooks.getOrDefault(currencyPair, null));
-                  orderbooks.put(currencyPair, bitfinexOrderbook);
-                  return adaptOrderBook(bitfinexOrderbook.toBitfinexDepth(), currencyPair);
-              });
+    private String getDepthFromArg(String arg) {
+        int requestedDepth = Integer.parseInt(arg);
 
-      return Observable.merge(
-              orderBookStream,
-              disconnectStream
-      );
-  }
+        int distanceTo100 = Math.abs(100 - requestedDepth);
+        int distanceTo25 = Math.abs(25 - requestedDepth);
 
-  @Override
-  public Observable<Ticker> getTicker(CurrencyPair currencyPair, Object... args) {
-    String channelName = "ticker";
+        if (distanceTo25 < distanceTo100) {
+            return "25";
+        } else {
+            return "100";
+        }
+    }
 
-    String pair = currencyPair.base.toString() + currencyPair.counter.toString();
-    final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+    @Override
+    public Observable<Ticker> getTicker(CurrencyPair currencyPair, Object... args) {
+        String channelName = "ticker";
 
-    Observable<BitfinexWebSocketTickerTransaction> subscribedChannel =
-        service
-            .subscribeChannel(channelName, new Object[] {pair})
-            .map(s -> mapper.treeToValue(s, BitfinexWebSocketTickerTransaction.class));
+        String pair = currencyPair.base.toString() + currencyPair.counter.toString();
+        final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
 
-    return subscribedChannel.map(s -> adaptTicker(s.toBitfinexTicker(), currencyPair));
-  }
+        Observable<BitfinexWebSocketTickerTransaction> subscribedChannel =
+                service
+                        .subscribeChannel(channelName, new Object[]{pair})
+                        .map(s -> mapper.treeToValue(s, BitfinexWebSocketTickerTransaction.class));
 
-  @Override
-  public Observable<Trade> getTrades(CurrencyPair currencyPair, Object... args) {
-    String channelName = "trades";
-    final String tradeType = args.length > 0 ? args[0].toString() : "te";
+        return subscribedChannel.map(s -> adaptTicker(s.toBitfinexTicker(), currencyPair));
+    }
 
-    String pair = BitfinexUtils.toPairStringV1(currencyPair);
-    final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+    @Override
+    public Observable<Trade> getTrades(CurrencyPair currencyPair, Object... args) {
+        String channelName = "trades";
+        final String tradeType = args.length > 0 ? args[0].toString() : "te";
 
-    Observable<BitfinexWebSocketTradesTransaction> subscribedChannel =
-        service
-            .subscribeChannel(channelName, new Object[] {pair})
-            .filter(s -> s.get(1).asText().equals(tradeType))
-            .map(
+        String pair = BitfinexUtils.toPairStringV1(currencyPair);
+        final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+
+        Observable<BitfinexWebSocketTradesTransaction> subscribedChannel =
+                service
+                        .subscribeChannel(channelName, new Object[]{pair})
+                        .filter(s -> s.get(1).asText().equals(tradeType))
+                        .map(
+                                s -> {
+                                    if (s.get(1).asText().equals("te") || s.get(1).asText().equals("tu")) {
+                                        return mapper.treeToValue(s, BitfinexWebsocketUpdateTrade.class);
+                                    } else return mapper.treeToValue(s, BitfinexWebSocketSnapshotTrades.class);
+                                });
+
+        return subscribedChannel.flatMapIterable(
                 s -> {
-                  if (s.get(1).asText().equals("te") || s.get(1).asText().equals("tu")) {
-                    return mapper.treeToValue(s, BitfinexWebsocketUpdateTrade.class);
-                  } else return mapper.treeToValue(s, BitfinexWebSocketSnapshotTrades.class);
+                    Trades adaptedTrades = adaptTrades(s.toBitfinexTrades(), currencyPair);
+                    return adaptedTrades.getTrades();
                 });
-
-    return subscribedChannel.flatMapIterable(
-        s -> {
-          Trades adaptedTrades = adaptTrades(s.toBitfinexTrades(), currencyPair);
-          return adaptedTrades.getTrades();
-        });
-  }
+    }
 }
