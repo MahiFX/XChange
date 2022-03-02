@@ -19,19 +19,26 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class DeribitStreamingService extends JsonNettyStreamingService {
     public static final String NO_CHANNEL_CHANNEL_NAME = "DERIBIT_NO_CHANNEL";
-    public static final long WAIT_FOR_NO_CHANNEL_MESSAGE_MS = Long.getLong("DeribitStreamingService.WAIT_FOR_NO_CHANNEL_MESSAGE_MS", 2000);
 
     private static final String HMAC_SHA256_ALGO = "HmacSHA256";
     private final ExchangeSpecification exchangeSpecification;
+    private final long waitForNoChannelMessageMs;
 
     private final Cache<Long, Object> noChannelMessageCache = CacheBuilder.newBuilder().maximumSize(200).build();
 
     public DeribitStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification) {
         super(apiUrl);
         this.exchangeSpecification = exchangeSpecification;
+        Object messageResponseTimeout = exchangeSpecification.getExchangeSpecificParametersItem(DeribitStreamingExchange.MESSAGE_RESPONSE_TIMEOUT_OPTION);
+        if (messageResponseTimeout instanceof Long) {
+            waitForNoChannelMessageMs = (long) messageResponseTimeout;
+        } else {
+            waitForNoChannelMessageMs = 5000;
+        }
 
         subscribeConnectionSuccess().subscribe(o -> {
             subscribeChannel(NO_CHANNEL_CHANNEL_NAME)
@@ -52,7 +59,7 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     @Override
-    protected String getChannelNameFromMessage(JsonNode message) throws IOException {
+    protected String getChannelNameFromMessage(JsonNode message) {
         if (message.has("params")) {
             JsonNode messageParams = message.get("params");
 
@@ -91,11 +98,11 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
         super.resubscribeChannels();
     }
 
-    public JsonNode waitForNoChannelMessage(long id) throws ExecutionException, InterruptedException {
-        return waitForNoChannelMessage(id, WAIT_FOR_NO_CHANNEL_MESSAGE_MS);
+    public JsonNode waitForNoChannelMessage(long id) throws ExecutionException, InterruptedException, TimeoutException {
+        return waitForNoChannelMessage(id, waitForNoChannelMessageMs);
     }
 
-    public JsonNode waitForNoChannelMessage(long id, long timeoutMs) throws ExecutionException, InterruptedException {
+    public JsonNode waitForNoChannelMessage(long id, long timeoutMs) throws ExecutionException, InterruptedException, TimeoutException {
         Semaphore waitForMessage = new Semaphore(1);
         waitForMessage.acquire();
 
@@ -105,7 +112,7 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
             return (JsonNode) result;
         } else {
             // RxJava thread will release the Semaphore on message arrival, allowing this acquire
-            if (!waitForMessage.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) throw new RuntimeException("Didn't receive response with timeoutMs: " + timeoutMs);
+            if (!waitForMessage.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) throw new TimeoutException("Didn't receive response with timeoutMs: " + timeoutMs);
 
             Object finalResult = noChannelMessageCache.getIfPresent(id);
             return (JsonNode) finalResult;
