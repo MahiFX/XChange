@@ -1,6 +1,5 @@
 package info.bitrich.xchangestream.deribit;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.core.StreamingTradeService;
@@ -28,14 +27,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class DeribitStreamingTradeService implements StreamingTradeService, TradeService {
     private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingTradeService.class);
-
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     private final DeribitStreamingService streamingService;
     private final ExchangeSpecification exchangeSpecification;
@@ -136,7 +131,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
         try {
             jsonNode = streamingService.waitForNoChannelMessage(messageId);
         } catch (Throwable t) {
-            return null;
+            throw new RuntimeException("Failed to place new order: " + deribitOrderParams, t);
         }
 
         if (jsonNode != null) {
@@ -177,7 +172,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
         try {
             jsonNode = streamingService.waitForNoChannelMessage(messageId);
         } catch (Throwable t) {
-            return false;
+            throw new RuntimeException("Failed to cancel order: " + orderId, t);
         }
 
         if (jsonNode != null) {

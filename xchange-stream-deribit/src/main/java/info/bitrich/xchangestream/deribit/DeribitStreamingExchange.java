@@ -11,6 +11,8 @@ import org.knowm.xchange.deribit.v2.DeribitExchange;
 import org.knowm.xchange.service.trade.TradeService;
 
 public class DeribitStreamingExchange extends DeribitExchange implements StreamingExchange {
+    public static final String MESSAGE_RESPONSE_TIMEOUT_OPTION = "Deribit_MessageTimeoutMs";
+
     private static final String WS_API_URL = "wss://www.deribit.com/ws/api/v2";
     private static final String WS_GATEWAY_API_URL = "ws://gateway.deribit.com:8022/ws/api/v2";
     private static final String WS_TESTNET_API_URL = "wss://test.deribit.com/ws/api/v2";
