@@ -6,24 +6,16 @@ import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import info.bitrich.xchangestream.service.netty.WebSocketClientCompressionAllowClientNoContextAndServerNoContextHandler;
 import io.netty.handler.codec.http.websocketx.extensions.WebSocketClientExtensionHandler;
 import io.reactivex.Observable;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 public class BinanceUserDataStreamingService extends JsonNettyStreamingService {
 
   private static final Logger LOG = LoggerFactory.getLogger(BinanceUserDataStreamingService.class);
 
-  private static final String USER_API_BASE_URI = "wss://stream.binance.com:9443/ws/";
-  private static final String USER_API_SANDBOX_URI = "wss://testnet.binance.vision/ws/";
-
-  public static BinanceUserDataStreamingService create(String listenKey, boolean useSandbox) {
-    return new BinanceUserDataStreamingService(baseUri(useSandbox) + listenKey);
-  }
-
-  private static String baseUri(boolean useSandbox) {
-    return useSandbox ? USER_API_SANDBOX_URI : USER_API_BASE_URI;
+  public static BinanceUserDataStreamingService create(String baseUri, String listenKey) {
+    return new BinanceUserDataStreamingService(baseUri + "ws/" + listenKey);
   }
 
   protected BinanceUserDataStreamingService(String url) {
@@ -62,7 +54,7 @@ public class BinanceUserDataStreamingService extends JsonNettyStreamingService {
   }
 
   @Override
-  public String getUnsubscribeMessage(String channelName) throws IOException {
+  public String getUnsubscribeMessage(String channelName, Object... args) throws IOException {
     // No op. Disconnecting from the web socket will cancel subscriptions.
     return null;
   }

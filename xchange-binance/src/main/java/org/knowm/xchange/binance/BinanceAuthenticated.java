@@ -1,18 +1,42 @@
 package org.knowm.xchange.binance;
 
-import org.knowm.xchange.binance.dto.BinanceException;
-import org.knowm.xchange.binance.dto.account.*;
-import org.knowm.xchange.binance.dto.trade.*;
-import si.mazi.rescu.ParamsDigest;
-import si.mazi.rescu.SynchronizedValueFactory;
-
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import org.knowm.xchange.binance.dto.BinanceException;
+import org.knowm.xchange.binance.dto.account.AssetDetail;
+import org.knowm.xchange.binance.dto.account.AssetDividendResponse;
+import org.knowm.xchange.binance.dto.account.BinanceAccountInformation;
+import org.knowm.xchange.binance.dto.account.BinanceDeposit;
+import org.knowm.xchange.binance.dto.account.BinanceWithdraw;
+import org.knowm.xchange.binance.dto.account.DepositAddress;
+import org.knowm.xchange.binance.dto.account.TransferHistory;
+import org.knowm.xchange.binance.dto.account.TransferSubUserHistory;
+import org.knowm.xchange.binance.dto.account.WithdrawResponse;
+import org.knowm.xchange.binance.dto.trade.BinanceCancelledOrder;
+import org.knowm.xchange.binance.dto.trade.BinanceDustLog;
+import org.knowm.xchange.binance.dto.trade.BinanceListenKey;
+import org.knowm.xchange.binance.dto.trade.BinanceNewOrder;
+import org.knowm.xchange.binance.dto.trade.BinanceOrder;
+import org.knowm.xchange.binance.dto.trade.BinanceTrade;
+import org.knowm.xchange.binance.dto.trade.OrderSide;
+import org.knowm.xchange.binance.dto.trade.OrderType;
+import org.knowm.xchange.binance.dto.trade.TimeInForce;
+import si.mazi.rescu.ParamsDigest;
+import si.mazi.rescu.SynchronizedValueFactory;
 
-@SuppressWarnings("RestParamTypeInspection")
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
 public interface BinanceAuthenticated extends Binance {
@@ -20,8 +44,6 @@ public interface BinanceAuthenticated extends Binance {
   String SIGNATURE = "signature";
   String X_MBX_APIKEY = "X-MBX-APIKEY";
 
-  @POST
-  @Path("api/v3/order")
   /**
    * Send in a new order
    *
@@ -35,30 +57,33 @@ public interface BinanceAuthenticated extends Binance {
    *     sent.
    * @param stopPrice optional, used with stop orders
    * @param icebergQty optional, used with iceberg orders
+   * @param newOrderRespType optional, MARKET and LIMIT order types default to FULL, all other
+   *     orders default to ACK
    * @param recvWindow optional
    * @param timestamp
    * @return
    * @throws IOException
    * @throws BinanceException
    */
-  BinanceNewOrder newOrder(
-          @FormParam("symbol") String symbol,
-          @FormParam("side") OrderSide side,
-          @FormParam("type") OrderType type,
-          @FormParam("timeInForce") TimeInForce timeInForce,
-          @FormParam("quantity") BigDecimal quantity,
-          @FormParam("price") BigDecimal price,
-          @FormParam("newClientOrderId") String newClientOrderId,
-          @FormParam("stopPrice") BigDecimal stopPrice,
-          @FormParam("icebergQty") BigDecimal icebergQty,
-          @FormParam("recvWindow") Long recvWindow,
-          @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
   @POST
-  @Path("api/v3/order/test")
+  @Path("api/v3/order")
+  BinanceNewOrder newOrder(
+      @FormParam("symbol") String symbol,
+      @FormParam("side") OrderSide side,
+      @FormParam("type") OrderType type,
+      @FormParam("timeInForce") TimeInForce timeInForce,
+      @FormParam("quantity") BigDecimal quantity,
+      @FormParam("price") BigDecimal price,
+      @FormParam("newClientOrderId") String newClientOrderId,
+      @FormParam("stopPrice") BigDecimal stopPrice,
+      @FormParam("icebergQty") BigDecimal icebergQty,
+      @FormParam("newOrderRespType") BinanceNewOrder.NewOrderResponseType newOrderRespType,
+      @FormParam("recvWindow") Long recvWindow,
+      @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Test new order creation and signature/recvWindow long. Creates and validates a new order but
    * does not send it into the matching engine.
@@ -79,24 +104,24 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
+  @POST
+  @Path("api/v3/order/test")
   Object testNewOrder(
-          @FormParam("symbol") String symbol,
-          @FormParam("side") OrderSide side,
-          @FormParam("type") OrderType type,
-          @FormParam("timeInForce") TimeInForce timeInForce,
-          @FormParam("quantity") BigDecimal quantity,
-          @FormParam("price") BigDecimal price,
-          @FormParam("newClientOrderId") String newClientOrderId,
-          @FormParam("stopPrice") BigDecimal stopPrice,
-          @FormParam("icebergQty") BigDecimal icebergQty,
-          @FormParam("recvWindow") Long recvWindow,
-          @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+      @FormParam("symbol") String symbol,
+      @FormParam("side") OrderSide side,
+      @FormParam("type") OrderType type,
+      @FormParam("timeInForce") TimeInForce timeInForce,
+      @FormParam("quantity") BigDecimal quantity,
+      @FormParam("price") BigDecimal price,
+      @FormParam("newClientOrderId") String newClientOrderId,
+      @FormParam("stopPrice") BigDecimal stopPrice,
+      @FormParam("icebergQty") BigDecimal icebergQty,
+      @FormParam("recvWindow") Long recvWindow,
+      @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
 
-  @GET
-  @Path("api/v3/order")
   /**
    * Check an order's status.<br>
    * Either orderId or origClientOrderId must be sent.
@@ -112,18 +137,18 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  BinanceOrder orderStatus(
-          @QueryParam("symbol") String symbol,
-          @QueryParam("orderId") long orderId,
-          @QueryParam("origClientOrderId") String origClientOrderId,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
-  @DELETE
+  @GET
   @Path("api/v3/order")
+  BinanceOrder orderStatus(
+      @QueryParam("symbol") String symbol,
+      @QueryParam("orderId") long orderId,
+      @QueryParam("origClientOrderId") String origClientOrderId,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Cancel an active order.
    *
@@ -140,19 +165,19 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  BinanceCancelledOrder cancelOrder(
-          @QueryParam("symbol") String symbol,
-          @QueryParam("orderId") long orderId,
-          @QueryParam("origClientOrderId") String origClientOrderId,
-          @QueryParam("newClientOrderId") String newClientOrderId,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
   @DELETE
-  @Path("api/v3/openOrders")
+  @Path("api/v3/order")
+  BinanceCancelledOrder cancelOrder(
+      @QueryParam("symbol") String symbol,
+      @QueryParam("orderId") long orderId,
+      @QueryParam("origClientOrderId") String origClientOrderId,
+      @QueryParam("newClientOrderId") String newClientOrderId,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Cancels all active orders on a symbol. This includes OCO orders.
    *
@@ -163,16 +188,16 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  List<BinanceCancelledOrder> cancelAllOpenOrders(
-          @QueryParam("symbol") String symbol,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
-  @GET
+  @DELETE
   @Path("api/v3/openOrders")
+  List<BinanceCancelledOrder> cancelAllOpenOrders(
+      @QueryParam("symbol") String symbol,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Get open orders on a symbol.
    *
@@ -183,16 +208,16 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  List<BinanceOrder> openOrders(
-          @QueryParam("symbol") String symbol,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
   @GET
-  @Path("api/v3/allOrders")
+  @Path("api/v3/openOrders")
+  List<BinanceOrder> openOrders(
+      @QueryParam("symbol") String symbol,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Get all account orders; active, canceled, or filled. <br>
    * If orderId is set, it will get orders >= that orderId. Otherwise most recent orders are
@@ -209,18 +234,18 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  List<BinanceOrder> allOrders(
-          @QueryParam("symbol") String symbol,
-          @QueryParam("orderId") Long orderId,
-          @QueryParam("limit") Integer limit,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
   @GET
-  @Path("api/v3/account")
+  @Path("api/v3/allOrders")
+  List<BinanceOrder> allOrders(
+      @QueryParam("symbol") String symbol,
+      @QueryParam("orderId") Long orderId,
+      @QueryParam("limit") Integer limit,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Get current account information.
    *
@@ -230,23 +255,24 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  BinanceAccountInformation account(
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
   @GET
-  @Path("api/v3/myTrades")
+  @Path("api/v3/account")
+  BinanceAccountInformation account(
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Get trades for a specific account and symbol.
    *
    * @param symbol
+   * @param orderId optional
    * @param startTime optional
    * @param endTime optional
-   * @param limit optional, default 500; max 1000.
    * @param fromId optional, tradeId to fetch from. Default gets most recent trades.
+   * @param limit optional, default 500; max 1000.
    * @param recvWindow optional
    * @param timestamp
    * @param apiKey
@@ -255,24 +281,52 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
+  @GET
+  @Path("api/v3/myTrades")
   List<BinanceTrade> myTrades(
-          @QueryParam("symbol") String symbol,
-          @QueryParam("limit") Integer limit,
-          @QueryParam("startTime") Long startTime,
-          @QueryParam("endTime") Long endTime,
-          @QueryParam("fromId") Long fromId,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+      @QueryParam("symbol") String symbol,
+      @QueryParam("orderId") Long orderId,
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("fromId") Long fromId,
+      @QueryParam("limit") Integer limit,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
 
-  @POST
-  @Path("wapi/v3/withdraw.html")
+  /**
+   * Retrieves the dust log from Binance. If you have many currencies with low amount (=dust) that
+   * cannot be traded, because their amount is less than the minimum amount required for trading
+   * them, you can convert all these currencies at once into BNB with the button "Convert Small
+   * Balance to BNB".
+   *
+   * @param startTime optional. If set, also the endTime must be set. If neither time is set, the
+   *     100 most recent dust logs are returned.
+   * @param endTime optional. If set, also the startTime must be set. If neither time is set, the
+   *     100 most recent dust logs are returned.
+   * @param recvWindow optional
+   * @param timestamp mandatory
+   * @return
+   * @throws IOException
+   * @throws BinanceException
+   */
+  @GET
+  @Path("/sapi/v1/asset/dribblet")
+  BinanceDustLog getDustLog(
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Submit a withdraw request.
    *
-   * @param asset
+   * @param coin
    * @param address
    * @param addressTag optional for Ripple
    * @param amount
@@ -285,24 +339,24 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  WithdrawRequest withdraw(
-          @QueryParam("asset") String asset,
-          @QueryParam("address") String address,
-          @QueryParam("addressTag") String addressTag,
-          @QueryParam("amount") BigDecimal amount,
-          @QueryParam("name") String name,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+  @POST
+  @Path("/sapi/v1/capital/withdraw/apply")
+  WithdrawResponse withdraw(
+      @FormParam("coin") String coin,
+      @FormParam("address") String address,
+      @FormParam("addressTag") String addressTag,
+      @FormParam("amount") BigDecimal amount,
+      @FormParam("name") String name,
+      @FormParam("recvWindow") Long recvWindow,
+      @FormParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
 
-  @GET
-  @Path("wapi/v3/depositHistory.html")
   /**
    * Fetch deposit history.
    *
-   * @param asset optional
+   * @param coin optional
    * @param startTime optional
    * @param endTime optional
    * @param recvWindow optional
@@ -313,22 +367,22 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  DepositList depositHistory(
-          @QueryParam("asset") String asset,
-          @QueryParam("startTime") Long startTime,
-          @QueryParam("endTime") Long endTime,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
   @GET
-  @Path("wapi/v3/withdrawHistory.html")
+  @Path("/sapi/v1/capital/deposit/hisrec")
+  List<BinanceDeposit> depositHistory(
+      @QueryParam("coin") String coin,
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Fetch withdraw history.
    *
-   * @param asset optional
+   * @param coin optional
    * @param startTime optional
    * @param endTime optional
    * @param recvWindow optional
@@ -339,35 +393,17 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  WithdrawList withdrawHistory(
-          @QueryParam("asset") String asset,
-          @QueryParam("startTime") Long startTime,
-          @QueryParam("endTime") Long endTime,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
-  /**
-   * Fetch small amounts of assets exchanged BNB records.
-   *
-   * @param recvWindow optional
-   * @param timestamp
-   * @param apiKey
-   * @param signature
-   * @return
-   * @throws IOException
-   * @throws BinanceException
-   */
   @GET
-  @Path("/wapi/v3/userAssetDribbletLog.html")
-  AssetDribbletLogResponse userAssetDribbletLog(
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+  @Path("/sapi/v1/capital/withdraw/history")
+  List<BinanceWithdraw> withdrawHistory(
+      @QueryParam("coin") String coin,
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
 
   /**
    * Fetch small amounts of assets exchanged BNB records.
@@ -386,49 +422,47 @@ public interface BinanceAuthenticated extends Binance {
   @GET
   @Path("/sapi/v1/asset/assetDividend")
   AssetDividendResponse assetDividend(
-          @QueryParam("asset") String asset,
-          @QueryParam("startTime") Long startTime,
-          @QueryParam("endTime") Long endTime,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+      @QueryParam("asset") String asset,
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
 
   @GET
-  @Path("/wapi/v3/sub-account/transfer/history.html")
-  TransferHistoryResponse transferHistory(
-          @QueryParam("email") String email,
-          @QueryParam("startTime") Long startTime,
-          @QueryParam("endTime") Long endTime,
-          @QueryParam("page") Integer page,
-          @QueryParam("limit") Integer limit,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+  @Path("/sapi/v1/sub-account/sub/transfer/history")
+  List<TransferHistory> transferHistory(
+      @QueryParam("fromEmail") String fromEmail,
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("page") Integer page,
+      @QueryParam("limit") Integer limit,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
 
   @GET
   @Path("/sapi/v1/sub-account/transfer/subUserHistory")
   List<TransferSubUserHistory> transferSubUserHistory(
-          @QueryParam("asset") String asset,
-          @QueryParam("type") Integer type,
-          @QueryParam("startTime") Long startTime,
-          @QueryParam("endTime") Long endTime,
-          @QueryParam("limit") Integer limit,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+      @QueryParam("asset") String asset,
+      @QueryParam("type") Integer type,
+      @QueryParam("startTime") Long startTime,
+      @QueryParam("endTime") Long endTime,
+      @QueryParam("limit") Integer limit,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
 
-  @GET
-  @Path("wapi/v3/depositAddress.html")
   /**
    * Fetch deposit address.
    *
-   * @param asset
+   * @param coin
    * @param recvWindow
    * @param timestamp
    * @param apiKey
@@ -437,16 +471,16 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  DepositAddress depositAddress(
-          @QueryParam("asset") String asset,
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
-
   @GET
-  @Path("/sapi/v1/asset/assetDetail")
+  @Path("/sapi/v1/capital/deposit/address")
+  DepositAddress depositAddress(
+      @QueryParam("coin") String coin,
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
   /**
    * Fetch asset details.
    *
@@ -458,10 +492,55 @@ public interface BinanceAuthenticated extends Binance {
    * @throws IOException
    * @throws BinanceException
    */
-  AssetDetailResponse assetDetail(
-          @QueryParam("recvWindow") Long recvWindow,
-          @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
-          @HeaderParam(X_MBX_APIKEY) String apiKey,
-          @QueryParam(SIGNATURE) ParamsDigest signature)
-          throws IOException, BinanceException;
+  @GET
+  @Path("/sapi/v1/asset/assetDetail")
+  Map<String, AssetDetail> assetDetail(
+      @QueryParam("recvWindow") Long recvWindow,
+      @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+      @HeaderParam(X_MBX_APIKEY) String apiKey,
+      @QueryParam(SIGNATURE) ParamsDigest signature)
+      throws IOException, BinanceException;
+
+  /**
+   * Returns a listen key for websocket login.
+   *
+   * @param apiKey the api key
+   * @return
+   * @throws BinanceException
+   * @throws IOException
+   */
+  @POST
+  @Path("/api/v3/userDataStream")
+  BinanceListenKey startUserDataStream(@HeaderParam(X_MBX_APIKEY) String apiKey)
+      throws IOException, BinanceException;
+
+  /**
+   * Keeps the authenticated websocket session alive.
+   *
+   * @param apiKey the api key
+   * @param listenKey the api secret
+   * @return
+   * @throws BinanceException
+   * @throws IOException
+   */
+  @PUT
+  @Path("/api/v3/userDataStream?listenKey={listenKey}")
+  Map<?, ?> keepAliveUserDataStream(
+      @HeaderParam(X_MBX_APIKEY) String apiKey, @PathParam("listenKey") String listenKey)
+      throws IOException, BinanceException;
+
+  /**
+   * Closes the websocket authenticated connection.
+   *
+   * @param apiKey the api key
+   * @param listenKey the api secret
+   * @return
+   * @throws BinanceException
+   * @throws IOException
+   */
+  @DELETE
+  @Path("/api/v3/userDataStream?listenKey={listenKey}")
+  Map<?, ?> closeUserDataStream(
+      @HeaderParam(X_MBX_APIKEY) String apiKey, @PathParam("listenKey") String listenKey)
+      throws IOException, BinanceException;
 }

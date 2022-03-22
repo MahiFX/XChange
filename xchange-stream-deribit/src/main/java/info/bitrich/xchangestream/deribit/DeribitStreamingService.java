@@ -81,7 +81,7 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     @Override
-    public String getUnsubscribeMessage(String channelName) throws IOException {
+    public String getUnsubscribeMessage(String channelName, Object... args) throws IOException {
         DeribitBaseMessage<DeribitSubscribeParams> unsubscribeMessage = new DeribitBaseMessage<>("public/unsubscribe", new DeribitSubscribeParams(channelName));
 
         return objectMapper.writeValueAsString(unsubscribeMessage);

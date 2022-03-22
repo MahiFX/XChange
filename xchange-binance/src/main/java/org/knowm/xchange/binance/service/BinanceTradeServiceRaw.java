@@ -1,27 +1,37 @@
 package org.knowm.xchange.binance.service;
 
-import org.knowm.xchange.binance.BinanceAdapters;
-import org.knowm.xchange.binance.BinanceAuthenticated;
-import org.knowm.xchange.binance.BinanceExchange;
-import org.knowm.xchange.binance.dto.BinanceException;
-import org.knowm.xchange.binance.dto.trade.*;
-import org.knowm.xchange.client.ResilienceRegistries;
-import org.knowm.xchange.currency.CurrencyPair;
+import static org.knowm.xchange.binance.BinanceResilience.ORDERS_PER_DAY_RATE_LIMITER;
+import static org.knowm.xchange.binance.BinanceResilience.ORDERS_PER_SECOND_RATE_LIMITER;
+import static org.knowm.xchange.binance.BinanceResilience.REQUEST_WEIGHT_RATE_LIMITER;
+import static org.knowm.xchange.client.ResilienceRegistries.NON_IDEMPOTENT_CALLS_RETRY_CONFIG_NAME;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-
-import static org.knowm.xchange.binance.BinanceResilience.*;
-import static org.knowm.xchange.client.ResilienceRegistries.NON_IDEMPOTENT_CALLS_RETRY_CONFIG_NAME;
+import org.knowm.xchange.binance.BinanceAdapters;
+import org.knowm.xchange.binance.BinanceAuthenticated;
+import org.knowm.xchange.binance.BinanceExchange;
+import org.knowm.xchange.binance.dto.BinanceException;
+import org.knowm.xchange.binance.dto.trade.BinanceCancelledOrder;
+import org.knowm.xchange.binance.dto.trade.BinanceDustLog;
+import org.knowm.xchange.binance.dto.trade.BinanceListenKey;
+import org.knowm.xchange.binance.dto.trade.BinanceNewOrder;
+import org.knowm.xchange.binance.dto.trade.BinanceOrder;
+import org.knowm.xchange.binance.dto.trade.BinanceTrade;
+import org.knowm.xchange.binance.dto.trade.OrderSide;
+import org.knowm.xchange.binance.dto.trade.OrderType;
+import org.knowm.xchange.binance.dto.trade.TimeInForce;
+import org.knowm.xchange.client.ResilienceRegistries;
+import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.exceptions.ExchangeException;
 
 public class BinanceTradeServiceRaw extends BinanceBaseService {
 
   protected BinanceTradeServiceRaw(
-          BinanceExchange exchange,
-          BinanceAuthenticated binance,
-          ResilienceRegistries resilienceRegistries) {
+      BinanceExchange exchange,
+      BinanceAuthenticated binance,
+      ResilienceRegistries resilienceRegistries) {
     super(exchange, binance, resilienceRegistries);
   }
 
@@ -52,7 +62,8 @@ public class BinanceTradeServiceRaw extends BinanceBaseService {
       BigDecimal price,
       String newClientOrderId,
       BigDecimal stopPrice,
-      BigDecimal icebergQty)
+      BigDecimal icebergQty,
+      BinanceNewOrder.NewOrderResponseType newOrderRespType)
       throws IOException, BinanceException {
     return decorateApiCall(
             () ->
@@ -66,6 +77,7 @@ public class BinanceTradeServiceRaw extends BinanceBaseService {
                     newClientOrderId,
                     stopPrice,
                     icebergQty,
+                    newOrderRespType,
                     getRecvWindow(),
                     getTimestampFactory(),
                     apiKey,
@@ -109,7 +121,7 @@ public class BinanceTradeServiceRaw extends BinanceBaseService {
         .call();
   }
 
-  public BinanceOrder orderStatus(CurrencyPair pair, long orderId, String origClientOrderId)
+  public BinanceOrder orderStatus(CurrencyPair pair, Long orderId, String origClientOrderId)
       throws IOException, BinanceException {
     return decorateApiCall(
             () ->
@@ -127,7 +139,7 @@ public class BinanceTradeServiceRaw extends BinanceBaseService {
   }
 
   public BinanceCancelledOrder cancelOrder(
-      CurrencyPair pair, long orderId, String origClientOrderId, String newClientOrderId)
+      CurrencyPair pair, Long orderId, String origClientOrderId, String newClientOrderId)
       throws IOException, BinanceException {
     return decorateApiCall(
             () ->
@@ -178,22 +190,74 @@ public class BinanceTradeServiceRaw extends BinanceBaseService {
   }
 
   public List<BinanceTrade> myTrades(
-      CurrencyPair pair, Integer limit, Long startTime, Long endTime, Long fromId)
+      CurrencyPair pair, Long orderId, Long startTime, Long endTime, Long fromId, Integer limit)
       throws BinanceException, IOException {
     return decorateApiCall(
             () ->
                 binance.myTrades(
                     BinanceAdapters.toSymbol(pair),
-                    limit,
+                    orderId,
                     startTime,
                     endTime,
                     fromId,
+                    limit,
                     getRecvWindow(),
                     getTimestampFactory(),
                     apiKey,
                     signatureCreator))
         .withRetry(retry("myTrades"))
         .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER), myTradesPermits(limit))
+        .call();
+  }
+
+  /**
+   * Retrieves the dust log from Binance. If you have many currencies with low amount (=dust) that
+   * cannot be traded, because their amount is less than the minimum amount required for trading
+   * them, you can convert all these currencies at once into BNB with the button "Convert Small
+   * Balance to BNB".
+   *
+   * @param startTime optional. If set, also the endTime must be set. If neither time is set, the
+   *     100 most recent dust logs are returned.
+   * @param endTime optional. If set, also the startTime must be set. If neither time is set, the
+   *     100 most recent dust logs are returned.
+   * @return
+   * @throws IOException
+   */
+  public BinanceDustLog getDustLog(Long startTime, Long endTime) throws IOException {
+
+    if (((startTime != null) && (endTime == null)) || (startTime == null) && (endTime != null))
+      throw new ExchangeException(
+          "You need to specify both, the start and the end date, or none of them");
+
+    return decorateApiCall(
+            () ->
+                binance.getDustLog(
+                    startTime,
+                    endTime,
+                    getRecvWindow(),
+                    getTimestampFactory(),
+                    apiKey,
+                    signatureCreator))
+        .withRetry(retry("myDustLog"))
+        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+        .call();
+  }
+
+  public BinanceListenKey startUserDataStream() throws IOException {
+    return decorateApiCall(() -> binance.startUserDataStream(apiKey))
+        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+        .call();
+  }
+
+  public void keepAliveDataStream(String listenKey) throws IOException {
+    decorateApiCall(() -> binance.keepAliveUserDataStream(apiKey, listenKey))
+        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+        .call();
+  }
+
+  public void closeDataStream(String listenKey) throws IOException {
+    decorateApiCall(() -> binance.closeUserDataStream(apiKey, listenKey))
+        .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
         .call();
   }
 

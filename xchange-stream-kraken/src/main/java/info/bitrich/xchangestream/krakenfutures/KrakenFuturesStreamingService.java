@@ -163,7 +163,7 @@ public class KrakenFuturesStreamingService extends JsonNettyStreamingService {
     }
 
     @Override
-    public String getUnsubscribeMessage(String channelName) throws IOException {
+    public String getUnsubscribeMessage(String channelName, Object... args) throws IOException {
         String[] channelData =
                 channelName.split(KrakenStreamingMarketDataService.KRAKEN_CHANNEL_DELIMITER);
 

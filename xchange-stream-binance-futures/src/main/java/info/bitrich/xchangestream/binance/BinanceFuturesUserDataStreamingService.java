@@ -4,8 +4,8 @@ import io.netty.handler.codec.http.websocketx.extensions.WebSocketClientExtensio
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler;
 
 public class BinanceFuturesUserDataStreamingService extends BinanceUserDataStreamingService {
-    private static final String FUTURES_API_BASE_URI = "wss://fstream.binance.com/ws/";
-    private static final String FUTURES_TESTNET_URI = "wss://stream.binancefuture.com/ws/";
+    private static final String FUTURES_API_BASE_URI = "wss://fstream.binance.com/";
+    private static final String FUTURES_TESTNET_URI = "wss://stream.binancefuture.com/";
 
     public static BinanceFuturesUserDataStreamingService create(String listenKey, boolean useSandbox) {
         return new BinanceFuturesUserDataStreamingService(baseUri(useSandbox) + listenKey);

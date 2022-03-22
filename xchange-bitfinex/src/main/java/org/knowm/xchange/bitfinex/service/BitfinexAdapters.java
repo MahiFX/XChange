@@ -40,6 +40,7 @@ import org.knowm.xchange.dto.marketdata.Trades.TradeSortType;
 import org.knowm.xchange.dto.meta.CurrencyMetaData;
 import org.knowm.xchange.dto.meta.CurrencyPairMetaData;
 import org.knowm.xchange.dto.meta.ExchangeMetaData;
+import org.knowm.xchange.dto.meta.WalletHealth;
 import org.knowm.xchange.dto.trade.FixedRateLoanOrder;
 import org.knowm.xchange.dto.trade.FloatingRateLoanOrder;
 import org.knowm.xchange.dto.trade.LimitOrder;
@@ -77,6 +78,10 @@ public final class BitfinexAdapters {
   private static final ObjectMapper mapper = new ObjectMapper();
 
   private static final AtomicBoolean warnedStopLimit = new AtomicBoolean();
+  private static final String USDT_SYMBOL_BITFINEX = "UST";
+  private static final String USDT_SYMBOL_XCHANGE = "USDT";
+  private static final int PLATFORM_STATUS_ONLINE = 1;
+  private static final int PLATFORM_STATUS_OFFLINE = 0;
 
   private BitfinexAdapters() {}
 
@@ -114,7 +119,11 @@ public final class BitfinexAdapters {
   }
 
   public static String adaptBitfinexCurrency(String bitfinexSymbol) {
-    return bitfinexSymbol.toUpperCase();
+    String result = bitfinexSymbol.toUpperCase();
+    if (USDT_SYMBOL_BITFINEX.equals(result)) {
+      result = USDT_SYMBOL_XCHANGE;
+    }
+    return result;
   }
 
   public static String adaptOrderType(OrderType type) {
@@ -712,7 +721,23 @@ public final class BitfinexAdapters {
   }
 
   public static ExchangeMetaData adaptMetaData(
-      BitfinexAccountFeesResponse accountFeesResponse, ExchangeMetaData metaData) {
+      BitfinexAccountFeesResponse accountFeesResponse,
+      int platformStatus,
+      boolean platformStatusPresent,
+      ExchangeMetaData metaData) {
+    final WalletHealth health;
+    if (platformStatusPresent) {
+      if (platformStatus == PLATFORM_STATUS_ONLINE) {
+        health = WalletHealth.ONLINE;
+      } else if (platformStatus == PLATFORM_STATUS_OFFLINE) {
+        health = WalletHealth.OFFLINE;
+      } else {
+        health = WalletHealth.UNKNOWN;
+      }
+    } else {
+      health = WalletHealth.UNKNOWN;
+    }
+
     Map<Currency, CurrencyMetaData> currencies = metaData.getCurrencies();
     final Map<Currency, BigDecimal> withdrawFees = accountFeesResponse.getWithdraw();
     withdrawFees.forEach(
@@ -723,7 +748,9 @@ public final class BitfinexAdapters {
                   currencies.get(currency) == null
                       ? withdrawalFee.scale()
                       : Math.max(withdrawalFee.scale(), currencies.get(currency).getScale()),
-                  withdrawalFee);
+                  withdrawalFee,
+                  null,
+                  health);
           currencies.put(currency, newMetaData);
         });
     return metaData;

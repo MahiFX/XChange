@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_HIGHER_UPDATE_FREQUENCY;
-import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_REALTIME_TICKER;
+import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_REALTIME_BOOK_TICKER;
 
 public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange implements StreamingExchange {
     private static final Logger LOG = LoggerFactory.getLogger(BinanceStreamingExchange.class);
@@ -65,7 +65,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
                 MoreObjects.firstNonNull(
                         (Boolean)
                                 exchangeSpecification.getExchangeSpecificParametersItem(
-                                        USE_REALTIME_TICKER),
+                                        USE_REALTIME_BOOK_TICKER),
                         Boolean.FALSE);
     }
 

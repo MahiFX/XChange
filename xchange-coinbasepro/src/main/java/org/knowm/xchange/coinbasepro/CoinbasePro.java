@@ -16,6 +16,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import org.knowm.xchange.coinbasepro.dto.CoinbasePagedResponse;
 import org.knowm.xchange.coinbasepro.dto.CoinbaseProException;
 import org.knowm.xchange.coinbasepro.dto.CoinbaseProTrades;
 import org.knowm.xchange.coinbasepro.dto.CoinbaseProTransfers;
@@ -23,7 +24,14 @@ import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProFee;
 import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProSendMoneyRequest;
 import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProWithdrawCryptoResponse;
 import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProWithdrawFundsRequest;
-import org.knowm.xchange.coinbasepro.dto.marketdata.*;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProCandle;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProCurrency;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProduct;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProductBook;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProductStats;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProductTicker;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProStats;
+import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProTrade;
 import org.knowm.xchange.coinbasepro.dto.trade.CoinbaseProAccount;
 import org.knowm.xchange.coinbasepro.dto.trade.CoinbaseProAccountAddress;
 import org.knowm.xchange.coinbasepro.dto.trade.CoinbaseProFill;
@@ -128,13 +136,26 @@ public interface CoinbasePro {
       throws CoinbaseProException, IOException;
 
   @GET
-  @Path("orders?status={status}")
+  @Path("orders")
+  CoinbasePagedResponse<CoinbaseProOrder> getListOrders(
+      @HeaderParam("CB-ACCESS-KEY") String apiKey,
+      @HeaderParam("CB-ACCESS-SIGN") ParamsDigest signer,
+      @HeaderParam("CB-ACCESS-TIMESTAMP") long timestamp,
+      @HeaderParam("CB-ACCESS-PASSPHRASE") String passphrase,
+      @QueryParam("status") String status,
+      @QueryParam("limit") Integer limit,
+      @QueryParam("after") String after)
+      throws CoinbaseProException, IOException;
+
+  @GET
+  @Path("orders")
   CoinbaseProOrder[] getListOrders(
       @HeaderParam("CB-ACCESS-KEY") String apiKey,
       @HeaderParam("CB-ACCESS-SIGN") ParamsDigest signer,
       @HeaderParam("CB-ACCESS-TIMESTAMP") long timestamp,
       @HeaderParam("CB-ACCESS-PASSPHRASE") String passphrase,
-      @PathParam("status") String status)
+      @QueryParam("status") String status,
+      @QueryParam("product_id") String productId)
       throws CoinbaseProException, IOException;
 
   @POST
@@ -185,7 +206,7 @@ public interface CoinbasePro {
    */
   @GET
   @Path("fills")
-  CoinbaseProFill[] getFills(
+  CoinbasePagedResponse<CoinbaseProFill> getFills(
       @HeaderParam("CB-ACCESS-KEY") String apiKey,
       @HeaderParam("CB-ACCESS-SIGN") ParamsDigest signer,
       @HeaderParam("CB-ACCESS-TIMESTAMP") long timestamp,
@@ -218,7 +239,7 @@ public interface CoinbasePro {
       @HeaderParam("CB-ACCESS-TIMESTAMP") long timestamp,
       @HeaderParam("CB-ACCESS-PASSPHRASE") String passphrase,
       @PathParam("account_id") String accountId,
-      @QueryParam("after") Integer startingOrderId)
+      @QueryParam("after") String startingOrderId)
       throws CoinbaseProException, IOException;
 
   @GET

@@ -1,45 +1,42 @@
 package org.knowm.xchange.binance.dto.marketdata;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.Ticker;
 
-import java.math.BigDecimal;
-import java.util.Date;
-
-public final class BinanceBookTicker  {
-
+public final class BinanceBookTicker {
+  public long updateId;
+  private CurrencyPair pair;
   private final BigDecimal bidPrice;
   private final BigDecimal bidQty;
   private final BigDecimal askPrice;
   private final BigDecimal askQty;
-  private final Date timestamp;
   private final String symbol;
-
-  // The curency pair that is unfortunately not returned in the response
-  private CurrencyPair pair;
 
   // The cached ticker
   private Ticker ticker;
 
   public BinanceBookTicker(
-          @JsonProperty("bidPrice") BigDecimal bidPrice,
-          @JsonProperty("bidQty") BigDecimal bidQty,
-          @JsonProperty("askPrice") BigDecimal askPrice,
-          @JsonProperty("askQty") BigDecimal askQty,
-          @JsonProperty("timestamp") Date timestamp,
-          @JsonProperty("symbol") String symbol) {
+      @JsonProperty("bidPrice") BigDecimal bidPrice,
+      @JsonProperty("bidQty") BigDecimal bidQty,
+      @JsonProperty("askPrice") BigDecimal askPrice,
+      @JsonProperty("askQty") BigDecimal askQty,
+      @JsonProperty("symbol") String symbol) {
     this.bidPrice = bidPrice;
     this.bidQty = bidQty;
     this.askPrice = askPrice;
     this.askQty = askQty;
-    this.timestamp = timestamp;
     this.symbol = symbol;
   }
 
-  public String getSymbol() {
-    return symbol;
+  public long getUpdateId() {
+    return updateId;
+  }
+
+  public void setUpdateId(long updateId) {
+    this.updateId = updateId;
   }
 
   public CurrencyPair getCurrencyPair() {
@@ -66,6 +63,10 @@ public final class BinanceBookTicker  {
     return askQty;
   }
 
+  public String getSymbol() {
+    return symbol;
+  }
+
   public synchronized Ticker toTicker() {
     CurrencyPair currencyPair = pair;
     if (currencyPair == null) {
@@ -79,7 +80,6 @@ public final class BinanceBookTicker  {
               .bid(bidPrice)
               .askSize(askQty)
               .bidSize(bidQty)
-              .timestamp(timestamp)
               .build();
     }
     return ticker;
