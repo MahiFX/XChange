@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class DeribitStreamingTradeService implements StreamingTradeService, TradeService {
     private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingTradeService.class);
@@ -36,7 +35,6 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     private final ExchangeSpecification exchangeSpecification;
 
     private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
-    private final AtomicLong messageCounter = new AtomicLong(0);
 
     public DeribitStreamingTradeService(DeribitStreamingService streamingService, ExchangeSpecification exchangeSpecification) {
         this.streamingService = streamingService;
@@ -123,7 +121,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     }
 
     private String sendDeribitOrderMessage(DeribitOrderParams deribitOrderParams, String direction) throws IOException {
-        long messageId = messageCounter.incrementAndGet();
+        long messageId = streamingService.getNextMessageId();
         DeribitBaseMessage<DeribitOrderParams> deribitOrderMessage = new DeribitBaseMessage<>(messageId, "private/" + direction, deribitOrderParams);
         streamingService.sendMessage(mapper.writeValueAsString(deribitOrderMessage));
 
@@ -164,7 +162,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
 
     @Override
     public boolean cancelOrder(String orderId) throws IOException {
-        long messageId = messageCounter.incrementAndGet();
+        long messageId = streamingService.getNextMessageId();
         streamingService.sendMessage(mapper.writeValueAsString(new DeribitBaseMessage<>(messageId, "private/cancel", new DeribitCancelOrderParams(orderId))));
 
         JsonNode jsonNode;
@@ -191,7 +189,7 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     }
 
     public OpenPositions getOpenPositions(Currency currency) throws IOException {
-        long messageId = messageCounter.incrementAndGet();
+        long messageId = streamingService.getNextMessageId();
         streamingService.sendMessage(mapper.writeValueAsString(new DeribitBaseMessage<>(messageId, "private/get_positions", new DeribitOpenPositionParams(currency.getCurrencyCode()))));
 
         JsonNode response;
