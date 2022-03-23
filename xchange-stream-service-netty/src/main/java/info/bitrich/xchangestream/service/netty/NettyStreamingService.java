@@ -307,7 +307,11 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   }
 
   public Completable disconnect() {
-    isManualDisconnect.set(true);
+    return disconnect(false);
+  }
+
+  public Completable disconnect(boolean autoReconnect) {
+    isManualDisconnect.set(!autoReconnect);
     return Completable.create(
         completable -> {
           if (webSocketChannel != null && webSocketChannel.isOpen()) {
@@ -316,7 +320,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
                 .writeAndFlush(closeFrame)
                 .addListener(
                     future -> {
-                      channels.clear();
+                      if (autoReconnect) channels.clear();
                       eventLoopGroup
                           .shutdownGracefully(2, idleTimeoutSeconds, TimeUnit.SECONDS)
                           .addListener(

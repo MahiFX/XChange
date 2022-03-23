@@ -8,6 +8,8 @@ import info.bitrich.xchangestream.deribit.dto.*;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.utils.DigestUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -16,12 +18,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class DeribitStreamingService extends JsonNettyStreamingService {
+    private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingService.class);
+
     public static final String NO_CHANNEL_CHANNEL_NAME = "DERIBIT_NO_CHANNEL";
 
     private static final String HMAC_SHA256_ALGO = "HmacSHA256";
@@ -29,6 +32,7 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     private final long waitForNoChannelMessageMs;
 
     private final Cache<Long, Object> noChannelMessageCache = CacheBuilder.newBuilder().maximumSize(200).build();
+    private final AtomicLong messageCounter = new AtomicLong(0);
 
     public DeribitStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification) {
         super(apiUrl);
@@ -56,6 +60,8 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
                         }
                     });
         });
+
+        startConnectionTester();
     }
 
     @Override
@@ -112,12 +118,13 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
             return (JsonNode) result;
         } else {
             // RxJava thread will release the Semaphore on message arrival, allowing this acquire
-            if (!waitForMessage.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) throw new TimeoutException("Didn't receive response with timeoutMs: " + timeoutMs);
+            if (!waitForMessage.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
+                throw new TimeoutException("Didn't receive response with timeoutMs: " + timeoutMs);
+            }
 
             Object finalResult = noChannelMessageCache.getIfPresent(id);
             return (JsonNode) finalResult;
         }
-
     }
 
     public void authenticate(String clientId, String clientSecret) throws NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {
@@ -148,4 +155,47 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
         ))));
     }
 
+    public long getNextMessageId() {
+        return messageCounter.incrementAndGet();
+    }
+
+    /**
+     * Deribit connections seem to occasionally stop responding to messages, without disconnecting.
+     * Periodically hit their API test endpoint to check the connection is live, and restart the connection if it appears dead.
+     */
+    private void startConnectionTester() {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+        AtomicInteger consecutiveFailures = new AtomicInteger(0);
+
+        executor.scheduleAtFixedRate(() -> {
+            if (isSocketOpen()) {
+                long nextMessageId = getNextMessageId();
+                try {
+                    sendMessage(objectMapper.writeValueAsString(new DeribitBaseMessage<>(
+                            nextMessageId,
+                            "public/test",
+                            null
+                    )));
+                } catch (IOException ignored) {
+                    return;
+                }
+
+                try {
+                    waitForNoChannelMessage(nextMessageId, 30_000L);
+                } catch (TimeoutException timeout) {
+                    int failures = consecutiveFailures.incrementAndGet();
+
+                    if (failures >= 2) {
+                        logger.error("Multiple timeouts waiting for response to API test call. Connection is considered dead - performing manual disconnect/reconnect.", timeout);
+                        disconnect().blockingAwait();
+                    }
+                } catch (ExecutionException | InterruptedException ignored) {
+                    return;
+                }
+
+                consecutiveFailures.set(0);
+            }
+        }, 60, 60, TimeUnit.SECONDS);
+    }
 }
