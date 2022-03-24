@@ -54,8 +54,9 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
                             Object cached = noChannelMessageCache.getIfPresent(id);
                             noChannelMessageCache.put(id, json);
 
-                            if (cached instanceof Semaphore) {
-                                ((Semaphore) cached).release();
+                            if (cached instanceof CompletableFuture) {
+                                //noinspection unchecked - if there's a CompletableFuture there, it's for JsonNode
+                                ((CompletableFuture<JsonNode>) cached).complete(json);
                             }
                         }
                     });
@@ -109,22 +110,21 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     public JsonNode waitForNoChannelMessage(long id, long timeoutMs) throws ExecutionException, InterruptedException, TimeoutException {
-        Semaphore waitForMessage = new Semaphore(1);
-        waitForMessage.acquire();
+        CompletableFuture<JsonNode> pendingMessage = getNoChannelMessage(id);
 
-        Object result = noChannelMessageCache.get(id, () -> waitForMessage);
+        return pendingMessage.get(timeoutMs, TimeUnit.MILLISECONDS);
+    }
+
+    public CompletableFuture<JsonNode> getNoChannelMessage(long id) throws ExecutionException {
+        CompletableFuture<JsonNode> future = new CompletableFuture<>();
+
+        Object result = noChannelMessageCache.get(id, () -> future);
 
         if (result instanceof JsonNode) {
-            return (JsonNode) result;
-        } else {
-            // RxJava thread will release the Semaphore on message arrival, allowing this acquire
-            if (!waitForMessage.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
-                throw new TimeoutException("Didn't receive response with timeoutMs: " + timeoutMs);
-            }
-
-            Object finalResult = noChannelMessageCache.getIfPresent(id);
-            return (JsonNode) finalResult;
+            future.complete((JsonNode) result);
         }
+
+        return future;
     }
 
     public void authenticate(String clientId, String clientSecret) throws NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {
