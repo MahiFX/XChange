@@ -24,9 +24,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class DeribitStreamingTradeService implements StreamingTradeService, TradeService {
     private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingTradeService.class);
@@ -94,30 +97,39 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
 
     @Override
     public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
-        DeribitOrderParams deribitOrderParams = new DeribitOrderParams(
-                DeribitStreamingUtil.instrumentName(limitOrder.getInstrument()),
-                limitOrder.getOriginalAmount(),
-                limitOrder.getLimitPrice(),
-                "limit",
-                limitOrder.getUserReference(),
-                getTimeInForce(limitOrder),
-                limitOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
+        DeribitOrderParams deribitOrderParams = orderToDeribitOrderParams(limitOrder, limitOrder.getLimitPrice(), "limit");
 
         return sendDeribitOrderMessage(deribitOrderParams, DeribitStreamingUtil.getDirection(limitOrder.getType()));
     }
 
+    public CompletableFuture<String> placeLimitOrderAsync(LimitOrder limitOrder) throws IOException, ExecutionException, InterruptedException {
+        DeribitOrderParams deribitOrderParams = orderToDeribitOrderParams(limitOrder, limitOrder.getLimitPrice(), "limit");
+
+        return sendDeribitOrderMessageAsync(deribitOrderParams, DeribitStreamingUtil.getDirection(limitOrder.getType()));
+    }
+
     @Override
     public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
-        DeribitOrderParams deribitOrderParams = new DeribitOrderParams(
-                DeribitStreamingUtil.instrumentName(marketOrder.getInstrument()),
-                marketOrder.getOriginalAmount(),
-                null,
-                "market",
-                marketOrder.getUserReference(),
-                getTimeInForce(marketOrder),
-                marketOrder.hasFlag(DeribitOrderFlags.POST_ONLY));
+        DeribitOrderParams deribitOrderParams = orderToDeribitOrderParams(marketOrder, null, "market");
 
         return sendDeribitOrderMessage(deribitOrderParams, DeribitStreamingUtil.getDirection(marketOrder.getType()));
+    }
+
+    public CompletableFuture<String> placeMarketOrderAsync(MarketOrder marketOrder) throws IOException, ExecutionException, InterruptedException {
+        DeribitOrderParams deribitOrderParams = orderToDeribitOrderParams(marketOrder, null, "market");
+
+        return sendDeribitOrderMessageAsync(deribitOrderParams, DeribitStreamingUtil.getDirection(marketOrder.getType()));
+    }
+
+    private DeribitOrderParams orderToDeribitOrderParams(Order order, BigDecimal limitPrice, String type) {
+        return new DeribitOrderParams(
+                DeribitStreamingUtil.instrumentName(order.getInstrument()),
+                order.getOriginalAmount(),
+                limitPrice,
+                type,
+                order.getUserReference(),
+                getTimeInForce(order),
+                order.hasFlag(DeribitOrderFlags.POST_ONLY));
     }
 
     private String sendDeribitOrderMessage(DeribitOrderParams deribitOrderParams, String direction) throws IOException {
@@ -132,6 +144,20 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
             throw new RuntimeException("Failed to place new order: " + deribitOrderParams, t);
         }
 
+        return getOrderIdFromOrderResult(jsonNode);
+    }
+
+    private CompletableFuture<String> sendDeribitOrderMessageAsync(DeribitOrderParams deribitOrderParams, String direction) throws IOException, ExecutionException, InterruptedException {
+        long messageId = streamingService.getNextMessageId();
+        DeribitBaseMessage<DeribitOrderParams> deribitOrderMessage = new DeribitBaseMessage<>(messageId, "private/" + direction, deribitOrderParams);
+        streamingService.sendMessage(mapper.writeValueAsString(deribitOrderMessage));
+
+        CompletableFuture<JsonNode> futureResult = streamingService.getNoChannelMessage(messageId);
+
+       return futureResult.thenApply(this::getOrderIdFromOrderResult);
+    }
+
+    private String getOrderIdFromOrderResult(JsonNode jsonNode) {
         if (jsonNode != null) {
             if (jsonNode.has("result")) {
                 JsonNode result = jsonNode.get("result");
@@ -173,6 +199,19 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
             throw new RuntimeException("Failed to cancel order: " + orderId, t);
         }
 
+        return processCancelResponse(jsonNode);
+    }
+
+    public CompletableFuture<Boolean> cancelOrderAsync(String orderId) throws ExecutionException, InterruptedException, IOException {
+        long messageId = streamingService.getNextMessageId();
+        streamingService.sendMessage(mapper.writeValueAsString(new DeribitBaseMessage<>(messageId, "private/cancel", new DeribitCancelOrderParams(orderId))));
+
+        CompletableFuture<JsonNode> futureResult = streamingService.getNoChannelMessage(messageId);
+
+        return futureResult.thenApply(this::processCancelResponse);
+    }
+
+    private boolean processCancelResponse(JsonNode jsonNode) {
         if (jsonNode != null) {
             if (jsonNode.has("result")) {
                 JsonNode result = jsonNode.get("result");
