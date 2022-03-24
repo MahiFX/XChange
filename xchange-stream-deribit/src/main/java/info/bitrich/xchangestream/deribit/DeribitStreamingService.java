@@ -190,6 +190,8 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
                         logger.error("Multiple timeouts waiting for response to API test call. Connection is considered dead - performing manual disconnect/reconnect.", timeout);
                         disconnect().blockingAwait();
                     }
+
+                    return;
                 } catch (ExecutionException | InterruptedException ignored) {
                     return;
                 }
