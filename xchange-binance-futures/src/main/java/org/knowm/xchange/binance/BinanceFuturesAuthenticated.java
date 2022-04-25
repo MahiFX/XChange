@@ -24,7 +24,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
 
     @Override
     @GET
-    @Path("fapi/v1/time")
+    @Path("v1/time")
     BinanceTime time() throws IOException;
 
     /**
@@ -35,11 +35,11 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
      */
     @Override
     @GET
-    @Path("fapi/v1/exchangeInfo")
+    @Path("v1/exchangeInfo")
     BinanceExchangeInfo exchangeInfo() throws IOException;
 
     @POST
-    @Path("fapi/v1/order")
+    @Path("v1/order")
     BinanceFuturesOrder newOrder(
             @FormParam("symbol") String symbol,
             @FormParam("side") OrderSide side,
@@ -63,7 +63,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
             throws IOException, BinanceException;
 
     @GET
-    @Path("fapi/v1/order")
+    @Path("v1/order")
     BinanceFuturesOrder getOrder(
             @QueryParam("symbol") String symbol,
             @QueryParam("orderId") Long orderId,
@@ -75,7 +75,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
             throws IOException, BinanceException;
 
     @DELETE
-    @Path("fapi/v1/order")
+    @Path("v1/order")
     BinanceFuturesOrder cancelOrder(
             @QueryParam("symbol") String symbol,
             @QueryParam("orderId") Long orderId,
@@ -87,7 +87,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
             throws IOException, BinanceException;
 
     @DELETE
-    @Path("fapi/v1/allOpenOrders")
+    @Path("v1/allOpenOrders")
     Object cancelAllOpenOrders(
             @QueryParam("symbol") String symbol,
             @QueryParam("recvWindow") Long recvWindow,
@@ -97,7 +97,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
             throws IOException, BinanceException;
 
     @GET
-    @Path("fapi/v1/openOrder")
+    @Path("v1/openOrder")
     BinanceFuturesOrder getOpenOrder(
             @QueryParam("symbol") String symbol,
             @QueryParam("orderId") Long orderId,
@@ -109,7 +109,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
             throws IOException, BinanceException;
 
     @GET
-    @Path("fapi/v1/openOrders")
+    @Path("v1/openOrders")
     List<BinanceFuturesOrder> getAllOpenOrders(
             @QueryParam("symbol") String symbol,
             @QueryParam("recvWindow") Long recvWindow,

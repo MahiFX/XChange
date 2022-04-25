@@ -16,20 +16,20 @@ public interface BinanceFuturesStreaming extends BinanceStreamingCommon, Binance
 
     @Override
     @POST
-    @Path("/fapi/v1/listenKey")
+    @Path("/v1/listenKey")
     BinanceListenKey startUserDataStream(@HeaderParam(X_MBX_APIKEY) String apiKey)
             throws IOException, BinanceException;
 
     @Override
     @PUT
-    @Path("/fapi/v1/listenKey?listenKey={listenKey}")
+    @Path("/v1/listenKey?listenKey={listenKey}")
     Map<?, ?> keepAliveUserDataStream(
             @HeaderParam(X_MBX_APIKEY) String apiKey, @PathParam("listenKey") String listenKey)
             throws IOException, BinanceException;
 
     @Override
     @DELETE
-    @Path("/fapi/v1/listenKey?listenKey={listenKey}")
+    @Path("/v1/listenKey?listenKey={listenKey}")
     Map<?, ?> closeUserDataStream(
             @HeaderParam(X_MBX_APIKEY) String apiKey, @PathParam("listenKey") String listenKey)
             throws IOException, BinanceException;

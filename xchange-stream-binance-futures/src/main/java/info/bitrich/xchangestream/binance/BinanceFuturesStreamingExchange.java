@@ -32,6 +32,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     private static final Logger LOG = LoggerFactory.getLogger(BinanceStreamingExchange.class);
 
     private static final String WS_USD_FUTURES_API_BASE_URI = "wss://fstream.binance.com/";
+    private static final String WS_COIN_FUTURES_API_BASE_URI = "wss://dstream.binance.com/";
     private static final String WS_USD_TESTNET_FUTURES_API_BASE_URI = "wss://stream.binancefuture.com/";
 
     private Runnable onApiCall;
@@ -79,7 +80,15 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     private String wsUri(ExchangeSpecification exchangeSpecification) {
         boolean useSandbox = Boolean.TRUE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX));
 
-        return useSandbox ? WS_USD_TESTNET_FUTURES_API_BASE_URI : WS_USD_FUTURES_API_BASE_URI;
+        if (useSandbox) {
+            return WS_USD_TESTNET_FUTURES_API_BASE_URI;
+        }
+
+        if (exchangeSpecification.getSslUri() != null && exchangeSpecification.getSslUri().contains("dapi")) {
+            return WS_COIN_FUTURES_API_BASE_URI;
+        }
+
+        return WS_USD_FUTURES_API_BASE_URI;
     }
 
     private String buildSubscriptionStreams(ProductSubscription subscription) {
