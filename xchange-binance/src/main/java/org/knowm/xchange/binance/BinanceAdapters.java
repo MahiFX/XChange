@@ -1,13 +1,5 @@
 package org.knowm.xchange.binance;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
 import org.knowm.xchange.binance.dto.account.AssetDetail;
 import org.knowm.xchange.binance.dto.marketdata.BinancePriceQuantity;
 import org.knowm.xchange.binance.dto.trade.BinanceOrder;
@@ -25,6 +17,19 @@ import org.knowm.xchange.dto.meta.WalletHealth;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.StopOrder;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class BinanceAdapters {
   private static final DateTimeFormatter DATE_TIME_FMT =
@@ -134,7 +139,14 @@ public class BinanceAdapters {
   }
 
   public static CurrencyPair adaptSymbol(String symbol) {
-    int pairLength = symbol.length();
+    int settlementIndex = symbol.indexOf('_');
+
+//    if (settlementIndex > 0) {
+//      // TODO: Do this properly
+////      return new FuturesContract((CurrencyPair) adaptSymbol(pair), symbol.substring(settlementIndex + 1, symbol.length()));
+//    }
+
+    int pairLength = settlementIndex > 0 ? settlementIndex : symbol.length();
     if (symbol.endsWith("USDT")) {
       return new CurrencyPair(symbol.substring(0, pairLength - 4), "USDT");
     } else if (symbol.endsWith("USDC")) {

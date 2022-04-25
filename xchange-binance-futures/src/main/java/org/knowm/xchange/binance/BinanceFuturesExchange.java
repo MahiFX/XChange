@@ -25,7 +25,7 @@ public class BinanceFuturesExchange extends BinanceExchangeCommon {
     @Override
     public ExchangeSpecification getDefaultExchangeSpecification() {
         ExchangeSpecification spec = new ExchangeSpecification(this.getClass());
-        spec.setSslUri("https://fapi.binance.com");
+        spec.setSslUri("https://fapi.binance.com/fapi");
         spec.setHost("www.binance.com");
         spec.setPort(80);
         spec.setExchangeName("Binance Futures");

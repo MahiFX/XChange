@@ -16,7 +16,7 @@ public interface BinanceFutures extends BinanceCommon {
 
     @Override
     @GET
-    @Path("fapi/v1/depth")
+    @Path("v1/depth")
     BinanceOrderbook depth(
             @QueryParam("symbol") String symbol,
             @QueryParam("limit") Integer limit)
