@@ -46,7 +46,7 @@ public class BinanceFuturesExchange extends BinanceExchangeCommon {
     private static void concludeHostParams(ExchangeSpecification exchangeSpecification) {
         if (exchangeSpecification.getExchangeSpecificParameters() != null) {
             if (Boolean.TRUE.equals(
-                    exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox"))) {
+                    exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox")) && exchangeSpecification.getSslUri() == null) {
                 exchangeSpecification.setSslUri("https://testnet.binancefuture.com");
                 exchangeSpecification.setHost("testnet.binancefuture.com");
             }
