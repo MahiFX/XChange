@@ -29,7 +29,7 @@ public class BinanceFuturesExchange extends BinanceExchangeCommon {
         spec.setHost("www.binance.com");
         spec.setPort(80);
         spec.setExchangeName("Binance Futures");
-        spec.setExchangeDescription("Binance Futures Exchange.");
+        spec.setExchangeDescription("Binance USD-M Futures Exchange.");
         AuthUtils.setApiAndSecretKey(spec, "binance_futures");
         return spec;
     }
