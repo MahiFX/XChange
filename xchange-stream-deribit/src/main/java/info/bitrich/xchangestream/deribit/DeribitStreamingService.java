@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import info.bitrich.xchangestream.deribit.dto.*;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import org.knowm.xchange.ExchangeSpecification;
@@ -31,7 +33,15 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     private final ExchangeSpecification exchangeSpecification;
     private final long waitForNoChannelMessageMs;
 
-    private final Cache<Long, Object> noChannelMessageCache = CacheBuilder.newBuilder().maximumSize(200).build();
+    private final LoadingCache<Long, CompletableFuture<JsonNode>> noChannelMessageCache = CacheBuilder.newBuilder()
+            .maximumSize(512)
+            .build(new CacheLoader<Long, CompletableFuture<JsonNode>>() {
+                @Override
+                public CompletableFuture<JsonNode> load(Long key) {
+                    return new CompletableFuture<>();
+                }
+            });
+
     private final AtomicLong messageCounter = new AtomicLong(0);
 
     public DeribitStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification) {
@@ -47,17 +57,11 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
         subscribeConnectionSuccess().subscribe(o -> {
             subscribeChannel(NO_CHANNEL_CHANNEL_NAME)
                     .forEach(json -> {
-
                         if (json.has("id")) {
                             Long id = json.get("id").asLong();
 
-                            Object cached = noChannelMessageCache.getIfPresent(id);
-                            noChannelMessageCache.put(id, json);
-
-                            if (cached instanceof CompletableFuture) {
-                                //noinspection unchecked - if there's a CompletableFuture there, it's for JsonNode
-                                ((CompletableFuture<JsonNode>) cached).complete(json);
-                            }
+                            CompletableFuture<JsonNode> messageCompletableFuture = noChannelMessageCache.get(id);
+                            messageCompletableFuture.complete(json);
                         }
                     });
         });
@@ -116,15 +120,7 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     public CompletableFuture<JsonNode> getNoChannelMessage(long id) throws ExecutionException {
-        CompletableFuture<JsonNode> future = new CompletableFuture<>();
-
-        Object result = noChannelMessageCache.get(id, () -> future);
-
-        if (result instanceof JsonNode) {
-            future.complete((JsonNode) result);
-        }
-
-        return future;
+        return noChannelMessageCache.get(id);
     }
 
     public void authenticate(String clientId, String clientSecret) throws NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {
