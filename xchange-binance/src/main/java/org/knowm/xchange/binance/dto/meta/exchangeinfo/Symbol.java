@@ -30,6 +30,8 @@ public class Symbol {
 
   private String[] permissions;
 
+  private Long contractSize;
+
   public String getQuoteAsset() {
     return quoteAsset;
   }
@@ -140,6 +142,10 @@ public class Symbol {
 
   public void setPermissions(String[] permissions) {
     this.permissions = permissions;
+  }
+
+  public Long getContractSize() {
+    return contractSize;
   }
 
   @Override
