@@ -72,7 +72,8 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     private String streamingUri(ProductSubscription subscription) {
         String path = wsUri(exchangeSpecification);
 
-        path += "stream?streams=" + buildSubscriptionStreams(subscription);
+        if (subscription != null) path += "stream?streams=" + buildSubscriptionStreams(subscription);
+
         return path;
     }
 
@@ -168,7 +169,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     }
 
     private Completable createAndConnectUserDataService(String listenKey) {
-        userDataStreamingService = BinanceFuturesUserDataStreamingService.create(listenKey, Boolean.TRUE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX)));
+        userDataStreamingService = BinanceFuturesUserDataStreamingService.create(streamingUri(null), listenKey);
         return userDataStreamingService
                 .connect()
                 .doOnComplete(
