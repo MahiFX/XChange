@@ -8,7 +8,7 @@ public class BinanceFuturesUserDataStreamingService extends BinanceUserDataStrea
     private static final String FUTURES_TESTNET_URI = "wss://stream.binancefuture.com/ws/";
 
     public static BinanceFuturesUserDataStreamingService create(String listenKey, boolean useSandbox) {
-        return new BinanceFuturesUserDataStreamingService(baseUri(useSandbox) + listenKey);
+        return new BinanceFuturesUserDataStreamingService(baseUri(useSandbox) + "ws/" + listenKey);
     }
 
     private BinanceFuturesUserDataStreamingService(String url) {
