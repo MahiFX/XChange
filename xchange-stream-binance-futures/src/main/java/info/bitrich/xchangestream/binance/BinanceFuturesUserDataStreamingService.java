@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketCl
 
 public class BinanceFuturesUserDataStreamingService extends BinanceUserDataStreamingService {
     public static BinanceFuturesUserDataStreamingService create(String wsUri, String listenKey) {
-        return new BinanceFuturesUserDataStreamingService(wsUri + listenKey);
+        return new BinanceFuturesUserDataStreamingService(wsUri + "ws/" + listenKey);
     }
 
     private BinanceFuturesUserDataStreamingService(String url) {
