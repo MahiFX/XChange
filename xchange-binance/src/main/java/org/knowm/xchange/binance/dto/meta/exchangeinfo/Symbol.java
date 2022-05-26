@@ -1,5 +1,7 @@
 package org.knowm.xchange.binance.dto.meta.exchangeinfo;
 
+import java.util.Date;
+
 public class Symbol {
 
   private String quoteAsset;
@@ -31,6 +33,8 @@ public class Symbol {
   private String[] permissions;
 
   private Long contractSize;
+
+  private Date deliveryDate;
 
   public String getQuoteAsset() {
     return quoteAsset;
@@ -146,6 +150,10 @@ public class Symbol {
 
   public Long getContractSize() {
     return contractSize;
+  }
+
+  public Date getDeliveryDate() {
+    return deliveryDate;
   }
 
   @Override
