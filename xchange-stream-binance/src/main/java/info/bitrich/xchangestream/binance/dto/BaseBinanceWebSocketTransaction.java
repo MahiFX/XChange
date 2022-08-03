@@ -54,7 +54,7 @@ public class BaseBinanceWebSocketTransaction {
           @JsonProperty("e") String _eventType, @JsonProperty("E") String _eventTime, @JsonProperty("T") String _transactTime) {
     this(
             BinanceWebSocketTypes.fromTransactionValue(_eventType),
-            new Date(Long.parseLong(_eventTime)), StringUtils.isNotEmpty(_transactTime) ? new Date(Long.parseLong(_transactTime)) : null);
+            StringUtils.isNotEmpty(_eventTime) ? new Date(Long.parseLong(_eventTime)) : new Date(), StringUtils.isNotEmpty(_transactTime) ? new Date(Long.parseLong(_transactTime)) : null);
   }
 
   BaseBinanceWebSocketTransaction(BinanceWebSocketTypes eventType, Date eventTime, Date transactTime1) {
