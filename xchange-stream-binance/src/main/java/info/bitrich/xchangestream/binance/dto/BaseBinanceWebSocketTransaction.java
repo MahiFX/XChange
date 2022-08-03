@@ -1,9 +1,13 @@
 package info.bitrich.xchangestream.binance.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Arrays;
 import java.util.Date;
+import java.util.Map;
+import java.util.function.Function;
 
 public class BaseBinanceWebSocketTransaction {
 
@@ -18,20 +22,17 @@ public class BaseBinanceWebSocketTransaction {
     OUTBOUND_ACCOUNT_POSITION("outboundAccountPosition"),
     EXECUTION_REPORT("executionReport");
 
-    /**
-     * Get a type from the `type` string of a `ProductBinanceWebSocketTransaction`.
-     *
-     * @param value The string representation.
-     * @return THe enum value.
-     */
-    public static BinanceWebSocketTypes fromTransactionValue(String value) {
-      for (BinanceWebSocketTypes type : BinanceWebSocketTypes.values()) {
-        if (type.serializedValue.equals(value)) {
-          return type;
+    private static Map<String, BinanceWebSocketTypes> serializedValues = Arrays.stream(values()).collect(ImmutableMap.toImmutableMap(BinanceWebSocketTypes::getSerializedValue, Function.identity()));
+
+        /**
+         * Get a type from the `type` string of a `ProductBinanceWebSocketTransaction`.
+         *
+         * @param value The string representation.
+         * @return THe enum value.
+         */
+        public static BinanceWebSocketTypes fromTransactionValue(String value) {
+            return serializedValues.get(value);
         }
-      }
-      return null;
-    }
 
     private String serializedValue;
 

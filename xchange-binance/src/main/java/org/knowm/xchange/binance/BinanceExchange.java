@@ -1,6 +1,5 @@
 package org.knowm.xchange.binance;
 
-import java.util.Map;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
@@ -13,15 +12,17 @@ import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.utils.AuthUtils;
 import si.mazi.rescu.SynchronizedValueFactory;
 
-public class BinanceExchange extends BaseExchange implements Exchange {
-  public static final String SPECIFIC_PARAM_USE_SANDBOX = "Use_Sandbox";
-  public static final String SPECIFIC_PARAM_USE_FUTURES_SANDBOX = "Use_Sandbox_Futures";
+import java.util.Map;
 
-  private static final String SPOT_URL = "https://api.binance.com";
-  public static final String FUTURES_URL = "https://fapi.binance.com";
-  public static final String SANDBOX_FUTURES_URL = "https://testnet.binancefuture.com";
-  protected static ResilienceRegistries RESILIENCE_REGISTRIES;
-  protected SynchronizedValueFactory<Long> timestampFactory;
+public class BinanceExchange extends BaseExchange implements Exchange {
+    public static final String SPECIFIC_PARAM_USE_SANDBOX = "Use_Sandbox";
+    public static final String SPECIFIC_PARAM_USE_FUTURES_SANDBOX = "Use_Sandbox_Futures";
+
+    private static final String SPOT_URL = "https://api.binance.com";
+    public static final String FUTURES_URL = "https://fapi.binance.com";
+    public static final String SANDBOX_FUTURES_URL = "https://testnet.binancefuture.com";
+    protected static ResilienceRegistries RESILIENCE_REGISTRIES;
+    protected SynchronizedValueFactory<Long> timestampFactory;
 
   @Override
   protected void initServices() {

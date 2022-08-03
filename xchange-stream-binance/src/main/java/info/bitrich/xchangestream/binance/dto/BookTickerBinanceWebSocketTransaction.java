@@ -23,11 +23,13 @@ public class BookTickerBinanceWebSocketTransaction extends ProductBinanceWebSock
     super(eventType, eventTime, transactTime, symbol);
 
     ticker = new BinanceBookTicker(
+            getEventTime(),
             bidPrice,
             bidQty,
             askPrice,
             askQty,
             symbol);
+    ticker.setUpdateId(updateId);
   }
 
   public BinanceBookTicker getTicker() {
