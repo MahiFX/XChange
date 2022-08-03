@@ -1,12 +1,16 @@
 package org.knowm.xchange.binance.dto.marketdata;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.math.BigDecimal;
 import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.Ticker;
 
+import java.math.BigDecimal;
+import java.util.Date;
+
 public final class BinanceBookTicker {
+  private final  Date timestamp;
+  private final Date creationTimestamp = new Date();
   public long updateId;
   private CurrencyPair pair;
   private final BigDecimal bidPrice;
@@ -19,11 +23,13 @@ public final class BinanceBookTicker {
   private Ticker ticker;
 
   public BinanceBookTicker(
-      @JsonProperty("bidPrice") BigDecimal bidPrice,
-      @JsonProperty("bidQty") BigDecimal bidQty,
-      @JsonProperty("askPrice") BigDecimal askPrice,
-      @JsonProperty("askQty") BigDecimal askQty,
-      @JsonProperty("symbol") String symbol) {
+          @JsonProperty("timestamp") Date timestamp,
+          @JsonProperty("bidPrice") BigDecimal bidPrice,
+          @JsonProperty("bidQty") BigDecimal bidQty,
+          @JsonProperty("askPrice") BigDecimal askPrice,
+          @JsonProperty("askQty") BigDecimal askQty,
+          @JsonProperty("symbol") String symbol) {
+    this.timestamp = timestamp;
     this.bidPrice = bidPrice;
     this.bidQty = bidQty;
     this.askPrice = askPrice;
@@ -76,6 +82,8 @@ public final class BinanceBookTicker {
       ticker =
           new Ticker.Builder()
               .currencyPair(currencyPair)
+              .timestamp(timestamp)
+              .creationTimestamp(creationTimestamp)
               .ask(askPrice)
               .bid(bidPrice)
               .askSize(askQty)
