@@ -78,6 +78,10 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     }
 
     protected String wsUri(ExchangeSpecification exchangeSpecification) {
+        if (exchangeSpecification.getOverrideWebsocketApiUri() != null) {
+            return exchangeSpecification.getOverrideWebsocketApiUri();
+        }
+
         boolean useSandbox = Boolean.TRUE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX));
 
         if (useSandbox) {
