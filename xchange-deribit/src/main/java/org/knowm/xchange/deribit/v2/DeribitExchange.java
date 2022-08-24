@@ -1,9 +1,5 @@
 package org.knowm.xchange.deribit.v2;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
@@ -18,15 +14,19 @@ import org.knowm.xchange.dto.meta.CurrencyMetaData;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
 import org.knowm.xchange.instrument.Instrument;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
 public class DeribitExchange extends BaseExchange implements Exchange {
 
-    @Override
-    public void applySpecification(ExchangeSpecification exchangeSpecification) {
+  @Override
+  public void applySpecification(ExchangeSpecification exchangeSpecification) {
 
-        super.applySpecification(exchangeSpecification);
-    }
+    super.applySpecification(exchangeSpecification);
+  }
 
-    @Override
+  @Override
     protected void initServices() {
         this.marketDataService = new DeribitMarketDataService(this);
         this.accountService = new DeribitAccountService(this);
@@ -71,12 +71,12 @@ public class DeribitExchange extends BaseExchange implements Exchange {
         instruments.clear();
 
         for (DeribitCurrency deribitCurrency : activeDeribitCurrencies) {
-            currencies.put(
-                    new Currency(deribitCurrency.getCurrency()), DeribitAdapters.adaptMeta(deribitCurrency));
+          currencies.put(
+                  new Currency(deribitCurrency.getCurrency()), DeribitAdapters.adaptMeta(deribitCurrency));
 
-            List<DeribitInstrument> deribitInstruments =
-                    ((DeribitMarketDataServiceRaw) marketDataService)
-                            .getDeribitInstruments(deribitCurrency.getCurrency(), null, null);
+          List<DeribitInstrument> deribitInstruments =
+                  ((DeribitMarketDataServiceRaw) marketDataService)
+                          .getDeribitInstruments(deribitCurrency.getCurrency(), null, null);
 
             for (DeribitInstrument deribitInstrument : deribitInstruments) {
                 instruments.put(
@@ -84,5 +84,5 @@ public class DeribitExchange extends BaseExchange implements Exchange {
                         DeribitAdapters.adaptMeta(deribitInstrument));
             }
         }
-    }
+        }
 }
