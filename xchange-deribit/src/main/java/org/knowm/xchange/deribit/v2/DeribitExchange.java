@@ -1,14 +1,9 @@
 package org.knowm.xchange.deribit.v2;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.Currency;
-import org.knowm.xchange.deribit.v2.dto.Kind;
 import org.knowm.xchange.deribit.v2.dto.marketdata.DeribitCurrency;
 import org.knowm.xchange.deribit.v2.dto.marketdata.DeribitInstrument;
 import org.knowm.xchange.deribit.v2.service.DeribitAccountService;
@@ -20,6 +15,11 @@ import org.knowm.xchange.derivative.OptionsContract;
 import org.knowm.xchange.dto.meta.CurrencyMetaData;
 import org.knowm.xchange.dto.meta.DerivativeMetaData;
 import org.knowm.xchange.instrument.Instrument;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class DeribitExchange extends BaseExchange implements Exchange {
 
@@ -84,14 +84,19 @@ public class DeribitExchange extends BaseExchange implements Exchange {
               .getDeribitInstruments(deribitCurrency.getCurrency(), null, null);
 
       for (DeribitInstrument deribitInstrument : deribitInstruments) {
-        if (deribitInstrument.getKind() == Kind.future) {
-          futures.put(
-              DeribitAdapters.adaptFuturesContract(deribitInstrument),
-              DeribitAdapters.adaptMeta(deribitInstrument));
-        } else {
-          options.put(
-              DeribitAdapters.adaptOptionsContract(deribitInstrument),
-              DeribitAdapters.adaptMeta(deribitInstrument));
+        switch (deribitInstrument.getKind()) {
+          case future:
+            futures.put(
+                    DeribitAdapters.adaptFuturesContract(deribitInstrument),
+                    DeribitAdapters.adaptMeta(deribitInstrument));
+            break;
+
+          case option:
+            options.put(
+                    DeribitAdapters.adaptOptionsContract(deribitInstrument),
+                    DeribitAdapters.adaptMeta(deribitInstrument));
+            break;
+
         }
       }
     }
