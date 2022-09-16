@@ -3,6 +3,7 @@ package info.bitrich.xchangestream.deribit.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 public class DeribitOrderParams {
     private final String instrument;
@@ -12,6 +13,7 @@ public class DeribitOrderParams {
     private final String label;
     private final DeribitTimeInForce timeInForce;
     private final Boolean postOnly;
+    private final Date validUntil;
 
     public DeribitOrderParams(
             @JsonProperty("instrument_name") String instrument,
@@ -20,7 +22,8 @@ public class DeribitOrderParams {
             @JsonProperty("type") String type,
             @JsonProperty("label") String label,
             @JsonProperty("time_in_force") DeribitTimeInForce timeInForce,
-            @JsonProperty("post_only") Boolean postOnly) {
+            @JsonProperty("post_only") Boolean postOnly,
+            @JsonProperty("valid_until") Date validUntil) {
         this.instrument = instrument;
         this.amount = amount;
         this.price = price;
@@ -28,6 +31,7 @@ public class DeribitOrderParams {
         this.label = label;
         this.timeInForce = timeInForce;
         this.postOnly = postOnly;
+        this.validUntil = validUntil;
     }
 
     @JsonProperty("instrument_name")
@@ -63,5 +67,10 @@ public class DeribitOrderParams {
     @JsonProperty("post_only")
     public Boolean getPostOnly() {
         return postOnly;
+    }
+
+    @JsonProperty("valid_until")
+    public Date getValidUntil() {
+        return validUntil;
     }
 }
