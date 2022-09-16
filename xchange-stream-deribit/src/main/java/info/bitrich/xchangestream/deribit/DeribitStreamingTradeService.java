@@ -6,6 +6,7 @@ import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.deribit.dto.*;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
+import org.apache.commons.lang3.time.DateUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -33,6 +34,8 @@ import java.util.concurrent.ExecutionException;
 
 public class DeribitStreamingTradeService implements StreamingTradeService, TradeService {
     private static final Logger logger = LoggerFactory.getLogger(DeribitStreamingTradeService.class);
+
+    public static final String VALID_UNTIL_MS_PROP = "Deribit.VALID_UNTIL_MS";
 
     private final DeribitStreamingService streamingService;
     private final ExchangeSpecification exchangeSpecification;
@@ -122,6 +125,8 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
     }
 
     private DeribitOrderParams orderToDeribitOrderParams(Order order, BigDecimal limitPrice, String type) {
+        Integer validUntilMs = (Integer) exchangeSpecification.getExchangeSpecificParametersItem(VALID_UNTIL_MS_PROP);;
+
         return new DeribitOrderParams(
                 DeribitStreamingUtil.instrumentName(order.getInstrument()),
                 order.getOriginalAmount(),
@@ -129,7 +134,8 @@ public class DeribitStreamingTradeService implements StreamingTradeService, Trad
                 type,
                 order.getUserReference(),
                 getTimeInForce(order),
-                order.hasFlag(DeribitOrderFlags.POST_ONLY));
+                order.hasFlag(DeribitOrderFlags.POST_ONLY),
+                validUntilMs == null ? null : DateUtils.addMilliseconds(order.getTimestamp(), validUntilMs));
     }
 
     private String sendDeribitOrderMessage(DeribitOrderParams deribitOrderParams, String direction) throws IOException {
