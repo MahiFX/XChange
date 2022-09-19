@@ -6,10 +6,13 @@ import org.knowm.xchange.binance.BinanceFuturesAdapters;
 import org.knowm.xchange.binance.BinanceFuturesAuthenticated;
 import org.knowm.xchange.binance.BinanceFuturesExchange;
 import org.knowm.xchange.binance.dto.BinanceFuturesOrder;
+import org.knowm.xchange.binance.dto.BinancePosition;
 import org.knowm.xchange.binance.dto.OrderType;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import org.knowm.xchange.client.ResilienceRegistries;
 import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.account.OpenPosition;
+import org.knowm.xchange.dto.account.OpenPositions;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.OpenOrders;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw implements TradeService {
     public BinanceFuturesTradeService(BinanceFuturesExchange exchange, BinanceFuturesAuthenticated binanceFutures, ResilienceRegistries resilienceRegistries) {
@@ -162,5 +166,17 @@ public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw im
         }
 
         return null;
+    }
+
+    @Override
+    public OpenPositions getOpenPositions() throws IOException {
+        List<BinancePosition> binancePositions = getAllOpenPositions();
+
+        List<OpenPosition> openPositions = binancePositions.stream()
+                .filter(pos -> BigDecimal.ZERO.compareTo(pos.getPositionAmt()) != 0) // Filter out zero positions
+                .map(BinanceFuturesAdapters::adaptPosition)
+                .collect(Collectors.toList());
+
+        return new OpenPositions(openPositions);
     }
 }

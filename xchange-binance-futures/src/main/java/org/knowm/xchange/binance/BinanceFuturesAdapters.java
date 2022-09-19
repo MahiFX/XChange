@@ -1,16 +1,20 @@
 package org.knowm.xchange.binance;
 
 import org.knowm.xchange.binance.dto.BinanceFuturesOrder;
+import org.knowm.xchange.binance.dto.BinancePosition;
 import org.knowm.xchange.binance.dto.OrderType;
+import org.knowm.xchange.binance.dto.PositionSide;
 import org.knowm.xchange.binance.dto.trade.BinanceOrderFlags;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import org.knowm.xchange.binance.service.BinanceTradeService;
 import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.account.OpenPosition;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.StopOrder;
 import org.knowm.xchange.instrument.Instrument;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Optional;
 
@@ -44,6 +48,37 @@ public class BinanceFuturesAdapters {
         }
 
         return orderBuilder.build();
+    }
+
+    public static OpenPosition adaptPosition(BinancePosition binancePosition) {
+        BigDecimal size = binancePosition.getPositionAmt();
+
+        return new OpenPosition(
+                BinanceAdapters.convert(binancePosition.getSymbol()),
+                getType(binancePosition),
+                size,
+                binancePosition.getEntryPrice()
+        );
+    }
+
+    private static OpenPosition.Type getType(BinancePosition binancePosition) {
+        PositionSide positionSide = binancePosition.getPositionSide();
+
+        if (PositionSide.BOTH.equals(positionSide)) {
+            if (binancePosition.getPositionAmt().compareTo(BigDecimal.ZERO) < 0) {
+                return OpenPosition.Type.SHORT;
+            } else {
+                return OpenPosition.Type.LONG;
+            }
+        } else {
+            if (PositionSide.SHORT.equals(positionSide)) {
+                return OpenPosition.Type.SHORT;
+            } else if (PositionSide.LONG.equals(positionSide)) {
+                return OpenPosition.Type.LONG;
+            } else {
+                throw new RuntimeException("Unexpected positionSide: " + positionSide);
+            }
+        }
     }
 
     public static Optional<TimeInForce> timeInForceFromOrder(Order order) {
