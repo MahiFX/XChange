@@ -146,4 +146,19 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
                 .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
                 .call();
     }
+
+    public List<BinancePosition> getAllOpenPositions() throws IOException, BinanceException {
+        return decorateApiCall(
+                () ->
+                        binanceFutures.getOpenPositions(
+                                null,
+                                getRecvWindow(),
+                                getTimestampFactory(),
+                                apiKey,
+                                signatureCreator
+                        ))
+                .withRetry(retry("openPositions"))
+                .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
+                .call();
+    }
 }

@@ -8,6 +8,7 @@ import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
 
+import javax.annotation.Nonnull;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
@@ -114,6 +115,16 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
             @QueryParam("symbol") String symbol,
             @QueryParam("recvWindow") Long recvWindow,
             @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
+            @HeaderParam(X_MBX_APIKEY) String apiKey,
+            @QueryParam(SIGNATURE) ParamsDigest signature)
+            throws IOException, BinanceException;
+
+    @GET
+    @Path("v1/positionRisk")
+    List<BinancePosition> getOpenPositions(
+            @QueryParam("symbol") String symbol,
+            @QueryParam("recvWindow") Long recvWindow,
+            @Nonnull @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,
             @HeaderParam(X_MBX_APIKEY) String apiKey,
             @QueryParam(SIGNATURE) ParamsDigest signature)
             throws IOException, BinanceException;
