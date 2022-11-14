@@ -1,16 +1,18 @@
 package info.bitrich.xchangestream.bitmex.dto;
 
-import static org.junit.Assert.assertEquals;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.Test;
+import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
+import org.knowm.xchange.bitmex.dto.trade.BitmexPrivateExecution;
+import org.knowm.xchange.bitmex.dto.trade.BitmexSide;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
-import org.junit.Test;
-import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
-import org.knowm.xchange.bitmex.dto.trade.BitmexSide;
+
+import static org.junit.Assert.*;
 
 /** @author Nikita Belenkiy on 05/06/2018. */
 public class BitmexExecutionTest {
@@ -19,11 +21,11 @@ public class BitmexExecutionTest {
   public void testDesialization() throws IOException {
     ObjectMapper objectMapper = new ObjectMapper();
     InputStream resourceAsStream =
-        getClass()
-            .getClassLoader()
-            .getResourceAsStream("info/bitrich/xchangestream/bitmex/dto/execution.json");
-    BitmexExecution bitmexExecution =
-        objectMapper.readValue(resourceAsStream, BitmexExecution.class);
+            getClass()
+                    .getClassLoader()
+                    .getResourceAsStream("info/bitrich/xchangestream/bitmex/dto/execution.json");
+    BitmexPrivateExecution bitmexExecution =
+            objectMapper.readValue(resourceAsStream, BitmexPrivateExecution.class);
 
     assertEquals("b47dfbd1-3b88-5678-f6d6-b9314a96c3b8", bitmexExecution.execID);
     assertEquals("5f6c16df-4706-4548-f47d-25f2f915f149", bitmexExecution.orderID);
@@ -31,18 +33,18 @@ public class BitmexExecutionTest {
     assertEquals("clOrdLinkIDclOrdLinkID", bitmexExecution.clOrdLinkID);
     assertEquals(75430, bitmexExecution.account);
     assertEquals("XBTUSD", bitmexExecution.symbol);
-    assertEquals(BitmexSide.SELL, bitmexExecution.side);
-    assertEquals(new Long(30), bitmexExecution.lastQty);
+    assertEquals(BitmexSide.SELL, BitmexSide.fromString(bitmexExecution.side));
+    assertEquals(new BigDecimal(30), bitmexExecution.lastQty);
     assertEquals(BigDecimal.valueOf(7622.5), bitmexExecution.lastPx);
-    assertEquals(null, bitmexExecution.underlyingLastPx);
+    assertNull(bitmexExecution.underlyingLastPx);
     assertEquals("XBME", bitmexExecution.lastMkt);
     assertEquals("AddedLiquidity", bitmexExecution.lastLiquidityInd);
     assertEquals(BigDecimal.valueOf(3030), bitmexExecution.simpleOrderQty);
-    assertEquals(new Long(30), bitmexExecution.orderQty);
+    assertEquals(new BigDecimal(30), bitmexExecution.orderQty);
     assertEquals(BigDecimal.valueOf(7622.5), bitmexExecution.price);
-    assertEquals(new Long(2), bitmexExecution.displayQty);
+    assertEquals(new BigDecimal(2), bitmexExecution.displayQty);
     assertEquals(new BigDecimal("7622.1"), bitmexExecution.stopPx);
-    assertEquals(null, bitmexExecution.pegOffsetValue);
+    assertNull(bitmexExecution.pegOffsetValue);
     assertEquals("", bitmexExecution.pegPriceType);
     assertEquals("USD", bitmexExecution.currency);
     assertEquals("XBt", bitmexExecution.settlCurrency);
@@ -52,12 +54,12 @@ public class BitmexExecutionTest {
     assertEquals("", bitmexExecution.execInst);
     assertEquals("", bitmexExecution.contingencyType);
     assertEquals("XBME", bitmexExecution.exDestination);
-    assertEquals(BitmexPrivateOrder.OrderStatus.Filled, bitmexExecution.ordStatus);
+    assertEquals(BitmexPrivateOrder.OrderStatus.Filled, BitmexPrivateOrder.OrderStatus.valueOf(bitmexExecution.ordStatus));
     assertEquals("", bitmexExecution.triggered);
-    assertEquals(false, bitmexExecution.workingIndicator);
+    assertFalse(bitmexExecution.workingIndicator);
     assertEquals("", bitmexExecution.ordRejReason);
     assertEquals(BigDecimal.valueOf(10), bitmexExecution.simpleLeavesQty);
-    assertEquals(new Long(11), bitmexExecution.leavesQty);
+    assertEquals(new BigDecimal(11), bitmexExecution.leavesQty);
     assertEquals(BigDecimal.valueOf(0.0039357), bitmexExecution.simpleCumQty);
     assertEquals(BigDecimal.valueOf(30), bitmexExecution.cumQty);
     assertEquals(BigDecimal.valueOf(7622.5), bitmexExecution.avgPx);
@@ -66,8 +68,8 @@ public class BitmexExecutionTest {
     assertEquals("SingleSecurity", bitmexExecution.multiLegReportingType);
     assertEquals("Submitted via API.", bitmexExecution.text);
     assertEquals("11bae57a-3a11-83bc-3b71-0e472b89156f", bitmexExecution.trdMatchID);
-    assertEquals(new Long(393570), bitmexExecution.execCost);
-    assertEquals(new Long(-98), bitmexExecution.execComm);
+    assertEquals(new BigDecimal(393570), bitmexExecution.execCost);
+    assertEquals(new BigDecimal(-98), bitmexExecution.execComm);
     assertEquals(BigDecimal.valueOf(-0.0039357), bitmexExecution.homeNotional);
     assertEquals(BigDecimal.valueOf(30), bitmexExecution.foreignNotional);
     SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");

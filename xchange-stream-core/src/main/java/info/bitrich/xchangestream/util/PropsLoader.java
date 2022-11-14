@@ -1,11 +1,12 @@
 package info.bitrich.xchangestream.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Properties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** @author Foat Akhmadeev 08/06/2018 */
 public class PropsLoader {
@@ -38,6 +39,6 @@ public class PropsLoader {
 
   // e.g. "-Dproxy.exec.line=/Applications/Charles.app/Contents/MacOS/Charles -headless"
   public static String proxyExecLine() {
-    return System.getProperty("proxy.exec.line");
+    return System.getProperty("proxy.exec.line", "/Applications/Charles.app/Contents/MacOS/Charles -headless");
   }
 }

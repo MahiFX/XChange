@@ -1,11 +1,12 @@
 package info.bitrich.xchangestream.bitmex;
 
-import info.bitrich.xchangestream.bitmex.dto.BitmexExecution;
 import info.bitrich.xchangestream.bitmex.dto.BitmexOrder;
 import info.bitrich.xchangestream.core.StreamingTradeService;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
+import org.knowm.xchange.bitmex.BitmexAdapters;
+import org.knowm.xchange.bitmex.dto.trade.BitmexPrivateExecution;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.UserTrade;
@@ -28,7 +29,7 @@ public class BitmexStreamingTradeService implements StreamingTradeService {
     private final Subject<BitmexOrder> orderChangesPublisher = PublishSubject.<BitmexOrder>create().toSerialized();
     private final AtomicBoolean ordersSubscribed = new AtomicBoolean(false);
 
-    private final Subject<BitmexExecution> userTradesPublisher = PublishSubject.<BitmexExecution>create().toSerialized();
+    private final Subject<BitmexPrivateExecution> userTradesPublisher = PublishSubject.<BitmexPrivateExecution>create().toSerialized();
     private final AtomicBoolean userTradesSubscribed = new AtomicBoolean(false);
 
     private final BitmexStreamingService streamingService;
@@ -67,11 +68,11 @@ public class BitmexStreamingTradeService implements StreamingTradeService {
         streamingService.subscribeBitmexChannel(USER_TRADES_CHANNEL_NAME)
                 .flatMapIterable(
                         s -> {
-                            BitmexExecution[] bitmexExecutions = s.toBitmexExecutions();
+                            BitmexPrivateExecution[] bitmexExecutions = s.toBitmexExecutions();
                             return Arrays.stream(bitmexExecutions)
                                     .collect(Collectors.toList());
                         })
-                .filter(e -> "Trade".equals(e.getExecType()))
+                .filter(e -> "Trade".equals(e.execType))
                 .subscribe(userTradesPublisher::onNext);
     }
 
@@ -83,7 +84,7 @@ public class BitmexStreamingTradeService implements StreamingTradeService {
 
         String instrument = currencyPair.base.toString() + currencyPair.counter.toString();
         return userTradesPublisher
-                .filter(execution -> execution.getSymbol().equals(instrument))
-                .map(execution -> execution.toUserTrade());
+                .filter(execution -> execution.symbol.equals(instrument))
+                .map(BitmexAdapters::adoptUserTrade);
     }
 }
