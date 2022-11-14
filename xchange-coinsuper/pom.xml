@@ -5,13 +5,13 @@
     <parent>
         <groupId>org.knowm.xchange</groupId>
         <artifactId>xchange-parent</artifactId>
-        <version>5.0.14-MAHI-SNAPSHOT</version>
+        <version>5.0.14-MAHI-1</version>
     </parent>
 
     <artifactId>xchange-coinsuper</artifactId>
 
     <name>XChange CoinSuper</name>
-    
+
     <description>XChange implementation for the CoinSuper Exchange</description>
 
     <url>http://knowm.org/open-source/xchange/</url>
@@ -30,7 +30,7 @@
             <artifactId>xchange-core</artifactId>
             <version>${project.version}</version>
         </dependency>
-        
+
     </dependencies>
 
 </project>

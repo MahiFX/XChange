@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
+import org.knowm.xchange.bitmex.dto.trade.BitmexPrivateExecution;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,27 +86,27 @@ public class BitmexWebSocketTransaction {
     for (int i = 0; i < this.data.size(); ++i) {
       JsonNode jsonOrder = this.data.get(i);
 
-      try {
-        orders[i] = mapper.readValue(jsonOrder.toString(), BitmexOrder.class);
-      } catch (IOException e) {
-        log.error("orders mapping exception", e);
-      }
+        try {
+            orders[i] = mapper.readValue(jsonOrder.toString(), BitmexOrder.class);
+        } catch (IOException e) {
+            log.error("orders mapping exception", e);
+        }
     }
 
-    return orders;
+      return orders;
   }
 
-  public BitmexExecution[] toBitmexExecutions() {
-    BitmexExecution[] executions = new BitmexExecution[this.data.size()];
-    for (int i = 0; i < this.data.size(); ++i) {
-      JsonNode jsonOrder = this.data.get(i);
+    public BitmexPrivateExecution[] toBitmexExecutions() {
+        BitmexPrivateExecution[] executions = new BitmexPrivateExecution[this.data.size()];
+        for (int i = 0; i < this.data.size(); ++i) {
+            JsonNode jsonOrder = this.data.get(i);
 
-      try {
-        executions[i] = mapper.readValue(jsonOrder.toString(), BitmexExecution.class);
-      } catch (IOException e) {
-        log.error("executions mapping exception", e);
-      }
-    }
+            try {
+                executions[i] = mapper.readValue(jsonOrder.toString(), BitmexPrivateExecution.class);
+            } catch (IOException e) {
+                log.error("executions mapping exception", e);
+            }
+        }
 
     return executions;
   }

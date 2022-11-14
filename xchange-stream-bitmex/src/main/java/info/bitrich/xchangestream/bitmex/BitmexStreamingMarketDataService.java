@@ -2,25 +2,12 @@ package info.bitrich.xchangestream.bitmex;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import info.bitrich.xchangestream.bitmex.dto.BitmexExecution;
-import info.bitrich.xchangestream.bitmex.dto.BitmexFunding;
-import info.bitrich.xchangestream.bitmex.dto.BitmexLimitOrder;
-import info.bitrich.xchangestream.bitmex.dto.BitmexOrderbook;
-import info.bitrich.xchangestream.bitmex.dto.BitmexTicker;
-import info.bitrich.xchangestream.bitmex.dto.BitmexTrade;
-import info.bitrich.xchangestream.bitmex.dto.BitmexWebSocketTransaction;
-import info.bitrich.xchangestream.bitmex.dto.RawOrderBook;
+import info.bitrich.xchangestream.bitmex.dto.*;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import org.knowm.xchange.bitmex.BitmexExchange;
+import org.knowm.xchange.bitmex.dto.trade.BitmexPrivateExecution;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Ticker;
@@ -30,12 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 
 import static org.knowm.xchange.dto.Order.OrderType.ASK;
 import static org.knowm.xchange.dto.Order.OrderType.BID;
@@ -208,17 +190,17 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
             });
   }
 
-  public Observable<BitmexExecution> getRawExecutions(String symbol) {
-    return streamingService
-        .subscribeBitmexChannel("execution:" + symbol)
-        .flatMapIterable(
-            s -> {
-              JsonNode executions = s.getData();
-              List<BitmexExecution> bitmexExecutions = new ArrayList<>(executions.size());
-              for (JsonNode execution : executions) {
-                bitmexExecutions.add(objectMapper.treeToValue(execution, BitmexExecution.class));
-              }
-              return bitmexExecutions;
+    public Observable<BitmexPrivateExecution> getRawExecutions(String symbol) {
+        return streamingService
+                .subscribeBitmexChannel("execution:" + symbol)
+                .flatMapIterable(
+                        s -> {
+                            JsonNode executions = s.getData();
+                            List<BitmexPrivateExecution> bitmexExecutions = new ArrayList<>(executions.size());
+                            for (JsonNode execution : executions) {
+                                bitmexExecutions.add(objectMapper.treeToValue(execution, BitmexPrivateExecution.class));
+                            }
+                            return bitmexExecutions;
             });
   }
 
