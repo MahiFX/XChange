@@ -53,12 +53,12 @@ public class BinanceFuturesAdapters {
     public static OpenPosition adaptPosition(BinancePosition binancePosition) {
         BigDecimal size = binancePosition.getPositionAmt();
 
-        return new OpenPosition(
-                BinanceAdapters.convert(binancePosition.getSymbol()),
-                getType(binancePosition),
-                size,
-                binancePosition.getEntryPrice()
-        );
+        return new OpenPosition.Builder()
+                .instrument(BinanceAdapters.convert(binancePosition.getSymbol()))
+                .type(getType(binancePosition))
+                .size(size)
+                .price(binancePosition.getEntryPrice()).build();
+
     }
 
     private static OpenPosition.Type getType(BinancePosition binancePosition) {

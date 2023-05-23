@@ -6,17 +6,16 @@ import org.knowm.xchange.binance.service.BinanceFuturesTradeService;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.utils.AuthUtils;
 
-public class BinanceFuturesExchange extends BinanceExchangeCommon {
+public class BinanceFuturesExchange extends BinanceExchange {
     private BinanceFuturesAuthenticated binance;
 
     @Override
     protected void initServices() {
         this.binance = ExchangeRestProxyBuilder.forInterface(
-                BinanceFuturesAuthenticated.class, getExchangeSpecification())
+                        BinanceFuturesAuthenticated.class, getExchangeSpecification())
                 .build();
         this.timestampFactory =
-                new BinanceTimestampFactory(
-                        binance, getExchangeSpecification().getResilience(), getResilienceRegistries());
+                new BinanceTimestampFactory(getExchangeSpecification().getResilience(), getResilienceRegistries());
         this.marketDataService = new BinanceFuturesMarketDataService(this, binance, getResilienceRegistries());
         this.tradeService = new BinanceFuturesTradeService(this, binance, getResilienceRegistries());
 //        this.accountService = new BinanceFuturesAccountService(this, binance, getResilienceRegistries()); TODO - Binance Futures

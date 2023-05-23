@@ -12,7 +12,7 @@ import java.io.IOException;
 
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)
-public interface BinanceFutures extends BinanceCommon {
+public interface BinanceFutures extends BinanceAuthenticated {
 
     @Override
     @GET

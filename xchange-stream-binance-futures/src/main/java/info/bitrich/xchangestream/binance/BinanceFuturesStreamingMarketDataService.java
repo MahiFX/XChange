@@ -7,12 +7,12 @@ import org.knowm.xchange.currency.CurrencyPair;
 import java.util.function.Function;
 
 public class BinanceFuturesStreamingMarketDataService extends BinanceStreamingMarketDataService {
-    public BinanceFuturesStreamingMarketDataService(BinanceStreamingService service, Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider, Runnable onApiCall, String orderBookUpdateFrequencyParameter, boolean tickerRealtimeSubscriptionParameter) {
-        super(service, binanceOrderBookProvider, onApiCall, orderBookUpdateFrequencyParameter, tickerRealtimeSubscriptionParameter);
+    public BinanceFuturesStreamingMarketDataService(BinanceStreamingService service, Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider, Runnable onApiCall, String orderBookUpdateFrequencyParameter, boolean tickerRealtimeSubscriptionParameter, int oderBookFetchLimitParameter) {
+        super(service, binanceOrderBookProvider, onApiCall, orderBookUpdateFrequencyParameter, tickerRealtimeSubscriptionParameter, oderBookFetchLimitParameter);
     }
 
     @Override
     protected boolean checkDepthDataInOrder(DepthBinanceWebSocketTransaction depth, long lastUpdateId) {
-        return lastUpdateId == depth.getLastUpdateIdFromPreviousEvent();
+        return lastUpdateId == depth.getPreviousMessagelastUpdateId();
     }
 }

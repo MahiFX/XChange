@@ -8,6 +8,8 @@ import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import org.knowm.xchange.client.ResilienceRegistries;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.instrument.Instrument;
+import si.mazi.rescu.SynchronizedValueFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -25,7 +27,7 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
     }
 
     public BinanceFuturesOrder newOrder(
-            CurrencyPair pair,
+            Instrument pair,
             OrderSide side,
             PositionSide positionSide,
             OrderType type,
@@ -160,5 +162,33 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
                 .withRetry(retry("openPositions"))
                 .withRateLimiter(rateLimiter(REQUEST_WEIGHT_RATE_LIMITER))
                 .call();
+    }
+
+    public Long getRecvWindow() {
+        Object obj =
+                exchange.getExchangeSpecification().getExchangeSpecificParametersItem("recvWindow");
+        if (obj == null) return null;
+        if (obj instanceof Number) {
+            long value = ((Number) obj).longValue();
+            if (value < 0 || value > 60000) {
+                throw new IllegalArgumentException(
+                        "Exchange-specific parameter \"recvWindow\" must be in the range [0, 60000].");
+            }
+            return value;
+        }
+        if (obj.getClass().equals(String.class)) {
+            try {
+                return Long.parseLong((String) obj, 10);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        "Exchange-specific parameter \"recvWindow\" could not be parsed.", e);
+            }
+        }
+        throw new IllegalArgumentException(
+                "Exchange-specific parameter \"recvWindow\" could not be parsed.");
+    }
+
+    public SynchronizedValueFactory<Long> getTimestampFactory() {
+        return exchange.getTimestampFactory();
     }
 }

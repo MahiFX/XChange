@@ -15,6 +15,7 @@ import org.knowm.xchange.binance.dto.marketdata.BinanceOrderbook;
 import org.knowm.xchange.binance.service.BinanceFuturesMarketDataService;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.instrument.Instrument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,8 +26,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_HIGHER_UPDATE_FREQUENCY;
-import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.USE_REALTIME_TICKER;
+import static info.bitrich.xchangestream.binance.BinanceStreamingExchange.*;
+import static java.util.Collections.emptyMap;
 
 public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange implements StreamingExchange {
     private static final Logger LOG = LoggerFactory.getLogger(BinanceStreamingExchange.class);
@@ -45,6 +46,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     private BinanceFuturesStreamingTradeService streamingTradeService;
 
     private BinanceUserDataChannel userDataChannel;
+    private int oderBookFetchLimitParameter;
 
     @Override
     protected void initServices() {
@@ -65,8 +67,14 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
                 MoreObjects.firstNonNull(
                         (Boolean)
                                 exchangeSpecification.getExchangeSpecificParametersItem(
-                                        USE_REALTIME_TICKER),
+                                        USE_REALTIME_BOOK_TICKER),
                         Boolean.FALSE);
+
+        Object fetchOrderBookLimit =
+                exchangeSpecification.getExchangeSpecificParametersItem(FETCH_ORDER_BOOK_LIMIT);
+        if (fetchOrderBookLimit instanceof Integer) {
+            oderBookFetchLimitParameter = (int) fetchOrderBookLimit;
+        }
     }
 
     private String streamingUri(ProductSubscription subscription) {
@@ -104,7 +112,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
     }
 
     private String buildSubscriptionStrings(
-            List<CurrencyPair> currencyPairs, String subscriptionType) {
+            List<Instrument> currencyPairs, String subscriptionType) {
         if (BinanceSubscriptionType.DEPTH.getType().equals(subscriptionType)) {
             return subscriptionStrings(currencyPairs)
                     .map(s -> s + "@" + subscriptionType + orderBookUpdateFrequencyParameter)
@@ -116,7 +124,7 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
         }
     }
 
-    private static Stream<String> subscriptionStrings(List<CurrencyPair> currencyPairs) {
+    private static Stream<String> subscriptionStrings(List<Instrument> currencyPairs) {
         return currencyPairs.stream()
                 .map(pair -> String.join("", pair.toString().split("/")).toLowerCase());
     }
@@ -164,11 +172,12 @@ public class BinanceFuturesStreamingExchange extends BinanceFuturesExchange impl
                 getBinanceOrderBookProvider(),
                 onApiCall,
                 orderBookUpdateFrequencyParameter,
-                tickerRealtimeSubscriptionParameter);
+                tickerRealtimeSubscriptionParameter,
+                oderBookFetchLimitParameter);
         streamingTradeService = new BinanceFuturesStreamingTradeService(userDataStreamingService);
 
         return Completable.concat(completables)
-                .doOnComplete(() -> streamingMarketDataService.openSubscriptions(subscriptions))
+                .doOnComplete(() -> streamingMarketDataService.openSubscriptions(subscriptions, new KlineSubscription(emptyMap())))
                 .doOnComplete(() -> streamingTradeService.openSubscriptions());
     }
 

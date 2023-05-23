@@ -2,11 +2,12 @@ package info.bitrich.xchangestream.deribit;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import info.bitrich.xchangestream.deribit.dto.*;
+import info.bitrich.xchangestream.deribit.dto.DeribitAuthParams;
+import info.bitrich.xchangestream.deribit.dto.DeribitBaseMessage;
+import info.bitrich.xchangestream.deribit.dto.DeribitSubscribeParams;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.utils.DigestUtils;
@@ -92,11 +93,12 @@ public class DeribitStreamingService extends JsonNettyStreamingService {
     }
 
     @Override
-    public String getUnsubscribeMessage(String channelName) throws IOException {
+    public String getUnsubscribeMessage(String channelName, Object... args) throws IOException {
         DeribitBaseMessage<DeribitSubscribeParams> unsubscribeMessage = new DeribitBaseMessage<>("public/unsubscribe", new DeribitSubscribeParams(channelName));
 
         return objectMapper.writeValueAsString(unsubscribeMessage);
     }
+
 
     @Override
     public void resubscribeChannels() {

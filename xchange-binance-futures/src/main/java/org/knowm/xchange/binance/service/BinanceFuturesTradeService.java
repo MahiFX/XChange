@@ -20,7 +20,7 @@ import org.knowm.xchange.dto.trade.StopOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
-import org.knowm.xchange.service.trade.params.CancelOrderByPairAndIdParams;
+import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
 import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamCurrencyPair;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
@@ -57,7 +57,7 @@ public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw im
 
     private String placeOrder(OrderType type, Order order, BigDecimal limitPrice, BigDecimal stopPrice) throws IOException {
         BinanceFuturesOrder binanceOrder = newOrder(
-                order.getCurrencyPair(),
+                order.getInstrument(),
                 BinanceAdapters.convert(order.getType()),
                 null,
                 type,
@@ -79,14 +79,9 @@ public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw im
 
     @Override
     public boolean cancelOrder(CancelOrderParams orderParams) throws IOException {
-        if (orderParams instanceof CancelOrderByPairAndIdParams) {
-            CancelOrderByPairAndIdParams pairAndIdParams = (CancelOrderByPairAndIdParams) orderParams;
-            BinanceFuturesOrder cancelResult = cancelOrder(
-                    pairAndIdParams.getCurrencyPair(),
-                    null,
-                    pairAndIdParams.getOrderId());
-
-            return cancelResult != null;
+        if (orderParams instanceof CancelOrderByIdParams) {
+            CancelOrderByIdParams idParams = (CancelOrderByIdParams) orderParams;
+            return cancelOrder(idParams.getOrderId());
         } else if (orderParams instanceof CancelOrderByCurrencyPair) {
             cancelAllOpenOrders(((CancelOrderByCurrencyPair) orderParams).getCurrencyPair());
             return true;

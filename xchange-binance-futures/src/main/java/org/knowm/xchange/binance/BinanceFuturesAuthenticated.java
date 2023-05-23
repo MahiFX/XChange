@@ -3,6 +3,7 @@ package org.knowm.xchange.binance;
 import org.knowm.xchange.binance.dto.*;
 import org.knowm.xchange.binance.dto.meta.BinanceTime;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
+import org.knowm.xchange.binance.dto.trade.BinanceCancelledOrder;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import si.mazi.rescu.ParamsDigest;
@@ -89,7 +90,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
 
     @DELETE
     @Path("v1/allOpenOrders")
-    Object cancelAllOpenOrders(
+    List<BinanceCancelledOrder> cancelAllOpenOrders(
             @QueryParam("symbol") String symbol,
             @QueryParam("recvWindow") Long recvWindow,
             @QueryParam("timestamp") SynchronizedValueFactory<Long> timestamp,

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.account.OpenPosition;
-import org.knowm.xchange.instrument.Instrument;
 
 import java.math.BigDecimal;
 
@@ -160,11 +159,10 @@ public class DeribitPosition {
 
     @JsonIgnore
     public OpenPosition toOpenPosition() {
-        return new OpenPosition(
-                new CurrencyPair(instrumentName),
-                "buy".equals(direction) ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT,
-                size,
-                averagePrice
-        );
+        return new OpenPosition.Builder()
+                .instrument(new CurrencyPair(instrumentName))
+                .type("buy".equals(direction) ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT)
+                .size(size)
+                .price(averagePrice).build();
     }
 }
