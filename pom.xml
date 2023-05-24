@@ -213,7 +213,8 @@
     <module>xchange-stream-service-pubnub</module>
     <module>xchange-stream-coincheck</module>
     <module>xchange-stream-krakenfutures</module>
-      <module>xchange-stream-deribit</module>
+    <module>xchange-stream-deribit</module>
+    <module>xchange-stream-vertex</module>
   </modules>
 
   <ciManagement>
