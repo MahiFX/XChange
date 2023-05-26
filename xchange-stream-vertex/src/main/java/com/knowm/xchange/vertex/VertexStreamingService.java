@@ -2,20 +2,23 @@ package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
-import org.knowm.xchange.ExchangeSpecification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class VertexStreamingService extends JsonNettyStreamingService {
 
     private static final Logger logger = LoggerFactory.getLogger(VertexStreamingService.class);
 
+    //Channel to use to subscribe to all response
+    public static final String ALL_MESSAGES = "all_messages";
+
     private final AtomicLong reqCounter = new AtomicLong(1);
 
-    public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification) {
+    public VertexStreamingService(String apiUrl) {
         super(apiUrl);
     }
 
@@ -29,14 +32,16 @@ public class VertexStreamingService extends JsonNettyStreamingService {
             }
             return type.asText();
         } else {
-            logger.warn("Ignoring message with no type: {}", message);
-            return null;
+            return ALL_MESSAGES;
         }
 
     }
 
     @Override
-    public String getSubscribeMessage(String channelName, Object... args) throws IOException {
+    public String getSubscribeMessage(String channelName, Object... args) {
+        if (Objects.equals(channelName, ALL_MESSAGES)) {
+            return null;
+        }
         String[] typeAndProduct = channelName.split("\\.");
         long reqId = reqCounter.incrementAndGet();
         return "{\n" +
@@ -50,7 +55,10 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     }
 
     @Override
-    public String getUnsubscribeMessage(String channelName, Object... args) throws IOException {
+    public String getUnsubscribeMessage(String channelName, Object... args) {
+        if (Objects.equals(channelName, ALL_MESSAGES)) {
+            return null;
+        }
         Long productId = (Long) args[0];
         long reqId = reqCounter.incrementAndGet();
         return "{\n" +

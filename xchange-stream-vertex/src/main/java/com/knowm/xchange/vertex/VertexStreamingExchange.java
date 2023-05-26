@@ -1,15 +1,23 @@
 package com.knowm.xchange.vertex;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
-import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
+import info.bitrich.xchangestream.service.netty.NettyStreamingService;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
+import io.reactivex.disposables.Disposable;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
 
@@ -20,11 +28,19 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     private VertexStreamingTradeService streamingTradeService;
 
     private boolean useTestnet;
+
+    private String chainId;
+
+    private String endPointContract;
+
+    private String bookContract;
+
     private VertexStreamingService orderStreamService;
+    private VertexProductInfo productInfo;
 
 
     private VertexStreamingService createStreamingService(String suffix) {
-        VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix, getExchangeSpecification());
+        VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix);
         applyStreamingSpecification(getExchangeSpecification(), streamingService);
 
         return streamingService;
@@ -34,12 +50,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         if (useTestnet) {
             return WS_TESTNET_API_URL;
         } else {
-
             return WS_API_URL;
-
         }
     }
-
 
     @Override
     public ExchangeSpecification getDefaultExchangeSpecification() {
@@ -52,22 +65,69 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     }
 
     @Override
+    public void applyStreamingSpecification(ExchangeSpecification exchangeSpec, NettyStreamingService<?> streamingService) {
+        StreamingExchange.super.applyStreamingSpecification(exchangeSpec, streamingService);
+        this.useTestnet = !Boolean.FALSE.equals(exchangeSpec.getExchangeSpecificParametersItem(USE_SANDBOX));
+    }
+
+    @Override
+    public void remoteInit() throws ExchangeException {
+
+
+        orderStreamService.connect().blockingAwait();
+
+        CountDownLatch responseLatch = new CountDownLatch(1);
+
+        Disposable subscription = orderStreamService.subscribeChannel(ALL_MESSAGES)
+                .subscribe(resp -> {
+                    JsonNode data = resp.get("data");
+                    if (data != null) {
+                        chainId = data.get("chain_id").asText();
+                        endPointContract = data.get("endpoint_addr").asText();
+                        bookContract = data.withArray("book_addrs").get(1).asText();
+                    }
+                    responseLatch.countDown();
+                });
+        try {
+            orderStreamService.sendMessage("{\"type\":\"contracts\"}");
+            try {
+                responseLatch.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                logger.error("Failed to get contract data due to timeout");
+            }
+            if (chainId == null) {
+                throw new IllegalStateException("Failed to load Vertex exchange details");
+            }
+        } finally {
+            subscription.dispose();
+        }
+
+
+    }
+
+    @Override
     protected void initServices() {
-        this.useTestnet = Boolean.TRUE.equals(getExchangeSpecification().getExchangeSpecificParametersItem(USE_SANDBOX));
+
+        productInfo = new VertexProductInfo();
 
         this.marketDataStreamService = createStreamingService("/subscribe");
-        this.streamingMarketDataService = new VertexStreamingMarketDataService(marketDataStreamService, getExchangeSpecification());
         this.orderStreamService = createStreamingService("/ws");
-        this.streamingTradeService = new VertexStreamingTradeService(orderStreamService, getExchangeSpecification());
+
     }
 
     @Override
     public StreamingMarketDataService getStreamingMarketDataService() {
+        if (this.streamingMarketDataService == null) {
+            this.streamingMarketDataService = new VertexStreamingMarketDataService(marketDataStreamService, productInfo);
+        }
         return streamingMarketDataService;
     }
 
     @Override
-    public StreamingTradeService getStreamingTradeService() {
+    public VertexStreamingTradeService getStreamingTradeService() {
+        if (this.streamingTradeService == null) {
+            this.streamingTradeService = new VertexStreamingTradeService(orderStreamService, getExchangeSpecification(), productInfo, chainId, bookContract);
+        }
         return streamingTradeService;
     }
 

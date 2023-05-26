@@ -20,7 +20,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 public class VertexOrderBook extends Observable<OrderBook> implements Consumer<VertexMarketDataUpdateMessage> {
     private static final Logger logger = LoggerFactory.getLogger(VertexOrderBook.class);
-    public static final BigDecimal NUMBER_CONVERSION_FACTOR = BigDecimal.ONE.scaleByPowerOfTen(18);
 
     private final Subject<OrderBook> orderBookSubject = PublishSubject.<OrderBook>create().toSerialized();
 
@@ -99,10 +98,10 @@ public class VertexOrderBook extends Observable<OrderBook> implements Consumer<V
     private void populateOrders(List<LimitOrder> orders, Map<BigInteger, BigInteger> priceToQuantity, Order.OrderType type, Instrument instrument, Date timestamp) {
         int currentDepth = 0;
         for (Map.Entry<BigInteger, BigInteger> bigDecimalBigDecimalEntry : priceToQuantity.entrySet()) {
-            BigInteger price = bigDecimalBigDecimalEntry.getKey();
-            BigDecimal actualPrice = new BigDecimal(price).divide(NUMBER_CONVERSION_FACTOR);
-            BigInteger quantity = bigDecimalBigDecimalEntry.getValue();
-            BigDecimal actualQty = new BigDecimal(quantity).divide(NUMBER_CONVERSION_FACTOR);
+            BigInteger priceInt = bigDecimalBigDecimalEntry.getKey();
+            BigDecimal actualPrice = VertexModelUtils.convertToDecimal(priceInt);
+            BigInteger quantityInt = bigDecimalBigDecimalEntry.getValue();
+            BigDecimal actualQty = VertexModelUtils.convertToDecimal(quantityInt);
 
             LimitOrder order = new LimitOrder(type, actualQty, instrument, null, timestamp, actualPrice);
             orders.add(order);

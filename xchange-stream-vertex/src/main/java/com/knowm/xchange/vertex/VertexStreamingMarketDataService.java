@@ -5,14 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.knowm.xchange.vertex.dto.VertexMarketDataUpdateMessage;
 import com.knowm.xchange.vertex.dto.VertexOrderBook;
+import com.knowm.xchange.vertex.dto.VertexTradeData;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
-import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.Trade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,17 +30,21 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
     private static final Logger logger = LoggerFactory.getLogger(VertexStreamingMarketDataService.class);
 
     private final VertexStreamingService streamingService;
-    private final ExchangeSpecification exchangeSpecification;
 
     private final Map<CurrencyPair, Observable<OrderBook>> orderBookSubscriptions = new HashMap<>();
+
+    private final Map<CurrencyPair, Observable<Trade>> tradeSubscriptions = new HashMap<>();
+
     private final Map<CurrencyPair, CompositeDisposable> orderBookDisposables = new HashMap<>();
 
     private final ObjectMapper mapper;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-    public VertexStreamingMarketDataService(VertexStreamingService streamingService, ExchangeSpecification exchangeSpecification) {
+    private final VertexProductInfo productInfo;
+
+    public VertexStreamingMarketDataService(VertexStreamingService streamingService, VertexProductInfo productInfo) {
         this.streamingService = streamingService;
-        this.exchangeSpecification = exchangeSpecification;
+        this.productInfo = productInfo;
         mapper = StreamingObjectMapperHelper.getObjectMapper();
         mapper.enable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS);
         mapper.registerModule(new JavaTimeModule());
@@ -88,7 +93,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                     throw new RuntimeException(t);
                 });
 
-        long productId = lookupProductId(currencyPair);
+        long productId = productInfo.lookupProductId(currencyPair);
 
         String channelName = "book_depth." + productId;
 
@@ -136,17 +141,21 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
         compositeDisposableForPair.add(reconnectOnIdSkip);
     }
 
-    private long lookupProductId(CurrencyPair currencyPair) {
-        switch (currencyPair.toString()) {
-            case "WBTC/USDC":
-                return 1;
-            case "WETH/USDC":
-                return 3;
-            default:
-                throw new RuntimeException("unknown product id for " + currencyPair);
-        }
-        //FIXME lookup via REST API
+    @Override
+    public Observable<Trade> getTrades(CurrencyPair currencyPair, Object... args) {
+        return tradeSubscriptions.computeIfAbsent(
+                currencyPair,
+                cPair1 -> {
 
+                    String channelName = "trade." + productInfo.lookupProductId(currencyPair);
+
+                    logger.info("Subscribing to trade channel: " + channelName);
+
+                    return streamingService.subscribeChannel(channelName)
+                            .map(json -> mapper.treeToValue(json, VertexTradeData.class).toTrade(currencyPair));
+
+
+                }).share();
     }
 
     private void disposeAndResubscribeOrderBook(CurrencyPair instrument, VertexOrderBook orderBook) {
