@@ -29,16 +29,11 @@ public class VertexModelUtils {
             throw new IllegalArgumentException("Wallet address must be 20 bytes long, got " + walletBytes.length + ": " + walletAddress);
         }
         byte[] paddedSubAccount = StringUtils.isEmpty(subAccount) ? new byte[0] : subAccount.getBytes();
-        //left pad sub account with zeros to 12 bytes
-        if (paddedSubAccount.length < 12) {
-            byte[] padded = new byte[12];
-            System.arraycopy(paddedSubAccount, 0, padded, 12 - paddedSubAccount.length, paddedSubAccount.length);
-            paddedSubAccount = padded;
-        }
 
         //append byte arrays
-        byte[] sender = new byte[walletBytes.length + paddedSubAccount.length];
+        byte[] sender = new byte[32];
         System.arraycopy(walletBytes, 0, sender, 0, walletBytes.length);
+        System.arraycopy(paddedSubAccount, 0, sender, walletBytes.length, paddedSubAccount.length);
 
         return Numeric.toHexString(sender);
     }

@@ -1,5 +1,6 @@
 package com.knowm.xchange.vertex.signing;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -19,19 +20,18 @@ public class EIP712Schema {
 
     private final EIP712Domain domain;
 
-    private Map<String, Object> message;
+    private HashMap<String, Object> message;
 
     public EIP712Schema(Map<String, List<EIP712Type>> types, String primaryType, EIP712Domain domain, Map<String, Object> message) {
         this.types = new TreeMap<>(types);
         this.types.put("EIP712Domain", DOMAIN_TYPE);
         this.primaryType = primaryType;
-        this.message = message;
+        this.message = new HashMap<>(message);
         this.domain = domain;
     }
 
-    protected static EIP712Domain getDomain(String chainId, String verifyingContract) {
-        EIP712Domain domain = new EIP712Domain("Vertex", "0.0.1", chainId, verifyingContract);
-        return domain;
+    protected static EIP712Domain getDomain(long chainId, String verifyingContract) {
+        return new EIP712Domain("Vertex", "0.0.1", chainId, verifyingContract);
     }
 
     public Map<String, List<EIP712Type>> getTypes() {
@@ -46,7 +46,7 @@ public class EIP712Schema {
         return domain;
     }
 
-    public Map<String, Object> getMessage() {
+    public HashMap<String, Object> getMessage() {
         return message;
     }
 }

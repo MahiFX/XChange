@@ -6,11 +6,11 @@ public class EIP712Domain {
 
     private final String version;
 
-    private final String chainId;
+    private final long chainId;
 
     private final String verifyingContract;
 
-    public EIP712Domain(String name, String version, String chainId, String verifyingContract) {
+    public EIP712Domain(String name, String version, long chainId, String verifyingContract) {
         this.name = name;
         this.version = version;
         this.chainId = chainId;
@@ -25,7 +25,7 @@ public class EIP712Domain {
         return version;
     }
 
-    public String getChainId() {
+    public long getChainId() {
         return chainId;
     }
 

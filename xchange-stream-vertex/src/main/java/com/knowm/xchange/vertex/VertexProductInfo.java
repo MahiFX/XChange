@@ -2,6 +2,8 @@ package com.knowm.xchange.vertex;
 
 import org.knowm.xchange.currency.CurrencyPair;
 
+import java.util.List;
+
 public class VertexProductInfo {
     long lookupProductId(CurrencyPair currencyPair) {
         switch (currencyPair.toString()) {
@@ -16,5 +18,9 @@ public class VertexProductInfo {
             default:
                 throw new RuntimeException("unknown product id for " + currencyPair);
         }
+    }
+
+    public List<Long> getProductsIds() {
+        return List.of(1L, 2L, 3L, 4L);
     }
 }

@@ -1,20 +1,18 @@
 package com.knowm.xchange.vertex.signing.schemas;
 
-import com.knowm.xchange.vertex.dto.VertexModelUtils;
 import com.knowm.xchange.vertex.signing.EIP712Domain;
 import com.knowm.xchange.vertex.signing.EIP712Schema;
 import com.knowm.xchange.vertex.signing.EIP712Type;
-import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.trade.LimitOrder;
 
 import java.math.BigInteger;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static java.util.Map.of;
 
 public class PlaceOrderSchema extends EIP712Schema {
+
 
     private PlaceOrderSchema(EIP712Domain domain, Map<String, Object> message) {
         super(of("Order", List.of(
@@ -29,31 +27,17 @@ public class PlaceOrderSchema extends EIP712Schema {
                 message);
     }
 
-    public static PlaceOrderSchema build(Order order, String chainId, String verifyingContract, Long nonce, String sender) {
+    public static PlaceOrderSchema build(long chainId, String verifyingContract, Long nonce, String sender, BigInteger expiration, BigInteger quantityAsInt, BigInteger priceAsInt) {
         EIP712Domain domain = getDomain(chainId, verifyingContract);
 
-        BigInteger quantityAsInt = order.getOriginalAmount().multiply(VertexModelUtils.NUMBER_CONVERSION_FACTOR).toBigInteger();
-        if (order.getType().equals(Order.OrderType.ASK)) {
-            quantityAsInt = quantityAsInt.multiply(BigInteger.valueOf(-1));
-        }
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("sender", sender);
+        fields.put("priceX18", priceAsInt);
+        fields.put("amount", quantityAsInt);
+        fields.put("expiration", expiration);
+        fields.put("nonce", nonce);
 
-        //FIXME expiration / timeInForce
-
-        Map<String, Object> fields = new HashMap<>(of(
-                "sender", sender,
-                "amount", quantityAsInt,
-                "nonce", nonce,
-                "expiration", BigInteger.ZERO));
-
-        if (order instanceof LimitOrder) {
-            BigInteger priceAsInt = ((LimitOrder) order).getLimitPrice().multiply(VertexModelUtils.NUMBER_CONVERSION_FACTOR).toBigInteger();
-            fields.put("priceX18", priceAsInt);
-        } else {
-            fields.put("priceX18", BigInteger.ZERO);
-        }
-        PlaceOrderSchema placeOrderSchema = new PlaceOrderSchema(domain, fields);
-
-        return placeOrderSchema;
+        return new PlaceOrderSchema(domain, fields);
     }
 
 }

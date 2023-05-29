@@ -28,14 +28,18 @@ public class MessageSigner {
 
         try {
 
-            String jsonSchema = mapper.writeValueAsString(schema);
+            String jsonSchema = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(schema);
+
+            log.trace("Signing message: {}", jsonSchema);
 
             StructuredDataEncoder encoder = new StructuredDataEncoder(jsonSchema);
 
-            byte[] hash = encoder.hashStructuredData();
+            byte[] bytes = encoder.hashStructuredData();
+
+            log.trace("digest: {}", Numeric.toHexStringNoPrefix(bytes));
 
             // Sign the hashed message
-            Sign.SignatureData signatureData = Sign.signMessage(hash, keyPair, false);
+            Sign.SignatureData signatureData = Sign.signMessage(bytes, keyPair, false);
 
             // join the r, s and v fields into one byte array and encode to hex
             byte[] signature = new byte[65];
