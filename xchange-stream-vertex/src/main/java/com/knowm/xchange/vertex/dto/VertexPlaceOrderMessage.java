@@ -1,10 +1,10 @@
 package com.knowm.xchange.vertex.dto;
 
-public class VertexOrderMessage {
+public class VertexPlaceOrderMessage {
 
     private final VertexPlaceOrder place_order;
 
-    public VertexOrderMessage(VertexPlaceOrder placeOrder) {
+    public VertexPlaceOrderMessage(VertexPlaceOrder placeOrder) {
         place_order = placeOrder;
     }
 

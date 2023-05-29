@@ -24,7 +24,7 @@ public class MessageSigner {
     }
 
 
-    public String signMessage(EIP712Schema schema) {
+    public SignatureAndDigest signMessage(EIP712Schema schema) {
 
         try {
 
@@ -36,7 +36,8 @@ public class MessageSigner {
 
             byte[] bytes = encoder.hashStructuredData();
 
-            log.trace("digest: {}", Numeric.toHexStringNoPrefix(bytes));
+            String digest = Numeric.toHexStringNoPrefix(bytes);
+            log.trace("digest: {}", digest);
 
             // Sign the hashed message
             Sign.SignatureData signatureData = Sign.signMessage(bytes, keyPair, false);
@@ -47,7 +48,8 @@ public class MessageSigner {
             System.arraycopy(signatureData.getS(), 0, signature, 32, 32);
             signature[64] = signatureData.getV()[0];
 
-            return Numeric.toHexString(signature);
+            String sigString = Numeric.toHexString(signature);
+            return new SignatureAndDigest(sigString, digest);
 
         } catch (Throwable e) {
             throw new RuntimeException(e);

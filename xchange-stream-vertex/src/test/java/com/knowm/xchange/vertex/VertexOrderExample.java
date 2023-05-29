@@ -47,7 +47,9 @@ public class VertexOrderExample {
         tradeService.placeMarketOrder(sell);
 
         LimitOrder resting = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), new CurrencyPair("wBTC-USDC"), null, null, BigDecimal.valueOf(27000));
-        tradeService.placeLimitOrder(resting);
+        String orderId = tradeService.placeLimitOrder(resting);
+
+        tradeService.cancelOrder(orderId);
 
         System.exit(0);
 

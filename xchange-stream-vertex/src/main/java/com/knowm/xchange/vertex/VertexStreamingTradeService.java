@@ -2,22 +2,24 @@ package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.knowm.xchange.vertex.dto.VertexModelUtils;
-import com.knowm.xchange.vertex.dto.VertexOrder;
-import com.knowm.xchange.vertex.dto.VertexOrderMessage;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrder;
+import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
+import com.knowm.xchange.vertex.signing.SignatureAndDigest;
+import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
 import com.knowm.xchange.vertex.signing.schemas.PlaceOrderSchema;
 import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.disposables.Disposable;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.service.trade.TradeService;
+import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
+import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
+import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,10 +29,9 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
@@ -49,8 +50,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private final long chainId;
     private final String bookContract;
     private final VertexStreamingExchange exchange;
-
-    private final Map<Long, Map<String, String>> orderNonceToIdMap = new ConcurrentHashMap<>();
 
     public VertexStreamingTradeService(VertexStreamingService streamingService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange) {
         this.streamingService = streamingService;
@@ -81,12 +80,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     private String placeOrder(Order marketOrder, BigDecimal price) throws JsonProcessingException {
-        String subAccount = exchangeSpecification.getUserName();
 
-        String nonce = buildNonce(60000);
-        String walletAddress = exchangeSpecification.getApiKey();
-
-        String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
 
         BigInteger expiration = getExpiration(marketOrder.getOrderFlags(), Instant.now().plus(10, ChronoUnit.SECONDS));
 
@@ -105,6 +99,12 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
         BigInteger quantityAsInt = convertToInteger(quantity);
         BigInteger priceAsInt = convertToInteger(price);
+
+        String subAccount = exchangeSpecification.getUserName();
+        String nonce = buildNonce(60000);
+        String walletAddress = exchangeSpecification.getApiKey();
+        String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
+
         PlaceOrderSchema orderSchema = PlaceOrderSchema.build(chainId,
                 bookContract,
                 Long.valueOf(nonce),
@@ -112,38 +112,52 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 expiration,
                 quantityAsInt,
                 priceAsInt);
-        String signature = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
+        SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
 
-        VertexOrderMessage orderMessage = new VertexOrderMessage(new VertexPlaceOrder(
+        VertexPlaceOrderMessage orderMessage = new VertexPlaceOrderMessage(new VertexPlaceOrder(
                 productId,
                 new VertexOrder(sender, priceAsInt.toString(), quantityAsInt.toString(), expiration.toString(), nonce),
-                signature
+                signatureAndDigest.getSignature()
         ));
-        orderNonceToIdMap.computeIfAbsent(productId, k -> new ConcurrentHashMap<>()).put(nonce, marketOrder.getUserReference());
+
+
+        sendWebsocketMessage(orderMessage);
+
+        return signatureAndDigest.getDigest();
+    }
+
+    private boolean sendWebsocketMessage(Object messageObj) throws JsonProcessingException {
 
         streamingService.connect().blockingAwait();
         CountDownLatch readyLatch = new CountDownLatch(1);
+        AtomicReference<Throwable> errorHolder = new AtomicReference<>();
         Disposable respSub = streamingService.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
             if (resp.get("status").asText().equals("success")) {
-                logger.info("Received order response: {}", resp);
+                logger.info("Received response: {}", resp);
             } else {
-                logger.error("Received order error: {}", resp);
+                logger.error("Received error: {}", resp);
+                errorHolder.set(new RuntimeException("Websocket message error: " + resp.get("error").asText()));
             }
             readyLatch.countDown();
         });
-        String message = mapper.writeValueAsString(orderMessage);
+        String message = mapper.writeValueAsString(messageObj);
         logger.info("Sending order: {}", message);
-        streamingService.sendMessage(message);
         try {
+            streamingService.sendMessage(message);
+
             if (!readyLatch.await(2000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Timed out waiting for response");
+            }
+            if (errorHolder.get() != null) {
+                return false;
+            } else {
+                return true;
             }
         } catch (InterruptedException ignored) {
         } finally {
             respSub.dispose();
         }
-
-        return signature;
+        return false;
     }
 
     private BigInteger getExpiration(Set<Order.IOrderFlags> orderFlags, Instant expiryTime) {
@@ -160,12 +174,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
         BigInteger expiry = BigInteger.valueOf(expiryTime.getEpochSecond());
         BigInteger tifMask = timeInForce.shiftLeft(62);
-
-        BigInteger or = expiry.or(tifMask);
-        String exp = StringUtils.leftPad(expiry.toString(2), 64, "0");
-        String tif = StringUtils.leftPad(tifMask.toString(2), 64, "0");
-        String combined = StringUtils.leftPad(or.toString(2), 64, "0");
-        return or;
+        return expiry.or(tifMask);
     }
 
 
@@ -187,6 +196,43 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             }
         }
         return price;
+    }
+
+    @Override
+    public boolean cancelOrder(CancelOrderParams params) throws IOException {
+
+        if (params instanceof CancelOrderByIdParams && params instanceof CancelOrderByInstrument) {
+
+            String id = ((CancelOrderByIdParams) params).getOrderId();
+            CurrencyPair instrument = (CurrencyPair) ((CancelOrderByInstrument) params).getInstrument();
+
+            long productId = productInfo.lookupProductId(instrument);
+
+            String subAccount = exchangeSpecification.getUserName();
+            String nonce = buildNonce(60000);
+            String walletAddress = exchangeSpecification.getApiKey();
+            String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
+            long[] productIds = {productId};
+            String[] digests = {id};
+
+            CancelOrdersSchema orderSchema = CancelOrdersSchema.build(chainId,
+                    bookContract, Long.valueOf(nonce), sender, productIds, digests);
+            SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
+
+            VertexCancelOrdersMessage orderMessage = new VertexCancelOrdersMessage(new CancelOrders(
+                    new Tx(sender, productIds, digests, nonce),
+                    signatureAndDigest.getSignature()
+            ));
+
+
+            return sendWebsocketMessage(orderMessage);
+            ;
+        } else {
+            throw new IOException(
+                    "CancelOrderParams must implement CancelOrderByIdParams and CancelOrderByInstrument interface.");
+        }
+
+
     }
 
     private BigDecimal getQuantity(Order order) {
