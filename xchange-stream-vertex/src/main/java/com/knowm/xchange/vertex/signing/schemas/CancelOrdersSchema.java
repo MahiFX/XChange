@@ -28,7 +28,7 @@ public class CancelOrdersSchema extends EIP712Schema {
         super(of("Cancellation", List.of(
                         new EIP712Type("sender", "bytes32"),
                         new EIP712Type("productIds", "uint32[]"),
-                        new EIP712Type("digests", "ytes32[]"),
+                        new EIP712Type("digests", "bytes32[]"),
                         new EIP712Type("nonce", "uint64")
                 )),
                 "Cancellation",

@@ -7,6 +7,7 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
+import org.knowm.xchange.service.trade.params.DefaultCancelOrderByInstrumentAndIdParams;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
@@ -36,23 +37,26 @@ public class VertexOrderExample {
 
         VertexStreamingTradeService tradeService = exchange.getStreamingTradeService();
 
-        MarketOrder buy = new MarketOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), new CurrencyPair("wBTC-USDC"));
+        CurrencyPair btc = new CurrencyPair("wBTC-USDC");
+
+        MarketOrder buy = new MarketOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc);
         buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);
         tradeService.placeMarketOrder(buy);
 
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
-        MarketOrder sell = new MarketOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), new CurrencyPair("wBTC-USDC"));
+        MarketOrder sell = new MarketOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc);
         sell.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_FOK);
         tradeService.placeMarketOrder(sell);
 
-        LimitOrder resting = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), new CurrencyPair("wBTC-USDC"), null, null, BigDecimal.valueOf(27000));
+        LimitOrder resting = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(27000));
         String orderId = tradeService.placeLimitOrder(resting);
 
-        tradeService.cancelOrder(orderId);
+        Thread.sleep(5000);
+
+        tradeService.cancelOrder(new DefaultCancelOrderByInstrumentAndIdParams(btc, orderId));
 
         System.exit(0);
-
 
     }
 }

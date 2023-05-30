@@ -39,7 +39,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     private long chainId;
 
-    private String endPointContract;
+    private String endpointContract;
 
     private String bookContract;
 
@@ -92,7 +92,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         queries.add(new Query("{\"type\":\"contracts\"}",
                 data1 -> {
                     chainId = Long.parseLong(data1.get("chain_id").asText());
-                    endPointContract = data1.get("endpoint_addr").asText();
+                    endpointContract = data1.get("endpoint_addr").asText();
                     bookContract = data1.withArray("book_addrs").get(1).asText();
                 }));
 
@@ -176,7 +176,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     @Override
     public VertexStreamingTradeService getStreamingTradeService() {
         if (this.streamingTradeService == null) {
-            this.streamingTradeService = new VertexStreamingTradeService(orderStreamService, getExchangeSpecification(), productInfo, chainId, bookContract, this);
+            this.streamingTradeService = new VertexStreamingTradeService(orderStreamService, getExchangeSpecification(), productInfo, chainId, bookContract, this, endpointContract);
         }
         return streamingTradeService;
     }

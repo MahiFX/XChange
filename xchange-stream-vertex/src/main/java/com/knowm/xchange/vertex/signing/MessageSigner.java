@@ -6,8 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.ECKeyPair;
+import org.web3j.crypto.FixedStructuredDataEncoder;
 import org.web3j.crypto.Sign;
-import org.web3j.crypto.StructuredDataEncoder;
 import org.web3j.utils.Numeric;
 
 public class MessageSigner {
@@ -32,11 +32,13 @@ public class MessageSigner {
 
             log.trace("Signing message: {}", jsonSchema);
 
-            StructuredDataEncoder encoder = new StructuredDataEncoder(jsonSchema);
+            FixedStructuredDataEncoder encoder = new FixedStructuredDataEncoder(jsonSchema);
+            // TODO submit bugs to web3J
+//            StructuredDataEncoder encoder = new StructuredDataEncoder(jsonSchema);
 
             byte[] bytes = encoder.hashStructuredData();
 
-            String digest = Numeric.toHexStringNoPrefix(bytes);
+            String digest = Numeric.toHexString(bytes);
             log.trace("digest: {}", digest);
 
             // Sign the hashed message

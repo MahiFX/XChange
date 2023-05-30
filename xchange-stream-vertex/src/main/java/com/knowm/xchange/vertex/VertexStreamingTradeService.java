@@ -50,13 +50,15 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private final long chainId;
     private final String bookContract;
     private final VertexStreamingExchange exchange;
+    private final String endpointContract;
 
-    public VertexStreamingTradeService(VertexStreamingService streamingService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange) {
+    public VertexStreamingTradeService(VertexStreamingService streamingService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange, String endpointContract) {
         this.streamingService = streamingService;
         this.exchangeSpecification = exchangeSpecification;
         this.productInfo = productInfo;
         this.chainId = chainId;
         this.bookContract = bookContract;
+        this.endpointContract = endpointContract;
         this.exchange = exchange;
         this.mapper = StreamingObjectMapperHelper.getObjectMapper();
     }
@@ -216,7 +218,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             String[] digests = {id};
 
             CancelOrdersSchema orderSchema = CancelOrdersSchema.build(chainId,
-                    bookContract, Long.valueOf(nonce), sender, productIds, digests);
+                    endpointContract, Long.valueOf(nonce), sender, productIds, digests);
             SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
 
             VertexCancelOrdersMessage orderMessage = new VertexCancelOrdersMessage(new CancelOrders(
@@ -226,7 +228,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
 
             return sendWebsocketMessage(orderMessage);
-            ;
+
         } else {
             throw new IOException(
                     "CancelOrderParams must implement CancelOrderByIdParams and CancelOrderByInstrument interface.");

@@ -1,7 +1,6 @@
-from pprint import pprint
-
 from eth_account import Account
 from eth_account.messages import encode_structured_data, _hash_eip191_message
+from pprint import pprint
 
 # Replace this with your Ethereum private key
 private_key = '09093d55d404c51871cc12a73fc482a245bb066d101d1ac840d73ee534cee4b9'
@@ -50,6 +49,36 @@ typed_data = {
     },
 }
 
+typed_data2 = {
+    'types': {
+        'EIP712Domain': [
+            {'name': 'name', 'type': 'string'},
+            {'name': 'version', 'type': 'string'},
+            {'name': 'chainId', 'type': 'uint256'},
+            {'name': 'verifyingContract', 'type': 'address'}
+        ],
+        'Cancellation': [
+            {'name': 'sender', 'type': 'bytes32'},
+            {'name': 'productIds', 'type': 'uint32[]'},
+            {'name': 'digests', 'type': 'bytes32[]'},
+            {'name': 'nonce', 'type': 'uint64'},
+        ],
+    },
+    'primaryType': 'Cancellation',
+    'domain': {
+        'name': 'Vertex',
+        'version': '0.0.1',
+        'chainId': 421613,
+        'verifyingContract': '0xbf16e41fb4ac9922545bfc1500f67064dc2dcc3b'
+    },
+    'message': {
+        'sender': hex_to_bytes32('0x841fe4876763357975d60da128d8a54bb045d76a64656661756c740000000000'),
+        'productIds': [4],
+        'digests': [hex_to_bytes32('0x51ba8762bc5f77957a4e896dba34e17b553b872c618ffb83dba54878796f2821')],
+        'nonce': 1,
+    },
+}
+
 
 def sign_typed_data(typed_data, private_key):
     account: Account = Account.from_key(private_key)
@@ -61,5 +90,10 @@ def sign_typed_data(typed_data, private_key):
 
 pprint(typed_data)
 signature, digest = sign_typed_data(typed_data, private_key)
+print("Signature", signature)
+print("digest", digest)
+
+pprint(typed_data2)
+signature, digest = sign_typed_data(typed_data2, private_key)
 print("Signature", signature)
 print("digest", digest)

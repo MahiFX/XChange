@@ -10,6 +10,7 @@ public class VertexCancelOrdersMessage {
         this.cancelOrders = cancelOrders;
     }
 
+    @JsonProperty("cancel_orders")
     public CancelOrders getCancelOrders() {
         return cancelOrders;
     }
