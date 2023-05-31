@@ -29,11 +29,14 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
+import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
 import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
@@ -41,9 +44,10 @@ import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
     public static final double DEFAULT_MAX_SLIPPAGE_RATIO = 0.005;
+    private static final boolean DEFAULT_USE_LEVERAGE = false;
     private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
-    private final VertexStreamingService streamingService;
+    private final VertexStreamingService orderStreamService;
     private final ExchangeSpecification exchangeSpecification;
     private final ObjectMapper mapper;
 
@@ -53,9 +57,13 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private final VertexStreamingExchange exchange;
     private final String endpointContract;
     private final double slippage;
+    private final boolean useLeverage;
+    private final Map<String, CountDownLatch> responseLatches = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Disposable allMessageSubscription;
+    private final AtomicReference<Throwable> errorHolder = new AtomicReference<>();
 
-    public VertexStreamingTradeService(VertexStreamingService streamingService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange, String endpointContract) {
-        this.streamingService = streamingService;
+    public VertexStreamingTradeService(VertexStreamingService orderStreamService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange, String endpointContract) {
+        this.orderStreamService = orderStreamService;
         this.exchangeSpecification = exchangeSpecification;
         this.productInfo = productInfo;
         this.chainId = chainId;
@@ -63,7 +71,28 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.endpointContract = endpointContract;
         this.exchange = exchange;
         this.mapper = StreamingObjectMapperHelper.getObjectMapper();
-        this.slippage = exchangeSpecification.getExchangeSpecificParametersItem("maxSlippageRatio") != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem("maxSlippageRatio").toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
+        this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO).toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
+        this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
+
+        orderStreamService.connect().blockingAwait();
+        this.allMessageSubscription = orderStreamService.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
+            if (resp.get("status").asText().equals("success")) {
+                logger.info("Received response: {}", resp);
+            } else {
+                logger.error("Received error: {}", resp);
+                errorHolder.set(new RuntimeException("Websocket message error: " + resp.get("error").asText()));
+            }
+            JsonNode respSignature = resp.get("signature");
+            CountDownLatch replyLatch = responseLatches.remove(respSignature.asText());
+            if (replyLatch != null) {
+                replyLatch.countDown();
+            }
+        });
+    }
+
+    public void disconnect() {
+        allMessageSubscription.dispose();
+        orderStreamService.disconnect().blockingAwait();
     }
 
     @Override
@@ -121,8 +150,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         VertexPlaceOrderMessage orderMessage = new VertexPlaceOrderMessage(new VertexPlaceOrder(
                 productId,
                 new VertexOrder(sender, priceAsInt.toString(), quantityAsInt.toString(), expiration.toString(), nonce),
-                signatureAndDigest.getSignature()
-        ));
+                signatureAndDigest.getSignature(),
+                useLeverage));
 
 
         Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
@@ -136,35 +165,21 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     private Optional<Throwable> sendWebsocketMessage(VertexRequest messageObj) throws JsonProcessingException {
 
-        streamingService.connect().blockingAwait();
-        CountDownLatch replyLatch = new CountDownLatch(1);
-        AtomicReference<Throwable> errorHolder = new AtomicReference<>();
-        Disposable respSub = streamingService.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
-            if (resp.get("status").asText().equals("success")) {
-                logger.info("Received response: {}", resp);
-            } else {
-                logger.error("Received error: {}", resp);
-                errorHolder.set(new RuntimeException("Websocket message error: " + resp.get("error").asText()));
-            }
-            JsonNode respSignature = resp.get("signature");
-            if (respSignature == null || messageObj.getSignature().equals(respSignature.asText())) {
-                replyLatch.countDown();
-            }
-        });
         String message = mapper.writeValueAsString(messageObj);
         logger.info("Sending order: {}", message);
         try {
-            streamingService.sendMessage(message);
+            CountDownLatch replyLatch = responseLatches.computeIfAbsent(messageObj.getSignature(), s -> new CountDownLatch(1));
+            orderStreamService.sendMessage(message);
 
             if (!replyLatch.await(5000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Timed out waiting for response");
             }
-            if (errorHolder.get() != null) {
-                return Optional.of(errorHolder.get());
+            Throwable error = errorHolder.get();
+            if (error != null) {
+                errorHolder.set(null);
+                return Optional.of(error);
             }
         } catch (InterruptedException ignored) {
-        } finally {
-            respSub.dispose();
         }
         return Optional.empty();
 
@@ -260,4 +275,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         BigDecimal divided = value.divide(increment, 0, RoundingMode.FLOOR);
         return divided.multiply(increment);
     }
+
+
 }

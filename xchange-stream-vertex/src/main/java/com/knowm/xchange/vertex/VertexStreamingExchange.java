@@ -28,6 +28,9 @@ import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
 
+    public static final String USE_LEVERAGE = "useLeverage";
+    public static final String MAX_SLIPPAGE_RATIO = "maxSlippageRatio";
+
     private static final String WS_TESTNET_API_URL = "wss://test.vertexprotocol-backend.com";
     private static final String WS_API_URL = "wss://prod.vertexprotocol-backend.com";
     private VertexStreamingService subscriptionStream;

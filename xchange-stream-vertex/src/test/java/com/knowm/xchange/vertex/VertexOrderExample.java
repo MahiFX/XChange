@@ -31,6 +31,7 @@ public class VertexOrderExample {
         exchangeSpecification.setApiKey(address);
         exchangeSpecification.setSecretKey(Numeric.toHexStringNoPrefix(ecKeyPair.getPrivateKey()));
         exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
+        exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
         exchangeSpecification.setUserName("default"); //subaccount name
 
         VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
@@ -56,7 +57,17 @@ public class VertexOrderExample {
 
         tradeService.cancelOrder(new DefaultCancelOrderByInstrumentAndIdParams(btc, orderId));
 
-        System.exit(0);
+        // Check leveraged shorting works
+        sell = new MarketOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc);
+        sell.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_FOK);
+        tradeService.placeMarketOrder(sell);
+
+        buy = new MarketOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc);
+        buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);
+        tradeService.placeMarketOrder(buy);
+
+        tradeService.disconnect();
+
 
     }
 }
