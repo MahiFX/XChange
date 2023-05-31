@@ -1,5 +1,10 @@
 package com.knowm.xchange.vertex.dto;
 
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@ToString
 public class VertexPlaceOrder {
     private final long product_id;
     private final VertexOrder order;
@@ -11,15 +16,4 @@ public class VertexPlaceOrder {
         this.signature = signature;
     }
 
-    public long getProduct_id() {
-        return product_id;
-    }
-
-    public VertexOrder getOrder() {
-        return order;
-    }
-
-    public String getSignature() {
-        return signature;
-    }
 }

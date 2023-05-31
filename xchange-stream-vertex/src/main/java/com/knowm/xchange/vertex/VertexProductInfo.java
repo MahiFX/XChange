@@ -1,12 +1,12 @@
 package com.knowm.xchange.vertex;
 
-import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.instrument.Instrument;
 
 import java.util.List;
 
 public class VertexProductInfo {
-    long lookupProductId(CurrencyPair currencyPair) {
-        switch (currencyPair.toString()) {
+    long lookupProductId(Instrument currencyPair) {
+        switch (currencyPair.toString().toUpperCase()) {
             case "WBTC/USDC":
                 return 1;
             case "BTC-PERP":

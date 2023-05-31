@@ -3,6 +3,8 @@ package com.knowm.xchange.vertex.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.knowm.xchange.vertex.NanoSecondsDeserializer;
+import lombok.Getter;
+import lombok.ToString;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.Trade;
 
@@ -11,6 +13,8 @@ import java.time.Instant;
 
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
 
+@Getter
+@ToString
 public class VertexFillData {
 
 

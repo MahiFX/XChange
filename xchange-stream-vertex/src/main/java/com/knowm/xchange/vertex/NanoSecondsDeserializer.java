@@ -1,6 +1,5 @@
 package com.knowm.xchange.vertex;
 
-import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -18,7 +17,7 @@ public class NanoSecondsDeserializer extends JsonDeserializer<Instant> {
 
     private static final BigDecimal NANOS_PER_MILLI = new BigDecimal(1000000);
 
-    private static final CacheLoader<String, Instant> parser = new CacheLoader<String, Instant>() {
+    private static final CacheLoader<String, Instant> parser = new CacheLoader<>() {
         @Override
         public Instant load(String str) {
             BigInteger nano = new BigInteger(str);
@@ -26,10 +25,14 @@ public class NanoSecondsDeserializer extends JsonDeserializer<Instant> {
         }
     };
 
+    public static Instant parse(String str) {
+        return instantCache.getUnchecked(str);
+    }
+
     private static final LoadingCache<String, Instant> instantCache = CacheBuilder.newBuilder().maximumSize(1000).build(parser);
 
     @Override
-    public Instant deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JacksonException {
+    public Instant deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         return instantCache.getUnchecked(p.getValueAsString());
 
     }

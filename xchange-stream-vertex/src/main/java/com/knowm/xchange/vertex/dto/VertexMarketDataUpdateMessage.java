@@ -3,30 +3,33 @@ package com.knowm.xchange.vertex.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.knowm.xchange.vertex.NanoSecondsDeserializer;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
-
+@Getter
+@ToString
 public class VertexMarketDataUpdateMessage {
 
-    public static final Object[][] EMPTY_EVENTS = new Object[0][0];
-    public static final VertexMarketDataUpdateMessage NULL = new VertexMarketDataUpdateMessage(EMPTY_EVENTS, EMPTY_EVENTS, null, null, null, null);
+    public static final List<PriceAndQuantity> EMPTY_EVENTS = new ArrayList<>();
+    public static final VertexMarketDataUpdateMessage EMPTY = new VertexMarketDataUpdateMessage(EMPTY_EVENTS, EMPTY_EVENTS, null, null, null, -1);
 
-    private final Object[][] bids;
-    private final Object[][] asks;
+    private final List<PriceAndQuantity> bids;
+    private final List<PriceAndQuantity> asks;
     private final Instant minTime;
     private final Instant maxTime;
     private final Instant lastMaxTime;
-    private final String productId;
+    private final long productId;
 
-    public VertexMarketDataUpdateMessage(@JsonProperty("bids") Object[][] bids,
-                                         @JsonProperty("asks") Object[][] asks,
+    public VertexMarketDataUpdateMessage(@JsonProperty("bids") List<PriceAndQuantity> bids,
+                                         @JsonProperty("asks") List<PriceAndQuantity> asks,
                                          @JsonProperty("min_timestamp") @JsonDeserialize(using = NanoSecondsDeserializer.class) Instant minTime,
                                          @JsonProperty("max_timestamp") @JsonDeserialize(using = NanoSecondsDeserializer.class) Instant maxTime,
                                          @JsonProperty("last_max_timestamp") @JsonDeserialize(using = NanoSecondsDeserializer.class) Instant lastMaxTime,
-                                         @JsonProperty("product_id") String productId
-
-    ) {
+                                         @JsonProperty("product_id") long productId) {
         this.bids = bids;
         this.asks = asks;
         this.minTime = minTime;
@@ -35,32 +38,8 @@ public class VertexMarketDataUpdateMessage {
         this.productId = productId;
     }
 
-
     public static VertexMarketDataUpdateMessage empty() {
-        return new VertexMarketDataUpdateMessage(EMPTY_EVENTS, EMPTY_EVENTS, null, null, null, null);
+        return EMPTY;
     }
 
-    public Object[][] getBids() {
-        return bids;
-    }
-
-    public Object[][] getAsks() {
-        return asks;
-    }
-
-    public Instant getMinTime() {
-        return minTime;
-    }
-
-    public Instant getMaxTime() {
-        return maxTime;
-    }
-
-    public Instant getLastMaxTime() {
-        return lastMaxTime;
-    }
-
-    public String getProductId() {
-        return productId;
-    }
 }

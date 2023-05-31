@@ -10,7 +10,6 @@ import info.bitrich.xchangestream.service.netty.NettyStreamingService;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
-import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.exceptions.ExchangeException;
@@ -31,7 +30,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     private static final String WS_TESTNET_API_URL = "wss://test.vertexprotocol-backend.com";
     private static final String WS_API_URL = "wss://prod.vertexprotocol-backend.com";
-    private VertexStreamingService marketDataStreamService;
+    private VertexStreamingService subscriptionStream;
     private VertexStreamingMarketDataService streamingMarketDataService;
     private VertexStreamingTradeService streamingTradeService;
 
@@ -43,11 +42,11 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     private String bookContract;
 
-    private VertexStreamingService orderStreamService;
+    private VertexStreamingService requestResponseStream;
     private VertexProductInfo productInfo;
 
-    private Map<Long, Pair<BigDecimal, BigDecimal>> marketPrices = new HashMap<>();
-    private Map<Long, Pair<BigDecimal, BigDecimal>> increments = new HashMap<>();
+    private final Map<Long, TopOfBookPrice> marketPrices = new HashMap<>();
+    private final Map<Long, InstrumentDefinition> increments = new HashMap<>();
 
 
     private VertexStreamingService createStreamingService(String suffix) {
@@ -84,8 +83,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     @Override
     public void remoteInit() throws ExchangeException {
 
-
-        orderStreamService.connect().blockingAwait();
+        requestResponseStream.connect().blockingAwait();
 
         ArrayList<Query> queries = new ArrayList<>();
 
@@ -103,7 +101,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
                         BigInteger bid = new BigInteger(bidX18.asText());
                         JsonNode offerX18 = data.get("ask_x18");
                         BigInteger offer = new BigInteger(offerX18.asText());
-                        marketPrices.computeIfAbsent(productId, k -> Pair.of(convertToDecimal(bid), convertToDecimal(offer)));
+                        marketPrices.computeIfAbsent(productId, k -> new TopOfBookPrice(convertToDecimal(bid), convertToDecimal(offer)));
                     });
             queries.add(marketPricesQuery);
         }
@@ -119,7 +117,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
                         JsonNode bookInfo = spotProduct.get("book_info");
                         BigDecimal quantityIncrement = convertToDecimal(new BigInteger(bookInfo.get("size_increment").asText()));
                         BigDecimal priceIncrement = convertToDecimal(new BigInteger(bookInfo.get("price_increment_x18").asText()));
-                        increments.put(productId, Pair.of(quantityIncrement, priceIncrement));
+                        increments.put(productId, new InstrumentDefinition(priceIncrement, quantityIncrement));
                     }
                 }));
 
@@ -128,12 +126,11 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     }
 
-    private void submitQueries(Query... queries) {
+    public synchronized void submitQueries(Query... queries) {
 
-        Observable<JsonNode> stream = orderStreamService.subscribeChannel(ALL_MESSAGES);
+        Observable<JsonNode> stream = requestResponseStream.subscribeChannel(ALL_MESSAGES);
 
-        for (int i = 0; i < queries.length; i++) {
-            Query query = queries[i];
+        for (Query query : queries) {
             CountDownLatch responseLatch = new CountDownLatch(1);
             Disposable subscription = stream.subscribe(resp -> {
                 JsonNode data = resp.get("data");
@@ -143,8 +140,10 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
                 responseLatch.countDown();
             }, (err) -> logger.error("Query error running " + query.getQueryMsg(), err));
             try {
-                orderStreamService.sendMessage(query.getQueryMsg());
-                responseLatch.await(10, TimeUnit.SECONDS);
+                requestResponseStream.sendMessage(query.getQueryMsg());
+                if (!responseLatch.await(10, TimeUnit.SECONDS)) {
+                    throw new RuntimeException("Timed out waiting for response for " + query.getQueryMsg());
+                }
             } catch (InterruptedException e) {
                 logger.error("Failed to get contract data due to timeout");
             } finally {
@@ -160,15 +159,16 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
         productInfo = new VertexProductInfo();
 
-        this.marketDataStreamService = createStreamingService("/subscribe");
-        this.orderStreamService = createStreamingService("/ws");
+        this.subscriptionStream = createStreamingService("/subscribe");
+        this.requestResponseStream = createStreamingService("/ws");
 
     }
+
 
     @Override
     public StreamingMarketDataService getStreamingMarketDataService() {
         if (this.streamingMarketDataService == null) {
-            this.streamingMarketDataService = new VertexStreamingMarketDataService(marketDataStreamService, productInfo);
+            this.streamingMarketDataService = new VertexStreamingMarketDataService(subscriptionStream, productInfo, this);
         }
         return streamingMarketDataService;
     }
@@ -176,7 +176,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     @Override
     public VertexStreamingTradeService getStreamingTradeService() {
         if (this.streamingTradeService == null) {
-            this.streamingTradeService = new VertexStreamingTradeService(orderStreamService, getExchangeSpecification(), productInfo, chainId, bookContract, this, endpointContract);
+            this.streamingTradeService = new VertexStreamingTradeService(requestResponseStream, getExchangeSpecification(), productInfo, chainId, bookContract, this, endpointContract);
         }
         return streamingTradeService;
     }
@@ -188,50 +188,47 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     @Override
     public Observable<ConnectionStateModel.State> connectionStateObservable() {
-        return marketDataStreamService.subscribeConnectionState();
+        return subscriptionStream.subscribeConnectionState();
     }
 
     @Override
     public Observable<Throwable> reconnectFailure() {
-        return marketDataStreamService.subscribeReconnectFailure();
+        return subscriptionStream.subscribeReconnectFailure();
     }
 
     @Override
     public Observable<Object> connectionSuccess() {
-        return marketDataStreamService.subscribeConnectionSuccess();
+        return subscriptionStream.subscribeConnectionSuccess();
     }
 
     @Override
     public Completable connect(ProductSubscription... args) {
-        return marketDataStreamService.connect();
+        return subscriptionStream.connect();
     }
 
     @Override
     public Completable disconnect() {
-        return marketDataStreamService.disconnect();
+        return Completable.concatArray(subscriptionStream.disconnect(), requestResponseStream.disconnect());
     }
 
     @Override
     public boolean isAlive() {
-        return marketDataStreamService.isSocketOpen();
+        return subscriptionStream.isSocketOpen() && requestResponseStream.isSocketOpen();
     }
 
     @Override
     public void useCompressedMessages(boolean compressedMessages) {
-        marketDataStreamService.useCompressedMessages(compressedMessages);
+        subscriptionStream.useCompressedMessages(compressedMessages);
     }
 
-    public Pair<BigDecimal, BigDecimal> getMarketPrice(Long productId) {
+    public TopOfBookPrice getMarketPrice(Long productId) {
         return marketPrices.get(productId);
     }
 
     /**
      * size and price increments for a product
-     *
-     * @param productId
-     * @return
      */
-    public Pair<BigDecimal, BigDecimal> getIncrements(Long productId) {
+    public InstrumentDefinition getIncrements(Long productId) {
         return increments.get(productId);
     }
 }

@@ -1,5 +1,10 @@
 package com.knowm.xchange.vertex.dto;
 
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@ToString
 public class VertexOrder {
 
     private final String sender;
@@ -16,23 +21,4 @@ public class VertexOrder {
         this.nonce = nonce;
     }
 
-    public String getSender() {
-        return sender;
-    }
-
-    public String getPriceX18() {
-        return priceX18;
-    }
-
-    public String getAmount() {
-        return amount;
-    }
-
-    public String getExpiration() {
-        return expiration;
-    }
-
-    public String getNonce() {
-        return nonce;
-    }
 }

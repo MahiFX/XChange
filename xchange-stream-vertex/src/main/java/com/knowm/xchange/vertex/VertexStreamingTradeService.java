@@ -1,6 +1,7 @@
 package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
@@ -10,7 +11,6 @@ import com.knowm.xchange.vertex.signing.schemas.PlaceOrderSchema;
 import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.disposables.Disposable;
-import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
@@ -29,6 +29,7 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,7 +40,7 @@ import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
-    public static final double MAX_SLIPPAGE_RATIO = 0.005;
+    public static final double DEFAULT_MAX_SLIPPAGE_RATIO = 0.005;
     private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
     private final VertexStreamingService streamingService;
@@ -51,6 +52,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private final String bookContract;
     private final VertexStreamingExchange exchange;
     private final String endpointContract;
+    private final double slippage;
 
     public VertexStreamingTradeService(VertexStreamingService streamingService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange, String endpointContract) {
         this.streamingService = streamingService;
@@ -61,6 +63,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.endpointContract = endpointContract;
         this.exchange = exchange;
         this.mapper = StreamingObjectMapperHelper.getObjectMapper();
+        this.slippage = exchangeSpecification.getExchangeSpecificParametersItem("maxSlippageRatio") != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem("maxSlippageRatio").toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
     }
 
     @Override
@@ -74,7 +77,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     @Override
     public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
 
-        long productId = productInfo.lookupProductId(marketOrder.getCurrencyPair());
+        long productId = productInfo.lookupProductId(marketOrder.getInstrument());
 
         BigDecimal price = getPrice(marketOrder, productId);
 
@@ -83,24 +86,23 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     private String placeOrder(Order marketOrder, BigDecimal price) throws JsonProcessingException {
 
+        long productId = productInfo.lookupProductId(marketOrder.getInstrument());
 
         BigInteger expiration = getExpiration(marketOrder.getOrderFlags(), Instant.now().plus(10, ChronoUnit.SECONDS));
 
-        long productId = productInfo.lookupProductId(marketOrder.getCurrencyPair());
-
-        Pair<BigDecimal, BigDecimal> increments = exchange.getIncrements(productId);
-        BigDecimal priceIncrement = increments.getRight();
+        InstrumentDefinition increments = exchange.getIncrements(productId);
+        BigDecimal priceIncrement = increments.getPriceIncrement();
         price = roundToIncrement(price, priceIncrement);
+        BigInteger priceAsInt = convertToInteger(price);
 
         BigDecimal quantity = getQuantity(marketOrder);
-        BigDecimal quantityIncrement = increments.getLeft();
+        BigDecimal quantityIncrement = increments.getQuantityIncrement();
         if (quantity.abs().compareTo(quantityIncrement) < 0) {
             throw new IllegalArgumentException("Quantity must be greater than increment");
         }
         quantity = roundToIncrement(quantity, quantityIncrement);
-
         BigInteger quantityAsInt = convertToInteger(quantity);
-        BigInteger priceAsInt = convertToInteger(price);
+
 
         String subAccount = exchangeSpecification.getUserName();
         String nonce = buildNonce(60000);
@@ -123,15 +125,19 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         ));
 
 
-        sendWebsocketMessage(orderMessage);
+        Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
+        if (sendError.isPresent()) {
+            throw new RuntimeException("Failed to place order : " + orderMessage, sendError.get());
+        }
+        ;
 
         return signatureAndDigest.getDigest();
     }
 
-    private boolean sendWebsocketMessage(Object messageObj) throws JsonProcessingException {
+    private Optional<Throwable> sendWebsocketMessage(VertexRequest messageObj) throws JsonProcessingException {
 
         streamingService.connect().blockingAwait();
-        CountDownLatch readyLatch = new CountDownLatch(1);
+        CountDownLatch replyLatch = new CountDownLatch(1);
         AtomicReference<Throwable> errorHolder = new AtomicReference<>();
         Disposable respSub = streamingService.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
             if (resp.get("status").asText().equals("success")) {
@@ -140,26 +146,28 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 logger.error("Received error: {}", resp);
                 errorHolder.set(new RuntimeException("Websocket message error: " + resp.get("error").asText()));
             }
-            readyLatch.countDown();
+            JsonNode respSignature = resp.get("signature");
+            if (respSignature == null || messageObj.getSignature().equals(respSignature.asText())) {
+                replyLatch.countDown();
+            }
         });
         String message = mapper.writeValueAsString(messageObj);
         logger.info("Sending order: {}", message);
         try {
             streamingService.sendMessage(message);
 
-            if (!readyLatch.await(2000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+            if (!replyLatch.await(5000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Timed out waiting for response");
             }
             if (errorHolder.get() != null) {
-                return false;
-            } else {
-                return true;
+                return Optional.of(errorHolder.get());
             }
         } catch (InterruptedException ignored) {
         } finally {
             respSub.dispose();
         }
-        return false;
+        return Optional.empty();
+
     }
 
     private BigInteger getExpiration(Set<Order.IOrderFlags> orderFlags, Instant expiryTime) {
@@ -185,16 +193,16 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         if (order instanceof LimitOrder) {
             price = ((LimitOrder) order).getLimitPrice();
         } else {
-            Pair<BigDecimal, BigDecimal> bidOffer = exchange.getMarketPrice(productId);
+            TopOfBookPrice bidOffer = exchange.getMarketPrice(productId);
             boolean isSell = order.getType().equals(Order.OrderType.ASK);
             if (isSell) {
-                BigDecimal bid = bidOffer.getLeft();
+                BigDecimal bid = bidOffer.getBid();
                 // subtract max slippage from bid
-                price = bid.subtract(bid.multiply(BigDecimal.valueOf(MAX_SLIPPAGE_RATIO)));
+                price = bid.subtract(bid.multiply(BigDecimal.valueOf(slippage)));
             } else {
-                BigDecimal offer = bidOffer.getLeft();
+                BigDecimal offer = bidOffer.getOffer();
                 // add max slippage to offer
-                price = offer.add(offer.multiply(BigDecimal.valueOf(MAX_SLIPPAGE_RATIO)));
+                price = offer.add(offer.multiply(BigDecimal.valueOf(slippage)));
             }
         }
         return price;
@@ -227,7 +235,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             ));
 
 
-            return sendWebsocketMessage(orderMessage);
+            Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
+            sendError.ifPresent(throwable -> logger.error("Failed to cancel order " + orderMessage, throwable));
+            return sendError.isEmpty();
 
         } else {
             throw new IOException(
@@ -246,7 +256,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     public static BigDecimal roundToIncrement(BigDecimal value, BigDecimal increment) {
-        if (increment.equals(0)) return value;
+        if (increment.equals(BigDecimal.ZERO)) return value;
         BigDecimal divided = value.divide(increment, 0, RoundingMode.FLOOR);
         return divided.multiply(increment);
     }
