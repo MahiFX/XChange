@@ -8,10 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.knowm.xchange.vertex.dto.PriceAndQuantity;
-import com.knowm.xchange.vertex.dto.VertexMarketDataUpdateMessage;
-import com.knowm.xchange.vertex.dto.VertexOrderBookStream;
-import com.knowm.xchange.vertex.dto.VertexTradeData;
+import com.knowm.xchange.vertex.dto.*;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
@@ -20,12 +17,15 @@ import io.reactivex.schedulers.Schedulers;
 import lombok.Getter;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.instrument.Instrument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,6 +45,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
     private final VertexStreamingService subscriptionStream;
 
     private final Map<Instrument, Observable<VertexMarketDataUpdateMessage>> orderBooksStreams = new ConcurrentHashMap<>();
+    private final Map<Instrument, Observable<Ticker>> tickerStreams = new ConcurrentHashMap<>();
 
     private final Map<Instrument, Observable<Trade>> tradeSubscriptions = new ConcurrentHashMap<>();
 
@@ -63,6 +64,55 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
         mapper.enable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS);
         mapper.registerModule(new JavaTimeModule());
         PRICE_LIST_TYPE = mapper.constructType(PRICE_LIST_TYPE_REF.getType());
+    }
+
+    @Override
+    public Observable<Ticker> getTicker(Instrument instrument, Object... args) {
+        Observable<Ticker> cachedStream = tickerStreams.computeIfAbsent(
+                instrument,
+                newInstrument -> {
+                    logger.info("Subscribing to ticket for " + newInstrument);
+
+                    String channelName = "best_bid_offer." + productInfo.lookupProductId(newInstrument);
+
+                    return subscriptionStream.subscribeChannel(channelName)
+                            .map(jsonNode -> {
+                                VertexBestBidOfferMessage vertexBestBidOfferMessage = mapper.treeToValue(jsonNode, VertexBestBidOfferMessage.class);
+                                BigDecimal bid = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_price());
+                                BigDecimal ask = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_price());
+                                BigDecimal bidQty = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_qty());
+                                BigDecimal askQty = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_qty());
+
+                                long trigger = vertexBestBidOfferMessage.getTimestamp().toEpochMilli();
+                                long transact = Instant.now().toEpochMilli();
+                                long latency = transact - trigger;
+                                if (latency > 50) {
+                                    logger.warn("High latency " + latency);
+                                }
+                                return new Ticker.Builder()
+                                        .instrument(newInstrument)
+                                        .bid(bid)
+                                        .ask(ask)
+                                        .bidSize(bidQty)
+                                        .askSize(askQty)
+                                        .timestamp(new Date(trigger))
+                                        .creationTimestamp(new Date(transact))
+                                        .build();
+
+
+                            }).doOnDispose(() -> {
+                                logger.info("Unsubscribing from ticker for " + newInstrument);
+                                tickerStreams.remove(newInstrument);
+                            });
+                });
+
+        return cachedStream.share();
+    }
+
+    @Override
+    public Observable<Ticker> getTicker(CurrencyPair currencyPair, Object... args) {
+        Instrument inst = currencyPair;
+        return this.getTicker(inst, args);
     }
 
     @Override

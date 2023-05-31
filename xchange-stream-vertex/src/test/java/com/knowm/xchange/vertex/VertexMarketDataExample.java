@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class VertexMarketDataExample {
 
     private static final Logger logger = LoggerFactory.getLogger(VertexMarketDataExample.class);
+    public static final String BTC_USDC = "wBTC-USDC";
 
     public static void main(String[] args) throws InterruptedException {
         ExchangeSpecification exchangeSpecification = new ExchangeSpecification(VertexStreamingExchange.class);
@@ -31,8 +32,13 @@ public class VertexMarketDataExample {
 
         exchange.connect().blockingAwait();
 
-        Disposable disconnectBtcTOB = subscribe(exchange.getStreamingMarketDataService(), "wBTC-USDC", 1);
-        Disposable disconnectBtc15 = subscribe(exchange.getStreamingMarketDataService(), "wBTC-USDC", 15);
+        Disposable ticker = exchange.getStreamingMarketDataService().getTicker(new CurrencyPair(BTC_USDC))
+                .forEach(tick -> {
+                    logger.info(BTC_USDC + " TOB: " + tick);
+                });
+
+        Disposable disconnectBtcTOB = subscribe(exchange.getStreamingMarketDataService(), BTC_USDC, 1);
+        Disposable disconnectBtc15 = subscribe(exchange.getStreamingMarketDataService(), BTC_USDC, 15);
 
         Disposable disconnectEth = subscribe(exchange.getStreamingMarketDataService(), "wETH-USDC", 2);
 
@@ -49,6 +55,8 @@ public class VertexMarketDataExample {
         Thread.sleep(10000);
 
         disconnectBtcTOB.dispose();
+
+        ticker.dispose();
 
         exchange.disconnect().blockingAwait();
 

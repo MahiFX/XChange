@@ -6,7 +6,6 @@ import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
-import info.bitrich.xchangestream.service.netty.NettyStreamingService;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
@@ -77,11 +76,12 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         return exchangeSpecification;
     }
 
-    @Override
-    public void applyStreamingSpecification(ExchangeSpecification exchangeSpec, NettyStreamingService<?> streamingService) {
-        StreamingExchange.super.applyStreamingSpecification(exchangeSpec, streamingService);
-        this.useTestnet = !Boolean.FALSE.equals(exchangeSpec.getExchangeSpecificParametersItem(USE_SANDBOX));
+
+    public void applySpecification(ExchangeSpecification exchangeSpecification) {
+        this.useTestnet = !Boolean.FALSE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX));
+        super.applySpecification(exchangeSpecification);
     }
+
 
     @Override
     public void remoteInit() throws ExchangeException {
