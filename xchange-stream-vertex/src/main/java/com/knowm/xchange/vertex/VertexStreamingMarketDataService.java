@@ -83,20 +83,14 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                                 BigDecimal bidQty = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_qty());
                                 BigDecimal askQty = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_qty());
 
-                                long trigger = vertexBestBidOfferMessage.getTimestamp().toEpochMilli();
-                                long transact = Instant.now().toEpochMilli();
-                                long latency = transact - trigger;
-                                if (latency > 50) {
-                                    logger.warn("High latency " + latency);
-                                }
                                 return new Ticker.Builder()
                                         .instrument(newInstrument)
                                         .bid(bid)
                                         .ask(ask)
                                         .bidSize(bidQty)
                                         .askSize(askQty)
-                                        .timestamp(new Date(trigger))
-                                        .creationTimestamp(new Date(transact))
+                                        .timestamp(new Date(vertexBestBidOfferMessage.getTimestamp().toEpochMilli()))
+                                        .creationTimestamp(new Date(Instant.now().toEpochMilli()))
                                         .build();
 
 
