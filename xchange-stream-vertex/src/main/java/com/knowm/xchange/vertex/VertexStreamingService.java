@@ -2,19 +2,26 @@ package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
+import io.reactivex.Completable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class VertexStreamingService extends JsonNettyStreamingService {
 
+    private static final Logger logger = LoggerFactory.getLogger(VertexStreamingService.class);
+
     //Channel to use to subscribe to all response
     public static final String ALL_MESSAGES = "all_messages";
 
     private final AtomicLong reqCounter = new AtomicLong(1);
+    private final String apiUrl;
 
     public VertexStreamingService(String apiUrl) {
         super(apiUrl);
+        this.apiUrl = apiUrl;
     }
 
     @Override
@@ -73,5 +80,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
     public void sendSubscribeMessage(String channel) {
         sendMessage(getSubscribeMessage(channel));
+    }
+
+    @Override
+    public Completable disconnect() {
+        logger.info("Disconnecting " + apiUrl);
+        return super.disconnect();
     }
 }

@@ -66,8 +66,7 @@ public class VertexOrderExample {
         buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);
         tradeService.placeMarketOrder(buy);
 
-        tradeService.disconnect();
-
+        exchange.disconnect().blockingAwait();
 
     }
 }
