@@ -19,6 +19,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -47,7 +48,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     private VertexStreamingService requestResponseStream;
     private VertexProductInfo productInfo;
 
-    private final Map<Long, TopOfBookPrice> marketPrices = new HashMap<>();
+    private final Map<Long, TopOfBookPrice> marketPrices = new ConcurrentHashMap<>();
     private final Map<Long, InstrumentDefinition> increments = new HashMap<>();
 
 
@@ -89,7 +90,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         requestResponseStream.connect().blockingAwait();
 
         ArrayList<Query> queries = new ArrayList<>();
-
+        logger.info("Loading contract data and current prices");
         queries.add(new Query("{\"type\":\"contracts\"}",
                 data1 -> {
                     chainId = Long.parseLong(data1.get("chain_id").asText());
@@ -139,10 +140,12 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
                 JsonNode data = resp.get("data");
                 if (data != null) {
                     query.getRespHandler().accept(data);
+                    logger.info("Query response " + data.toPrettyString());
                 }
                 responseLatch.countDown();
             }, (err) -> logger.error("Query error running " + query.getQueryMsg(), err));
             try {
+                logger.info("Sending query " + query.getQueryMsg());
                 requestResponseStream.sendMessage(query.getQueryMsg());
                 if (!responseLatch.await(10, TimeUnit.SECONDS)) {
                     throw new RuntimeException("Timed out waiting for response for " + query.getQueryMsg());
@@ -179,7 +182,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     @Override
     public VertexStreamingTradeService getStreamingTradeService() {
         if (this.streamingTradeService == null) {
-            this.streamingTradeService = new VertexStreamingTradeService(requestResponseStream, getExchangeSpecification(), productInfo, chainId, bookContract, this, endpointContract);
+            this.streamingTradeService = new VertexStreamingTradeService(requestResponseStream, getExchangeSpecification(), productInfo, chainId, bookContract, this, endpointContract, getStreamingMarketDataService());
         }
         return streamingTradeService;
     }
@@ -206,7 +209,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     @Override
     public Completable connect(ProductSubscription... args) {
-        return subscriptionStream.connect();
+        return Completable.concatArray(subscriptionStream.connect(), requestResponseStream.connect());
     }
 
     @Override
@@ -227,6 +230,11 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     public TopOfBookPrice getMarketPrice(Long productId) {
         return marketPrices.get(productId);
     }
+
+    public void setMarketPrice(Long productId, TopOfBookPrice price) {
+        marketPrices.put(productId, price);
+    }
+
 
     /**
      * size and price increments for a product

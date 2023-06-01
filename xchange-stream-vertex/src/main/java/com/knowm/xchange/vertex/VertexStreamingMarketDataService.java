@@ -71,9 +71,13 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
         Observable<Ticker> cachedStream = tickerStreams.computeIfAbsent(
                 instrument,
                 newInstrument -> {
-                    logger.info("Subscribing to ticket for " + newInstrument);
 
-                    String channelName = "best_bid_offer." + productInfo.lookupProductId(newInstrument);
+                    subscriptionStream.connect().blockingAwait();
+
+                    logger.info("Subscribing to ticker for " + newInstrument);
+
+                    long productId = productInfo.lookupProductId(newInstrument);
+                    String channelName = "best_bid_offer." + productId;
 
                     return subscriptionStream.subscribeChannel(channelName)
                             .map(jsonNode -> {
@@ -82,6 +86,8 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                                 BigDecimal ask = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_price());
                                 BigDecimal bidQty = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_qty());
                                 BigDecimal askQty = VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_qty());
+
+                                exchange.setMarketPrice(productId, new TopOfBookPrice(bid, ask));
 
                                 return new Ticker.Builder()
                                         .instrument(newInstrument)
@@ -133,6 +139,8 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                 instrument,
                 newInstrument -> {
                     logger.info("Subscribing to orderBook for " + newInstrument);
+
+                    subscriptionStream.connect().blockingAwait();
 
                     String channelName = "book_depth." + productInfo.lookupProductId(newInstrument);
 

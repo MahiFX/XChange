@@ -8,12 +8,15 @@ import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
 import com.knowm.xchange.vertex.signing.schemas.PlaceOrderSchema;
+import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.service.trade.TradeService;
@@ -32,6 +35,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -45,6 +49,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     public static final double DEFAULT_MAX_SLIPPAGE_RATIO = 0.005;
     private static final boolean DEFAULT_USE_LEVERAGE = false;
+    public static final Consumer<Ticker> NO_OP = ticker -> {
+    };
     private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
     private final VertexStreamingService orderStreamService;
@@ -58,11 +64,13 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private final String endpointContract;
     private final double slippage;
     private final boolean useLeverage;
-    private final Map<String, CountDownLatch> responseLatches = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, CountDownLatch> responseLatches = new ConcurrentHashMap<>();
+    private final Map<Long, Disposable> tickerSubscriptions = new ConcurrentHashMap<>();
     private final Disposable allMessageSubscription;
     private final AtomicReference<Throwable> errorHolder = new AtomicReference<>();
+    private final StreamingMarketDataService marketDataService;
 
-    public VertexStreamingTradeService(VertexStreamingService orderStreamService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange, String endpointContract) {
+    public VertexStreamingTradeService(VertexStreamingService orderStreamService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService) {
         this.orderStreamService = orderStreamService;
         this.exchangeSpecification = exchangeSpecification;
         this.productInfo = productInfo;
@@ -70,6 +78,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.bookContract = bookContract;
         this.endpointContract = endpointContract;
         this.exchange = exchange;
+        this.marketDataService = marketDataService;
         this.mapper = StreamingObjectMapperHelper.getObjectMapper();
         this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO).toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
         this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
@@ -88,10 +97,12 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 replyLatch.countDown();
             }
         });
+
     }
 
     public void disconnect() {
         allMessageSubscription.dispose();
+        tickerSubscriptions.values().stream().filter(Disposable::isDisposed).forEach(Disposable::dispose);
         orderStreamService.disconnect().blockingAwait();
     }
 
@@ -208,6 +219,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         if (order instanceof LimitOrder) {
             price = ((LimitOrder) order).getLimitPrice();
         } else {
+            // Make sure we have a subscription to the ticker for market prices
+            tickerSubscriptions.computeIfAbsent(productId, id -> marketDataService.getTicker(order.getInstrument()).forEach(NO_OP));
             TopOfBookPrice bidOffer = exchange.getMarketPrice(productId);
             boolean isSell = order.getType().equals(Order.OrderType.ASK);
             if (isSell) {
