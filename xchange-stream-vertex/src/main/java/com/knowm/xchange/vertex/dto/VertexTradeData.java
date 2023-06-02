@@ -11,6 +11,7 @@ import org.knowm.xchange.instrument.Instrument;
 
 import java.math.BigInteger;
 import java.time.Instant;
+import java.util.Date;
 
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
 
@@ -43,6 +44,7 @@ public class VertexTradeData {
     public Trade toTrade(Instrument currencyPair) {
         Trade.Builder builder = new Trade.Builder()
                 .instrument(currencyPair)
+                .timestamp(new Date(timestamp.toEpochMilli()))
                 .price(convertToDecimal(price))
                 .originalAmount(convertToDecimal(takerQty))
                 .type(isTakerBuyer ? Order.OrderType.BID : Order.OrderType.ASK);
