@@ -36,6 +36,8 @@ public class VertexOrderExample {
 
         VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
+        exchange.connect().blockingAwait();
+
         VertexStreamingTradeService tradeService = exchange.getStreamingTradeService();
 
         CurrencyPair btc = new CurrencyPair("wBTC-USDC");

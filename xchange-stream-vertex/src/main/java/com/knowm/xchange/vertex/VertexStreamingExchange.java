@@ -87,8 +87,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     @Override
     public void remoteInit() throws ExchangeException {
 
-        requestResponseStream.connect().blockingAwait();
-
         ArrayList<Query> queries = new ArrayList<>();
         logger.info("Loading contract data and current prices");
         queries.add(new Query("{\"type\":\"contracts\"}",

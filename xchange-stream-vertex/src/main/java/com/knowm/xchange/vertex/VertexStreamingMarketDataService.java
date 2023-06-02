@@ -72,8 +72,6 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                 instrument,
                 newInstrument -> {
 
-                    subscriptionStream.connect().blockingAwait();
-
                     logger.info("Subscribing to ticker for " + newInstrument);
 
                     long productId = productInfo.lookupProductId(newInstrument);
@@ -139,8 +137,6 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                 instrument,
                 newInstrument -> {
                     logger.info("Subscribing to orderBook for " + newInstrument);
-
-                    subscriptionStream.connect().blockingAwait();
 
                     String channelName = "book_depth." + productInfo.lookupProductId(newInstrument);
 

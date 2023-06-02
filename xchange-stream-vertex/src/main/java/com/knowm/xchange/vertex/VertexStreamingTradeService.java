@@ -83,7 +83,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO).toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
         this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
 
-        orderStreamService.connect().blockingAwait();
         this.allMessageSubscription = orderStreamService.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
             if (resp.get("status").asText().equals("success")) {
                 logger.info("Received response: {}", resp);
