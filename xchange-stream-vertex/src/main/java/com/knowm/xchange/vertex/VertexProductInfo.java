@@ -8,11 +8,15 @@ public class VertexProductInfo {
     long lookupProductId(Instrument currencyPair) {
         switch (currencyPair.toString().toUpperCase()) {
             case "WBTC/USDC":
+            case "WBTC-USDC":
                 return 1;
+            case "BTC/PERP":
             case "BTC-PERP":
                 return 2;
             case "WETH/USDC":
+            case "WETH-USDC":
                 return 3;
+            case "ETH/PERP":
             case "ETH-PERP":
                 return 4;
             default:
