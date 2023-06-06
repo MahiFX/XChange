@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
@@ -102,7 +103,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     public void disconnect() {
         allMessageSubscription.dispose();
         tickerSubscriptions.values().stream().filter(Disposable::isDisposed).forEach(Disposable::dispose);
-        orderStreamService.disconnect().blockingAwait();
+        if (orderStreamService.isSocketOpen()) {
+            if (!orderStreamService.disconnect().blockingAwait(10, TimeUnit.SECONDS)) {
+                throw new RuntimeException("Timeout waiting for disconnect");
+            }
+        }
     }
 
     @Override

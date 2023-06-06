@@ -6,7 +6,6 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
 import lombok.Getter;
-import lombok.ToString;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.trade.LimitOrder;
@@ -21,7 +20,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 @Getter
-@ToString
 public class VertexOrderBookStream extends Observable<OrderBook> implements Consumer<VertexMarketDataUpdateMessage> {
     private static final Logger logger = LoggerFactory.getLogger(VertexOrderBookStream.class);
 
@@ -81,12 +79,11 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
 
                 if (quantityAsInt.equals(BigInteger.ZERO)) {
                     mapForInsert.remove(price);
-                    break;
                 } else {
                     LimitOrder exising = mapForInsert.get(price);
                     BigDecimal quantity = VertexModelUtils.convertToDecimal(quantityAsInt);
                     if (exising != null && exising.getOriginalAmount().equals(quantity)) {
-                        break;
+                        continue;
                     }
                     LimitOrder limitOrder = getLimitOrder(type, instrument, timestamp, price, quantity);
                     mapForInsert.put(price, limitOrder);
@@ -121,7 +118,7 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
     }
 
     private void handleSnapshot(VertexMarketDataUpdateMessage updateMessage) {
-        logger.info("Received snapshot for: {}. Clearing order book and repopulating.", instrument);
+        logger.info("{} - depth {}: Received snapshot, clearing order book and repopulating.", instrument, maxDepth);
         processSnapshotOrders(updateMessage.getBids(), bidPriceToBidQuantity, Order.OrderType.BID, updateMessage.getMaxTime());
         processSnapshotOrders(updateMessage.getAsks(), offerPriceToOfferQuantity, Order.OrderType.ASK, updateMessage.getMaxTime());
     }
@@ -143,5 +140,13 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
                 bids,
                 false
         );
+    }
+
+    @Override
+    public String toString() {
+        return "VertexOrderBookStream{" +
+                "instrument=" + instrument +
+                ", maxDepth=" + maxDepth +
+                '}';
     }
 }

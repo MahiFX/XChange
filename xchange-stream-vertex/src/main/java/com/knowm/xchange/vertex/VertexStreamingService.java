@@ -84,7 +84,12 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
     @Override
     public Completable disconnect() {
-        logger.info("Disconnecting " + apiUrl);
-        return super.disconnect();
+        if (isSocketOpen()) {
+            logger.info("Disconnecting " + apiUrl);
+            return super.disconnect();
+        } else {
+            logger.info("Already disconnected " + apiUrl);
+            return Completable.complete();
+        }
     }
 }

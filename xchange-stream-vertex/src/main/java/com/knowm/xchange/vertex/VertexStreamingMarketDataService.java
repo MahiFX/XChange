@@ -13,8 +13,9 @@ import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.schedulers.Schedulers;
-import lombok.Getter;
+import io.reactivex.functions.Consumer;
+import io.reactivex.subjects.PublishSubject;
+import io.reactivex.subjects.Subject;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Ticker;
@@ -30,8 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -44,7 +43,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
     private final VertexStreamingService subscriptionStream;
 
-    private final Map<Instrument, Observable<VertexMarketDataUpdateMessage>> orderBooksStreams = new ConcurrentHashMap<>();
+    private final Map<Instrument, StreamHolder> orderBooksStreams = new ConcurrentHashMap<>();
     private final Map<Instrument, Observable<Ticker>> tickerStreams = new ConcurrentHashMap<>();
 
     private final Map<Instrument, Observable<Trade>> tradeSubscriptions = new ConcurrentHashMap<>();
@@ -131,21 +130,16 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
         long productId = productInfo.lookupProductId(instrument);
 
-        OrderBookSubscription sub = new OrderBookSubscription(instrument, maxDepth);
-
-        Observable<VertexMarketDataUpdateMessage> cachedStream = orderBooksStreams.computeIfAbsent(
+        StreamHolder cachedInstrumentStream = orderBooksStreams.computeIfAbsent(
                 instrument,
                 newInstrument -> {
                     logger.info("Subscribing to orderBook for " + newInstrument);
 
                     String channelName = "book_depth." + productInfo.lookupProductId(newInstrument);
 
-                    Observable<VertexMarketDataUpdateMessage> marketDataUpdates = subscriptionStream.subscribeChannel(channelName)
-                            .map(json -> {
-                                VertexMarketDataUpdateMessage marketDataUpdate = mapper.treeToValue(json, VertexMarketDataUpdateMessage.class);
+                    AtomicReference<Instant> snapshotTimeHolder = new AtomicReference<>();
 
-                                return Objects.requireNonNullElse(marketDataUpdate, VertexMarketDataUpdateMessage.EMPTY);
-                            });
+                    Subject<VertexMarketDataUpdateMessage> snapshots = PublishSubject.<VertexMarketDataUpdateMessage>create().toSerialized();
 
                     Observable<VertexMarketDataUpdateMessage> clearOnDisconnect = subscriptionStream.subscribeDisconnect()
                             .map(o -> {
@@ -156,77 +150,79 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
                     AtomicReference<Instant> lastChangeId = new AtomicReference<>(null);
 
+                    Observable<VertexMarketDataUpdateMessage> marketDataUpdates = subscriptionStream.subscribeChannel(channelName)
+                            .map(json -> {
+                                VertexMarketDataUpdateMessage marketDataUpdate = mapper.treeToValue(json, VertexMarketDataUpdateMessage.class);
 
-                    Observable<VertexMarketDataUpdateMessage> reconnectOnIdSkip = marketDataUpdates.filter(update -> {
+                                return Objects.requireNonNullElse(marketDataUpdate, VertexMarketDataUpdateMessage.EMPTY);
+                            }).filter(update -> {
+                                //Subscribe to updates but drop until snapshot reply - there is still a chance we could miss a message but not much we can do about that
+                                Instant snapshotTime = snapshotTimeHolder.get();
+                                if (snapshotTime == null || update.getMaxTime().isAfter(snapshotTime)) {
+                                    if (snapshotTime != null) {
+                                        snapshotTimeHolder.set(null);
+                                    }
+                                    return true;
+                                }
+                                return false;
+                            });
+
+                    Observable<VertexMarketDataUpdateMessage> updatesWithMissedMsgFilter = marketDataUpdates.filter(update -> {
                         if (lastChangeId.get() == null || update.getLastMaxTime() == null) {
                             lastChangeId.set(update.getMaxTime());
                         } else {
                             // compareAndSet relies on instance equality thanks to cache in NanoSecondsDeserializer
                             if (!lastChangeId.compareAndSet(update.getLastMaxTime(), update.getMaxTime())) {
                                 if (!lastChangeId.get().equals(update.getLastMaxTime())) {
-                                    logger.error("Unexpected gap in timestamps for {} {} != {}. Resubscribing...", sub.getInstrument(), lastChangeId.get(), update.getLastMaxTime());
-                                    return true;
+                                    logger.error("Unexpected gap in timestamps for {} {} != {}. Re-snapshot...", instrument, lastChangeId.get(), update.getLastMaxTime());
+                                    requestSnapshot(productId, snapshotTimeHolder, snapshots);
+                                    return false;
 
                                 } else {
                                     lastChangeId.set(update.getMaxTime());
                                 }
                             }
                         }
-                        return false;
-                    }).observeOn(Schedulers.io()).map(badUpdate -> {
-                        subscriptionStream.sendUnsubscribeMessage(channelName);
-                        CountDownLatch latch = new CountDownLatch(1);
-                        AtomicReference<VertexMarketDataUpdateMessage> snapshotHolder = new AtomicReference<>();
-                        exchange.submitQueries(new Query(snapshotQuery(maxDepth, productId), (data) -> {
-                            subscriptionStream.sendSubscribeMessage(channelName);
-                            VertexMarketDataUpdateMessage snapshot = buildSnapshotFromQueryResponse(productId, data);
-                            snapshotHolder.set(snapshot);
-                            latch.countDown();
-                        }));
-                        if (!latch.await(10, TimeUnit.SECONDS)) {
-                            throw new RuntimeException("Timed out waiting for snapshot");
-                        }
-                        return snapshotHolder.get();
+                        return true;
                     });
 
-                    return Observable.merge(
-                                    marketDataUpdates,
-                                    clearOnDisconnect,
-                                    reconnectOnIdSkip
+                    Consumer<Disposable> triggerSnapshot = (d) -> {
+                        requestSnapshot(productId, snapshotTimeHolder, snapshots);
+                    };
+                    Observable<VertexMarketDataUpdateMessage> stream = Observable.merge(
+                                    snapshots,
+                                    updatesWithMissedMsgFilter,
+                                    clearOnDisconnect
                             )
+                            .doOnDispose(() -> logger.info("Subscription to " + newInstrument + " stopped"))
                             .share();
+                    return new StreamHolder(stream, triggerSnapshot);
+
                 }
         );
 
 
         VertexOrderBookStream instrumentAndDepthStream = new VertexOrderBookStream(instrument, maxDepth);
 
-        AtomicReference<Instant> snapshotTimeHolder = new AtomicReference<>();
+        Disposable instrumentStream = cachedInstrumentStream.getStream()
+                .subscribe(instrumentAndDepthStream);
 
-        //Subscribe to updates but drop until snapshot reply - there is still a chance we could miss a message but not much we can do about that
-        Disposable instrumentStream = cachedStream.subscribe(update -> {
-            Instant snapshotTime = snapshotTimeHolder.get();
-            if (snapshotTime == null || update.getMaxTime().isAfter(snapshotTime)) {
-                if (snapshotTime != null) {
-                    snapshotTimeHolder.set(null);
-                }
-                instrumentAndDepthStream.accept(update);
-            }
+        return instrumentAndDepthStream
+                .doOnSubscribe(cachedInstrumentStream.triggerSnapshot)
+                .doOnDispose(instrumentStream::dispose);
 
-        }, t -> {
-            throw new RuntimeException(t);
-        });
+    }
 
-
+    private void requestSnapshot(long productId, AtomicReference<Instant> snapshotTimeHolder, Subject<VertexMarketDataUpdateMessage> snapshots) {
+        snapshotTimeHolder.set(Instant.MAX); // Block all updates while we request a snapshot
         // Request snapshot for new subscriber
-        exchange.submitQueries(new Query(snapshotQuery(maxDepth, productId), (data) -> {
+        logger.info("Requesting snapshot for product " + productId);
+        exchange.submitQueries(new Query(snapshotQuery(DEFAULT_DEPTH, productId), (data) -> {
             VertexMarketDataUpdateMessage snapshot = buildSnapshotFromQueryResponse(productId, data);
             snapshotTimeHolder.set(snapshot.getMaxTime());
-            instrumentAndDepthStream.accept(snapshot);
+            snapshots.onNext(snapshot);
+            logger.info("Snapshot for product " + productId + " " + snapshot);
         }));
-
-
-        return instrumentAndDepthStream.doOnDispose(instrumentStream::dispose);
     }
 
     private VertexMarketDataUpdateMessage buildSnapshotFromQueryResponse(long productId, JsonNode data) {
@@ -274,18 +270,22 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                 }).share();
     }
 
-    @Getter
-    private class OrderBookSubscription {
-        private final Instrument instrument;
-        private final int maxDepth;
-        private final long productId;
 
-        public OrderBookSubscription(Instrument instrument, int maxDepth) {
-            this.instrument = instrument;
-            this.maxDepth = maxDepth;
-            this.productId = productInfo.lookupProductId(instrument);
+    private class StreamHolder {
+        private final Observable<VertexMarketDataUpdateMessage> stream;
+        private final Consumer<Disposable> triggerSnapshot;
+
+        public StreamHolder(Observable<VertexMarketDataUpdateMessage> stream, Consumer<Disposable> triggerSnapshot) {
+            this.stream = stream;
+            this.triggerSnapshot = triggerSnapshot;
+        }
+
+        public Observable<VertexMarketDataUpdateMessage> getStream() {
+            return stream;
+        }
+
+        public Consumer<Disposable> getTriggerSnapshot() {
+            return triggerSnapshot;
         }
     }
-
-
 }
