@@ -24,7 +24,7 @@ public class CancelOrdersSchema extends EIP712Schema {
 }
      */
 
-    public CancelOrdersSchema(EIP712Domain domain, Map<String, Object> message) {
+    private CancelOrdersSchema(EIP712Domain domain, Map<String, Object> message) {
         super(of("Cancellation", List.of(
                         new EIP712Type("sender", "bytes32"),
                         new EIP712Type("productIds", "uint32[]"),

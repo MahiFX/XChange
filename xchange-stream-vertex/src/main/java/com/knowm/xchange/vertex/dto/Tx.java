@@ -1,5 +1,6 @@
 package com.knowm.xchange.vertex.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.ToString;
@@ -20,4 +21,13 @@ public class Tx {
         this.nonce = nonce;
     }
 
+    @JsonInclude()
+    public long[] getProductIds() {
+        return productIds;
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public String[] getDigests() {
+        return digests;
+    }
 }

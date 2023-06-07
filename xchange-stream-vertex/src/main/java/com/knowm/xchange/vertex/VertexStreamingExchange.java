@@ -51,6 +51,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     private final Map<Long, TopOfBookPrice> marketPrices = new ConcurrentHashMap<>();
     private final Map<Long, InstrumentDefinition> increments = new HashMap<>();
+    private Observable<JsonNode> allMessages;
 
 
     private VertexStreamingService createStreamingService(String suffix, String wallet) {
@@ -139,7 +140,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     public synchronized void submitQueries(Query... queries) {
 
-        Observable<JsonNode> stream = requestResponseStream.subscribeChannel(ALL_MESSAGES);
+        Observable<JsonNode> stream = subscribeToAllMessages();
 
         for (Query query : queries) {
             CountDownLatch responseLatch = new CountDownLatch(1);
@@ -165,6 +166,13 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         }
 
 
+    }
+
+    public Observable<JsonNode> subscribeToAllMessages() {
+        if (allMessages == null) {
+            allMessages = requestResponseStream.subscribeChannel(ALL_MESSAGES);
+        }
+        return allMessages;
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.knowm.xchange.vertex.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.ToString;
@@ -21,7 +20,6 @@ public class VertexCancelOrdersMessage implements VertexRequest {
     }
 
     @Override
-    @JsonIgnore
     public String getSignature() {
         return cancelOrders.getSignature();
     }

@@ -1,6 +1,5 @@
 package com.knowm.xchange.vertex.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -15,7 +14,6 @@ public class VertexPlaceOrderMessage implements VertexRequest {
     }
 
 
-    @JsonIgnore
     @Override
     public String getSignature() {
         return place_order.getSignature();

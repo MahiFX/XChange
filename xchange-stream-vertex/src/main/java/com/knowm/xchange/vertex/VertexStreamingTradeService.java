@@ -8,6 +8,7 @@ import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
+import com.knowm.xchange.vertex.signing.schemas.CancelProductOrdersSchema;
 import com.knowm.xchange.vertex.signing.schemas.PlaceOrderSchema;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.core.StreamingTradeService;
@@ -21,12 +22,16 @@ import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
+import org.knowm.xchange.dto.trade.OpenOrders;
 import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
+import org.knowm.xchange.service.trade.params.CancelAllOrders;
 import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
 import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
 import org.knowm.xchange.service.trade.params.CancelOrderParams;
+import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
+import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +49,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
-import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
@@ -89,7 +93,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO).toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
         this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
 
-        this.allMessageSubscription = requestResponseStream.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
+        this.allMessageSubscription = exchange.subscribeToAllMessages().subscribe(resp -> {
             if (resp.get("status").asText().equals("success")) {
                 logger.info("Received response: {}", resp);
             } else {
@@ -97,9 +101,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 errorHolder.set(new RuntimeException("Websocket message error: " + resp.get("error").asText()));
             }
             JsonNode respSignature = resp.get("signature");
-            CountDownLatch replyLatch = responseLatches.remove(respSignature.asText());
-            if (replyLatch != null) {
-                replyLatch.countDown();
+            if (respSignature != null) {
+                CountDownLatch replyLatch = responseLatches.remove(respSignature.asText());
+                if (replyLatch != null) {
+                    replyLatch.countDown();
+                }
             }
         });
 
@@ -136,24 +142,17 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     @Override
     public Observable<Order> getOrderChanges(Instrument instrument, Object... args) {
-        return subscribeToFills(instrument, args).map(resp -> {
+        return subscribeToFills(instrument).map(resp -> {
             boolean isBid = resp.get("is_bid").asBoolean();
             Order.Builder builder = new LimitOrder.Builder(isBid ? Order.OrderType.BID : Order.OrderType.ASK, instrument);
             String orderId = resp.get("order_digest").asText();
-            BigDecimal original = convertToDecimal(new BigInteger(resp.get("original_qty").asText()));
-            BigDecimal remaining = convertToDecimal(new BigInteger(resp.get("remaining_qty").asText()));
-            BigDecimal price = convertToDecimal(new BigInteger(resp.get("price").asText()));
-            BigDecimal filled = convertToDecimal(new BigInteger(resp.get("filled_qty").asText()));
+            BigDecimal original = readX18Decimal(resp, "original_qty");
+            BigDecimal remaining = readX18Decimal(resp, "remaining_qty");
+            BigDecimal price = readX18Decimal(resp, "price");
+            BigDecimal filled = readX18Decimal(resp, "filled_qty");
             Instant timestamp = NanoSecondsDeserializer.parse(resp.get("timestamp").asText());
             String respSubAccount = resp.get("subaccount").asText();
-            Order.OrderStatus status;
-            if (remaining.equals(BigDecimal.ZERO)) {
-                status = Order.OrderStatus.FILLED;
-            } else if (filled.equals(BigDecimal.ZERO)) {
-                status = Order.OrderStatus.NEW;
-            } else {
-                status = Order.OrderStatus.PARTIALLY_FILLED;
-            }
+            Order.OrderStatus status = getOrderStatus(remaining, filled);
             return builder.id(orderId)
                     .instrument(instrument)
                     .originalAmount(original)
@@ -167,12 +166,24 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         });
     }
 
-    private Observable<JsonNode> subscribeToFills(Instrument instrument, Object[] args) {
+    private static Order.OrderStatus getOrderStatus(BigDecimal remaining, BigDecimal filled) {
+        Order.OrderStatus status;
+        if (remaining.equals(BigDecimal.ZERO)) {
+            status = Order.OrderStatus.FILLED;
+        } else if (filled.equals(BigDecimal.ZERO)) {
+            status = Order.OrderStatus.NEW;
+        } else {
+            status = Order.OrderStatus.PARTIALLY_FILLED;
+        }
+        return status;
+    }
+
+    private Observable<JsonNode> subscribeToFills(Instrument instrument) {
         long productId = productInfo.lookupProductId(instrument);
 
-        String subAccount = args.length > 0 ? args[0].toString() : exchangeSpecification.getUserName();
+        String subAccount = getSubAccountOrDefault();
 
-        String channel = "fill." + productId + "." + buildSender(exchangeSpecification.getApiKey(), MoreObjects.firstNonNull(subAccount, DEFAULT_SUB_ACCOUNT));
+        String channel = "fill." + productId + "." + buildSender(exchangeSpecification.getApiKey(), subAccount);
         return fillSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
     }
 
@@ -180,13 +191,13 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     @Override
     public Observable<UserTrade> getUserTrades(Instrument instrument, Object... args) {
 
-        return subscribeToFills(instrument, args).map(resp -> {
+        return subscribeToFills(instrument).map(resp -> {
                     boolean isBid = resp.get("is_bid").asBoolean();
                     UserTrade.Builder builder = new UserTrade.Builder();
 
                     String orderId = resp.get("order_digest").asText();
-                    BigDecimal price = convertToDecimal(new BigInteger(resp.get("price").asText()));
-                    BigDecimal filled = convertToDecimal(new BigInteger(resp.get("filled_qty").asText()));
+                    BigDecimal price = readX18Decimal(resp, "price");
+                    BigDecimal filled = readX18Decimal(resp, "filled_qty");
                     if (filled.equals(BigDecimal.ZERO)) {
                         return Optional.<UserTrade>empty();
                     }
@@ -227,7 +238,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         BigInteger quantityAsInt = convertToInteger(quantity);
 
 
-        String subAccount = exchangeSpecification.getUserName();
+        String subAccount = getSubAccountOrDefault();
         String nonce = buildNonce(60000);
         String walletAddress = exchangeSpecification.getApiKey();
         String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
@@ -253,7 +264,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         if (sendError.isPresent()) {
             throw new RuntimeException("Failed to place order : " + orderMessage, sendError.get());
         }
-        ;
 
         return signatureAndDigest.getDigest();
     }
@@ -321,6 +331,12 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     @Override
+    public Collection<String> cancelAllOrders(CancelAllOrders orderParams) throws IOException {
+        cancelOrder(orderParams);
+        return Collections.emptyList();
+    }
+
+    @Override
     public boolean cancelOrder(CancelOrderParams params) throws IOException {
 
         if (params instanceof CancelOrderByIdParams && params instanceof CancelOrderByInstrument) {
@@ -330,15 +346,14 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
             long productId = productInfo.lookupProductId(instrument);
 
-            String subAccount = exchangeSpecification.getUserName();
+            String subAccount = getSubAccountOrDefault();
             String nonce = buildNonce(60000);
             String walletAddress = exchangeSpecification.getApiKey();
             String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
             long[] productIds = {productId};
             String[] digests = {id};
 
-            CancelOrdersSchema orderSchema = CancelOrdersSchema.build(chainId,
-                    endpointContract, Long.valueOf(nonce), sender, productIds, digests);
+            CancelOrdersSchema orderSchema = CancelOrdersSchema.build(chainId, endpointContract, Long.valueOf(nonce), sender, productIds, digests);
             SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
 
             VertexCancelOrdersMessage orderMessage = new VertexCancelOrdersMessage(new CancelOrders(
@@ -351,12 +366,102 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             sendError.ifPresent(throwable -> logger.error("Failed to cancel order " + orderMessage, throwable));
             return sendError.isEmpty();
 
+        } else if (params instanceof CancelAllOrders || params instanceof CancelOrderByInstrument) {
+            CurrencyPair instrument;
+            List<Long> productIds = new ArrayList<>();
+            if (params instanceof CancelOrderByInstrument) {
+                instrument = (CurrencyPair) ((CancelOrderByInstrument) params).getInstrument();
+                productIds.add(productInfo.lookupProductId(instrument));
+            }
+
+            String subAccount = getSubAccountOrDefault();
+            String nonce = buildNonce(60000);
+            String walletAddress = exchangeSpecification.getApiKey();
+            String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
+
+            long[] productIdsArray = productIds.stream().mapToLong(l -> l).toArray();
+
+            CancelProductOrdersSchema cancelAllSchema = CancelProductOrdersSchema.build(chainId, endpointContract, Long.valueOf(nonce), sender, productIdsArray);
+
+            SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(cancelAllSchema);
+
+            VertexCancelProductOrdersMessage orderMessage = new VertexCancelProductOrdersMessage(new CancelProductOrders(
+                    new Tx(sender, productIdsArray, null, nonce),
+                    signatureAndDigest.getSignature()
+            ));
+
+
+            Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
+            sendError.ifPresent(throwable -> logger.error("Failed to cancel order " + orderMessage, throwable));
+            return sendError.isEmpty();
+
+        }
+        throw new IOException(
+                "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelAllOrders interfaces.");
+    }
+
+    private String getSubAccountOrDefault() {
+        return MoreObjects.firstNonNull(exchangeSpecification.getUserName(), DEFAULT_SUB_ACCOUNT);
+    }
+
+    @Override
+    public OpenOrders getOpenOrders(OpenOrdersParams params) throws IOException {
+        if (params instanceof OpenOrdersParamInstrument) {
+            CurrencyPair instrument = (CurrencyPair) ((OpenOrdersParamInstrument) params).getInstrument();
+            long productId = productInfo.lookupProductId(instrument);
+            CountDownLatch response = new CountDownLatch(1);
+            AtomicReference<OpenOrders> responseHolder = new AtomicReference<>();
+            String subAccount = getSubAccountOrDefault();
+            exchange.submitQueries(new Query(openOrders(productId, subAccount), (data) -> {
+                List<LimitOrder> orders = new ArrayList<>();
+                data.withArray("orders").elements().forEachRemaining(order -> {
+                    String priceX18 = "price_x18";
+                    BigDecimal price = readX18Decimal(order, priceX18);
+                    BigDecimal amount = readX18Decimal(order, "amount");
+                    BigDecimal unfilledAmount = readX18Decimal(order, "unfilled_amount");
+
+                    Date placedAt = new Date(Instant.ofEpochSecond(order.get("placed_at").asLong()).toEpochMilli());
+                    BigDecimal filled = amount.subtract(unfilledAmount);
+                    LimitOrder.Builder builder = new LimitOrder.Builder(amount.compareTo(BigDecimal.ZERO) > 0 ? Order.OrderType.BID : Order.OrderType.ASK, instrument)
+                            .id(order.get("digest").asText())
+                            .limitPrice(price)
+                            .originalAmount(amount)
+                            .remainingAmount(unfilledAmount)
+                            .orderStatus(getOrderStatus(unfilledAmount, filled))
+                            .cumulativeAmount(filled)
+                            .timestamp(placedAt);
+                    orders.add(builder.build());
+
+                });
+                responseHolder.set(new OpenOrders(orders));
+                response.countDown();
+            }));
+            try {
+                if (!response.await(10, TimeUnit.SECONDS)) {
+                    throw new IOException("Timeout waiting for open orders response");
+                }
+
+                return responseHolder.get();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         } else {
-            throw new IOException(
-                    "CancelOrderParams must implement CancelOrderByIdParams and CancelOrderByInstrument interface.");
+            throw new IllegalArgumentException("Only OpenOrdersParamInstrument is supported");
         }
 
+    }
 
+    private static BigDecimal readX18Decimal(JsonNode obj, String fieldName) {
+        return convertToDecimal(new BigInteger(obj.get(fieldName).asText()));
+    }
+
+    private String openOrders(long productId, String subAccount) {
+        String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+        return "{\n" +
+                "  \"type\": \"subaccount_orders\",\n" +
+                "  \"sender\": \"" + sender + "\",\n" +
+                "  \"product_id\": " + productId + "\n" +
+                "}";
     }
 
     private BigDecimal getQuantity(Order order) {
