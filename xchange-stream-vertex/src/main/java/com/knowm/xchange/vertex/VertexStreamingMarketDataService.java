@@ -107,19 +107,6 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
     }
 
     @Override
-    public Observable<Ticker> getTicker(CurrencyPair currencyPair, Object... args) {
-        Instrument inst = currencyPair;
-        return this.getTicker(inst, args);
-    }
-
-    @Override
-    public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
-        //noinspection UnnecessaryLocalVariable
-        Instrument inst = currencyPair;
-        return this.getOrderBook(inst, args);
-    }
-
-    @Override
     public Observable<OrderBook> getOrderBook(Instrument instrument, Object... args) {
         final int maxDepth;
         if (args.length > 0 && args[0] instanceof Integer) {
@@ -186,9 +173,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                         return true;
                     });
 
-                    Consumer<Disposable> triggerSnapshot = (d) -> {
-                        requestSnapshot(productId, snapshotTimeHolder, snapshots);
-                    };
+                    Consumer<Disposable> triggerSnapshot = (d) -> requestSnapshot(productId, snapshotTimeHolder, snapshots);
                     Observable<VertexMarketDataUpdateMessage> stream = Observable.merge(
                                     snapshots,
                                     updatesWithMissedMsgFilter,
@@ -208,7 +193,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                 .subscribe(instrumentAndDepthStream);
 
         return instrumentAndDepthStream
-                .doOnSubscribe(cachedInstrumentStream.triggerSnapshot)
+                .doOnSubscribe(cachedInstrumentStream.getTriggerSnapshot())
                 .doOnDispose(instrumentStream::dispose);
 
     }
@@ -271,7 +256,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
     }
 
 
-    private class StreamHolder {
+    private static class StreamHolder {
         private final Observable<VertexMarketDataUpdateMessage> stream;
         private final Consumer<Disposable> triggerSnapshot;
 
@@ -288,4 +273,16 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
             return triggerSnapshot;
         }
     }
+
+
+    @Override
+    public Observable<Ticker> getTicker(CurrencyPair currencyPair, Object... args) {
+        return this.getTicker((Instrument) currencyPair, args);
+    }
+
+    @Override
+    public Observable<OrderBook> getOrderBook(CurrencyPair currencyPair, Object... args) {
+        return this.getOrderBook((Instrument) currencyPair, args);
+    }
+
 }

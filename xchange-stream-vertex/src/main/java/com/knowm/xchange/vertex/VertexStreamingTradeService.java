@@ -3,6 +3,7 @@ package com.knowm.xchange.vertex;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.MoreObjects;
 import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
@@ -11,6 +12,7 @@ import com.knowm.xchange.vertex.signing.schemas.PlaceOrderSchema;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.core.StreamingTradeService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
+import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import org.knowm.xchange.ExchangeSpecification;
@@ -19,6 +21,8 @@ import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
+import org.knowm.xchange.dto.trade.UserTrade;
+import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
 import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
@@ -32,9 +36,7 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -43,8 +45,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
 import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
@@ -52,31 +53,35 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private static final boolean DEFAULT_USE_LEVERAGE = false;
     public static final Consumer<Ticker> NO_OP = ticker -> {
     };
+    public static final String DEFAULT_SUB_ACCOUNT = "default";
     private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
-    private final VertexStreamingService orderStreamService;
+    private final VertexStreamingService requestResponseStream;
+    private final VertexStreamingService subscriptionStream;
     private final ExchangeSpecification exchangeSpecification;
     private final ObjectMapper mapper;
 
     private final VertexProductInfo productInfo;
     private final long chainId;
-    private final String bookContract;
+    private final List<String> bookContracts;
     private final VertexStreamingExchange exchange;
     private final String endpointContract;
     private final double slippage;
     private final boolean useLeverage;
     private final Map<String, CountDownLatch> responseLatches = new ConcurrentHashMap<>();
     private final Map<Long, Disposable> tickerSubscriptions = new ConcurrentHashMap<>();
+    private final Map<String, Observable<JsonNode>> fillSubscriptions = new ConcurrentHashMap<>();
     private final Disposable allMessageSubscription;
     private final AtomicReference<Throwable> errorHolder = new AtomicReference<>();
     private final StreamingMarketDataService marketDataService;
 
-    public VertexStreamingTradeService(VertexStreamingService orderStreamService, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, String bookContract, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService) {
-        this.orderStreamService = orderStreamService;
+    public VertexStreamingTradeService(VertexStreamingService requestResponseStream, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService) {
+        this.requestResponseStream = requestResponseStream;
+        this.subscriptionStream = subscriptionStream;
         this.exchangeSpecification = exchangeSpecification;
         this.productInfo = productInfo;
         this.chainId = chainId;
-        this.bookContract = bookContract;
+        this.bookContracts = bookContracts;
         this.endpointContract = endpointContract;
         this.exchange = exchange;
         this.marketDataService = marketDataService;
@@ -84,7 +89,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO).toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
         this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
 
-        this.allMessageSubscription = orderStreamService.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
+        this.allMessageSubscription = requestResponseStream.subscribeChannel(ALL_MESSAGES).subscribe(resp -> {
             if (resp.get("status").asText().equals("success")) {
                 logger.info("Received response: {}", resp);
             } else {
@@ -103,8 +108,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     public void disconnect() {
         allMessageSubscription.dispose();
         tickerSubscriptions.values().stream().filter(Disposable::isDisposed).forEach(Disposable::dispose);
-        if (orderStreamService.isSocketOpen()) {
-            if (!orderStreamService.disconnect().blockingAwait(10, TimeUnit.SECONDS)) {
+        if (requestResponseStream.isSocketOpen()) {
+            if (!requestResponseStream.disconnect().blockingAwait(10, TimeUnit.SECONDS)) {
                 throw new RuntimeException("Timeout waiting for disconnect");
             }
         }
@@ -126,6 +131,80 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         BigDecimal price = getPrice(marketOrder, productId);
 
         return placeOrder(marketOrder, price);
+    }
+
+
+    @Override
+    public Observable<Order> getOrderChanges(Instrument instrument, Object... args) {
+        return subscribeToFills(instrument, args).map(resp -> {
+            boolean isBid = resp.get("is_bid").asBoolean();
+            Order.Builder builder = new LimitOrder.Builder(isBid ? Order.OrderType.BID : Order.OrderType.ASK, instrument);
+            String orderId = resp.get("order_digest").asText();
+            BigDecimal original = convertToDecimal(new BigInteger(resp.get("original_qty").asText()));
+            BigDecimal remaining = convertToDecimal(new BigInteger(resp.get("remaining_qty").asText()));
+            BigDecimal price = convertToDecimal(new BigInteger(resp.get("price").asText()));
+            BigDecimal filled = convertToDecimal(new BigInteger(resp.get("filled_qty").asText()));
+            Instant timestamp = NanoSecondsDeserializer.parse(resp.get("timestamp").asText());
+            String respSubAccount = resp.get("subaccount").asText();
+            Order.OrderStatus status;
+            if (remaining.equals(BigDecimal.ZERO)) {
+                status = Order.OrderStatus.FILLED;
+            } else if (filled.equals(BigDecimal.ZERO)) {
+                status = Order.OrderStatus.NEW;
+            } else {
+                status = Order.OrderStatus.PARTIALLY_FILLED;
+            }
+            return builder.id(orderId)
+                    .instrument(instrument)
+                    .originalAmount(original)
+                    .cumulativeAmount(filled)
+                    .orderStatus(status)
+                    .averagePrice(price)
+                    .remainingAmount(remaining)
+                    .userReference(respSubAccount)
+                    .timestamp(new Date(timestamp.toEpochMilli()))
+                    .build();
+        });
+    }
+
+    private Observable<JsonNode> subscribeToFills(Instrument instrument, Object[] args) {
+        long productId = productInfo.lookupProductId(instrument);
+
+        String subAccount = args.length > 0 ? args[0].toString() : exchangeSpecification.getUserName();
+
+        String channel = "fill." + productId + "." + buildSender(exchangeSpecification.getApiKey(), MoreObjects.firstNonNull(subAccount, DEFAULT_SUB_ACCOUNT));
+        return fillSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
+    }
+
+
+    @Override
+    public Observable<UserTrade> getUserTrades(Instrument instrument, Object... args) {
+
+        return subscribeToFills(instrument, args).map(resp -> {
+                    boolean isBid = resp.get("is_bid").asBoolean();
+                    UserTrade.Builder builder = new UserTrade.Builder();
+
+                    String orderId = resp.get("order_digest").asText();
+                    BigDecimal price = convertToDecimal(new BigInteger(resp.get("price").asText()));
+                    BigDecimal filled = convertToDecimal(new BigInteger(resp.get("filled_qty").asText()));
+                    if (filled.equals(BigDecimal.ZERO)) {
+                        return Optional.<UserTrade>empty();
+                    }
+                    Instant timestamp = NanoSecondsDeserializer.parse(resp.get("timestamp").asText());
+                    String respSubAccount = resp.get("subaccount").asText();
+
+                    return Optional.of(builder.id(orderId)
+                            .instrument(instrument)
+                            .originalAmount(filled)
+                            .price(price)
+                            .type(isBid ? Order.OrderType.BID : Order.OrderType.ASK)
+                            .orderUserReference(respSubAccount)
+                            .timestamp(new Date(timestamp.toEpochMilli()))
+                            .creationTimestamp(new Date())
+                            .build());
+                })
+                .filter(Optional::isPresent)
+                .map(Optional::get);
     }
 
     private String placeOrder(Order marketOrder, BigDecimal price) throws JsonProcessingException {
@@ -153,6 +232,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         String walletAddress = exchangeSpecification.getApiKey();
         String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
 
+        String bookContract = bookContracts.get((int) productId);
         PlaceOrderSchema orderSchema = PlaceOrderSchema.build(chainId,
                 bookContract,
                 Long.valueOf(nonce),
@@ -184,7 +264,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         logger.info("Sending order: {}", message);
         try {
             CountDownLatch replyLatch = responseLatches.computeIfAbsent(messageObj.getSignature(), s -> new CountDownLatch(1));
-            orderStreamService.sendMessage(message);
+            requestResponseStream.sendMessage(message);
 
             if (!replyLatch.await(5000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Timed out waiting for response");
@@ -291,6 +371,17 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         if (increment.equals(BigDecimal.ZERO)) return value;
         BigDecimal divided = value.divide(increment, 0, RoundingMode.FLOOR);
         return divided.multiply(increment);
+    }
+
+
+    @Override
+    public Observable<Order> getOrderChanges(CurrencyPair currencyPair, Object... args) {
+        return getOrderChanges((Instrument) currencyPair, args);
+    }
+
+    @Override
+    public Observable<UserTrade> getUserTrades(CurrencyPair currencyPair, Object... args) {
+        return getUserTrades((Instrument) currencyPair, args);
     }
 
 

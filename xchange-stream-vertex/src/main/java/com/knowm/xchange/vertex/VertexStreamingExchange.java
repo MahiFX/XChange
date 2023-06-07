@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -43,7 +44,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     private String endpointContract;
 
-    private String bookContract;
+    private List<String> bookContracts;
 
     private VertexStreamingService requestResponseStream;
     private VertexProductInfo productInfo;
@@ -52,8 +53,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     private final Map<Long, InstrumentDefinition> increments = new HashMap<>();
 
 
-    private VertexStreamingService createStreamingService(String suffix) {
-        VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix);
+    private VertexStreamingService createStreamingService(String suffix, String wallet) {
+        VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix, wallet);
         applyStreamingSpecification(getExchangeSpecification(), streamingService);
 
         return streamingService;
@@ -97,7 +98,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
                 data1 -> {
                     chainId = Long.parseLong(data1.get("chain_id").asText());
                     endpointContract = data1.get("endpoint_addr").asText();
-                    bookContract = data1.withArray("book_addrs").get(1).asText();
+                    bookContracts = new ArrayList<String>();
+                    data1.withArray("book_addrs").elements().forEachRemaining(node -> bookContracts.add(node.asText()));
                 }));
 
         for (Long productId : productInfo.getProductsIds()) {
@@ -112,24 +114,27 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
             queries.add(marketPricesQuery);
         }
 
-        queries.add(new Query("{\"type\":\"all_products\"}",
-                data -> {
-                    ArrayNode spotProducts = data.withArray("spot_products");
-                    for (JsonNode spotProduct : spotProducts) {
-                        long productId = spotProduct.get("product_id").asLong();
-                        if (productId == 0) { // skip USDC product
-                            continue;
-                        }
-                        JsonNode bookInfo = spotProduct.get("book_info");
-                        BigDecimal quantityIncrement = convertToDecimal(new BigInteger(bookInfo.get("size_increment").asText()));
-                        BigDecimal priceIncrement = convertToDecimal(new BigInteger(bookInfo.get("price_increment_x18").asText()));
-                        increments.put(productId, new InstrumentDefinition(priceIncrement, quantityIncrement));
-                    }
-                }));
+        queries.add(new Query("{\"type\":\"all_products\"}", data -> {
+            processProductIncrements(data.withArray("spot_products"));
+            processProductIncrements(data.withArray("perp_products"));
+        }));
 
         submitQueries(queries.toArray(new Query[0]));
 
 
+    }
+
+    private void processProductIncrements(ArrayNode spotProducts) {
+        for (JsonNode spotProduct : spotProducts) {
+            long productId = spotProduct.get("product_id").asLong();
+            if (productId == 0) { // skip USDC product
+                continue;
+            }
+            JsonNode bookInfo = spotProduct.get("book_info");
+            BigDecimal quantityIncrement = convertToDecimal(new BigInteger(bookInfo.get("size_increment").asText()));
+            BigDecimal priceIncrement = convertToDecimal(new BigInteger(bookInfo.get("price_increment_x18").asText()));
+            increments.put(productId, new InstrumentDefinition(priceIncrement, quantityIncrement));
+        }
     }
 
     public synchronized void submitQueries(Query... queries) {
@@ -167,8 +172,10 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
         productInfo = new VertexProductInfo();
 
-        this.subscriptionStream = createStreamingService("/subscribe");
-        this.requestResponseStream = createStreamingService("/ws");
+        String wallet = exchangeSpecification.getApiKey();
+
+        this.subscriptionStream = createStreamingService("/subscribe", wallet);
+        this.requestResponseStream = createStreamingService("/ws", wallet);
 
     }
 
@@ -184,7 +191,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     @Override
     public VertexStreamingTradeService getStreamingTradeService() {
         if (this.streamingTradeService == null) {
-            this.streamingTradeService = new VertexStreamingTradeService(requestResponseStream, getExchangeSpecification(), productInfo, chainId, bookContract, this, endpointContract, getStreamingMarketDataService());
+            this.streamingTradeService = new VertexStreamingTradeService(requestResponseStream, subscriptionStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService());
         }
         return streamingTradeService;
     }

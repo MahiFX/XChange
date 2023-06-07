@@ -18,18 +18,24 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
     private final AtomicLong reqCounter = new AtomicLong(1);
     private final String apiUrl;
+    private final String walletAddress;
 
-    public VertexStreamingService(String apiUrl) {
+    public VertexStreamingService(String apiUrl, String walletAddress) {
         super(apiUrl);
         this.apiUrl = apiUrl;
+        this.walletAddress = walletAddress;
     }
 
     @Override
     protected String getChannelNameFromMessage(JsonNode message) {
         JsonNode type = message.get("type");
         JsonNode productId = message.get("product_id");
+        JsonNode subaccount = message.get("subaccount");
         if (type != null) {
             if (productId != null) {
+                if (subaccount != null) {
+                    return type.asText() + "." + productId.asText() + "." + subaccount.asText();
+                }
                 return type.asText() + "." + productId.asText();
             }
             return type.asText();
@@ -49,11 +55,24 @@ public class VertexStreamingService extends JsonNettyStreamingService {
         return "{\n" +
                 "  \"method\": \"subscribe\",\n" +
                 "  \"stream\": {\n" +
-                "    \"type\": \"" + typeAndProduct[0] + "\",\n" +
-                "    \"product_id\": " + typeAndProduct[1] + "\n" +
+                "    \"type\": \"" + typeAndProduct[0] + "\"\n" +
+                productIdField(typeAndProduct) +
+                subAccountField(typeAndProduct) +
                 "  },\n" +
                 "  \"id\": " + reqId + "\n" +
                 "}";
+    }
+
+    private static String productIdField(String[] typeAndProduct) {
+        return typeAndProduct.length > 1 ? ", \"product_id\": " + typeAndProduct[1] + "\n" : "";
+    }
+
+    private String subAccountField(String[] typeAndProduct) {
+        if (typeAndProduct.length > 2) {
+            return ",\"subaccount\": \"" + typeAndProduct[2] + "\"\n";
+        } else {
+            return "";
+        }
     }
 
     @Override
@@ -67,7 +86,8 @@ public class VertexStreamingService extends JsonNettyStreamingService {
                 "  \"method\": \"unsubscribe\",\n" +
                 "  \"stream\": {\n" +
                 "    \"type\": \"" + typeAndProduct[0] + "\",\n" +
-                "    \"product_id\": " + typeAndProduct[1] + "\n" +
+                productIdField(typeAndProduct) +
+                subAccountField(typeAndProduct) +
                 "  },\n" +
                 "  \"id\": " + reqId + "\n" +
                 "}";

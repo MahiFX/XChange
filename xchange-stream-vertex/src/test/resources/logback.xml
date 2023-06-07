@@ -7,7 +7,7 @@
     </appender>
     <logger name="com.xchange" level="INFO"/>
     <logger name="com.xchange.vertex" level="DEBUG"/>
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>
