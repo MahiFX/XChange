@@ -129,7 +129,7 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
         List<LimitOrder> bids = new ArrayList<>(capacity);
         List<LimitOrder> offers = new ArrayList<>(capacity);
 
-        Date timestamp = new Date(instant.toEpochMilli());
+        Date timestamp = new Date(instant == null ? Instant.now().toEpochMilli() : instant.toEpochMilli());
         populateOrders(bids, bidPriceToBidQuantity);
         populateOrders(offers, offerPriceToOfferQuantity);
 
