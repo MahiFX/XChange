@@ -1,11 +1,12 @@
-package org.knowm.xchange.binance.service;
+package org.knowm.xchange.binance.futures.service;
 
 import org.knowm.xchange.binance.BinanceAdapters;
-import org.knowm.xchange.binance.BinanceFuturesAuthenticated;
-import org.knowm.xchange.binance.BinanceFuturesExchange;
-import org.knowm.xchange.binance.dto.*;
+import org.knowm.xchange.binance.dto.BinanceException;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
+import org.knowm.xchange.binance.futures.BinanceFuturesAuthenticated;
+import org.knowm.xchange.binance.futures.BinanceFuturesExchange;
+import org.knowm.xchange.binance.futures.dto.*;
 import org.knowm.xchange.client.ResilienceRegistries;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.instrument.Instrument;

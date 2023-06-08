@@ -1,5 +1,6 @@
-package org.knowm.xchange.binance;
+package org.knowm.xchange.binance.futures;
 
+import org.knowm.xchange.binance.BinanceAuthenticated;
 import org.knowm.xchange.binance.dto.BinanceException;
 import org.knowm.xchange.binance.dto.marketdata.BinanceOrderbook;
 

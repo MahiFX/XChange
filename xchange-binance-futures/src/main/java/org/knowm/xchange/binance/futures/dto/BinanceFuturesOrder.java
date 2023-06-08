@@ -1,4 +1,4 @@
-package org.knowm.xchange.binance.dto;
+package org.knowm.xchange.binance.futures.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.knowm.xchange.binance.dto.trade.OrderSide;

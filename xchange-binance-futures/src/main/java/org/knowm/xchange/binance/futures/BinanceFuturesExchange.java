@@ -1,13 +1,15 @@
-package org.knowm.xchange.binance;
+package org.knowm.xchange.binance.futures;
 
 import org.knowm.xchange.ExchangeSpecification;
-import org.knowm.xchange.binance.service.BinanceFuturesMarketDataService;
-import org.knowm.xchange.binance.service.BinanceFuturesTradeService;
+import org.knowm.xchange.binance.BinanceExchange;
+import org.knowm.xchange.binance.BinanceTimestampFactory;
+import org.knowm.xchange.binance.futures.service.BinanceFuturesMarketDataService;
+import org.knowm.xchange.binance.futures.service.BinanceFuturesTradeService;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.utils.AuthUtils;
 
 public class BinanceFuturesExchange extends BinanceExchange {
-    private BinanceFuturesAuthenticated binance;
+    private org.knowm.xchange.binance.futures.BinanceFuturesAuthenticated binance;
 
     @Override
     protected void initServices() {

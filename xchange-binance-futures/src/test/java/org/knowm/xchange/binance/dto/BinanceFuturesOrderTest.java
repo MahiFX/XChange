@@ -5,6 +5,10 @@ import org.junit.Test;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.OrderStatus;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
+import org.knowm.xchange.binance.futures.dto.BinanceFuturesOrder;
+import org.knowm.xchange.binance.futures.dto.OrderType;
+import org.knowm.xchange.binance.futures.dto.PositionSide;
+import org.knowm.xchange.binance.futures.dto.WorkingType;
 
 import java.io.IOException;
 import java.io.InputStream;

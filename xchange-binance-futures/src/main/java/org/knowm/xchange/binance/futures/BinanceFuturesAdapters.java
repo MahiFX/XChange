@@ -1,11 +1,12 @@
-package org.knowm.xchange.binance;
+package org.knowm.xchange.binance.futures;
 
-import org.knowm.xchange.binance.dto.BinanceFuturesOrder;
-import org.knowm.xchange.binance.dto.BinancePosition;
-import org.knowm.xchange.binance.dto.OrderType;
-import org.knowm.xchange.binance.dto.PositionSide;
+import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.binance.dto.trade.BinanceOrderFlags;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
+import org.knowm.xchange.binance.futures.dto.BinanceFuturesOrder;
+import org.knowm.xchange.binance.futures.dto.BinancePosition;
+import org.knowm.xchange.binance.futures.dto.OrderType;
+import org.knowm.xchange.binance.futures.dto.PositionSide;
 import org.knowm.xchange.binance.service.BinanceTradeService;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.account.OpenPosition;

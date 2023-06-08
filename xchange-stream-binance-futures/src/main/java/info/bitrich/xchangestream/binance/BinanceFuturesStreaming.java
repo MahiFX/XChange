@@ -1,8 +1,8 @@
 package info.bitrich.xchangestream.binance;
 
-import org.knowm.xchange.binance.BinanceFuturesAuthenticated;
 import org.knowm.xchange.binance.dto.BinanceException;
 import org.knowm.xchange.binance.dto.trade.BinanceListenKey;
+import org.knowm.xchange.binance.futures.BinanceFuturesAuthenticated;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
