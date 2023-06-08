@@ -2,11 +2,19 @@
   "currency_pairs": {
     "wBTC/USDC": {
       "price_scale": 4,
-      "min_amount": 1
+      "min_amount": 0.001
     },
     "wETH/USDC": {
       "price_scale": 4,
-      "min_amount": 1
+      "min_amount": 0.01
+    },
+    "ETH/PERP": {
+      "price_scale": 4,
+      "min_amount": 0.01
+    },
+    "BTC/PERP": {
+      "price_scale": 4,
+      "min_amount": 0.001
     }
   },
   "currencies": {
