@@ -3,8 +3,20 @@ package com.knowm.xchange.vertex;
 import org.knowm.xchange.instrument.Instrument;
 
 import java.util.List;
+import java.util.Set;
 
 public class VertexProductInfo {
+
+
+    private final Set<Long> spotProducts;
+    private final Set<Long> perpProducts;
+
+    public VertexProductInfo(Set<Long> spotProducts, Set<Long> perpProducts) {
+
+        this.spotProducts = spotProducts;
+        this.perpProducts = perpProducts;
+    }
+
     long lookupProductId(Instrument currencyPair) {
         switch (currencyPair.toString().toUpperCase()) {
             case "WBTC/USDC":
@@ -26,5 +38,9 @@ public class VertexProductInfo {
 
     public List<Long> getProductsIds() {
         return List.of(1L, 2L, 3L, 4L);
+    }
+
+    public boolean isSpot(Instrument instrument) {
+        return spotProducts.contains(lookupProductId(instrument));
     }
 }

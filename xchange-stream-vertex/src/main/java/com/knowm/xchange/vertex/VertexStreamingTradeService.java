@@ -220,7 +220,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     private String placeOrder(Order marketOrder, BigDecimal price) throws JsonProcessingException {
 
-        long productId = productInfo.lookupProductId(marketOrder.getInstrument());
+        Instrument instrument = marketOrder.getInstrument();
+        long productId = productInfo.lookupProductId(instrument);
 
         BigInteger expiration = getExpiration(marketOrder.getOrderFlags(), Instant.now().plus(10, ChronoUnit.SECONDS));
 
@@ -257,7 +258,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 productId,
                 new VertexOrder(sender, priceAsInt.toString(), quantityAsInt.toString(), expiration.toString(), nonce),
                 signatureAndDigest.getSignature(),
-                useLeverage));
+                productInfo.isSpot(instrument) ? useLeverage : null));
 
 
         Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);

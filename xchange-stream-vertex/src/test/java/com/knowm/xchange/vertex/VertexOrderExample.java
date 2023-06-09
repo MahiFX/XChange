@@ -41,7 +41,7 @@ public class VertexOrderExample {
         exchangeSpecification.setApiKey(address);
         exchangeSpecification.setSecretKey(Numeric.toHexStringNoPrefix(ecKeyPair.getPrivateKey()));
         exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
-        exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, false);
+        exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
 
         exchangeSpecification.setUserName(subAccount); //subaccount name
 

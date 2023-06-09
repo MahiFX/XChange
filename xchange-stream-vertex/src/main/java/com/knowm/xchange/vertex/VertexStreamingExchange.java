@@ -16,10 +16,7 @@ import org.knowm.xchange.service.trade.TradeService;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +48,10 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     private final Map<Long, TopOfBookPrice> marketPrices = new ConcurrentHashMap<>();
     private final Map<Long, InstrumentDefinition> increments = new HashMap<>();
+
+    private final Set<Long> spotProducts = new TreeSet<>();
+    private final Set<Long> perpProducts = new TreeSet<>();
+
     private Observable<JsonNode> allMessages;
 
 
@@ -94,43 +95,51 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         }
 
         ArrayList<Query> queries = new ArrayList<>();
+        ArrayList<Query> priceQueries = new ArrayList<>();
         logger.info("Loading contract data and current prices");
         queries.add(new Query("{\"type\":\"contracts\"}",
                 data1 -> {
                     chainId = Long.parseLong(data1.get("chain_id").asText());
                     endpointContract = data1.get("endpoint_addr").asText();
-                    bookContracts = new ArrayList<String>();
+                    bookContracts = new ArrayList<>();
                     data1.withArray("book_addrs").elements().forEachRemaining(node -> bookContracts.add(node.asText()));
                 }));
 
-        for (Long productId : productInfo.getProductsIds()) {
-            Query marketPricesQuery = new Query("{\"type\":\"market_price\", \"product_id\": " + productId + "}",
-                    data -> {
-                        JsonNode bidX18 = data.get("bid_x18");
-                        BigInteger bid = new BigInteger(bidX18.asText());
-                        JsonNode offerX18 = data.get("ask_x18");
-                        BigInteger offer = new BigInteger(offerX18.asText());
-                        marketPrices.computeIfAbsent(productId, k -> new TopOfBookPrice(convertToDecimal(bid), convertToDecimal(offer)));
-                    });
-            queries.add(marketPricesQuery);
-        }
 
         queries.add(new Query("{\"type\":\"all_products\"}", data -> {
-            processProductIncrements(data.withArray("spot_products"));
-            processProductIncrements(data.withArray("perp_products"));
+            processProductIncrements(data.withArray("spot_products"), spotProducts);
+            processProductIncrements(data.withArray("perp_products"), perpProducts);
+
+            productInfo = new VertexProductInfo(spotProducts, perpProducts);
+
+
+            for (Long productId : productInfo.getProductsIds()) {
+                Query marketPricesQuery = new Query("{\"type\":\"market_price\", \"product_id\": " + productId + "}",
+                        priceData -> {
+                            JsonNode bidX18 = priceData.get("bid_x18");
+                            BigInteger bid = new BigInteger(bidX18.asText());
+                            JsonNode offerX18 = priceData.get("ask_x18");
+                            BigInteger offer = new BigInteger(offerX18.asText());
+                            marketPrices.computeIfAbsent(productId, k -> new TopOfBookPrice(convertToDecimal(bid), convertToDecimal(offer)));
+                        });
+                priceQueries.add(marketPricesQuery);
+
+            }
         }));
 
         submitQueries(queries.toArray(new Query[0]));
 
+        submitQueries(priceQueries.toArray(new Query[0]));
 
     }
 
-    private void processProductIncrements(ArrayNode spotProducts) {
+    private void processProductIncrements(ArrayNode spotProducts, Set<Long> productSet) {
         for (JsonNode spotProduct : spotProducts) {
             long productId = spotProduct.get("product_id").asLong();
             if (productId == 0) { // skip USDC product
                 continue;
             }
+            productSet.add(productId);
             JsonNode bookInfo = spotProduct.get("book_info");
             BigDecimal quantityIncrement = convertToDecimal(new BigInteger(bookInfo.get("size_increment").asText()));
             BigDecimal priceIncrement = convertToDecimal(new BigInteger(bookInfo.get("price_increment_x18").asText()));
@@ -177,8 +186,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     @Override
     protected void initServices() {
-
-        productInfo = new VertexProductInfo();
 
         String wallet = exchangeSpecification.getApiKey();
 
