@@ -47,7 +47,7 @@ public class VertexTradeData {
                 .timestamp(new Date(timestamp.toEpochMilli()))
                 .price(convertToDecimal(price))
                 .originalAmount(convertToDecimal(takerQty))
-                .type(isTakerBuyer ? Order.OrderType.BID : Order.OrderType.ASK);
+                .type(isTakerBuyer ? Order.OrderType.ASK : Order.OrderType.BID); // trade side from maker point of view
 
         builder.originalAmount(convertToDecimal(takerQty));
         return builder.build();

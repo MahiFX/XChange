@@ -16,6 +16,7 @@ import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
@@ -204,9 +205,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     Instant timestamp = NanoSecondsDeserializer.parse(resp.get("timestamp").asText());
                     String respSubAccount = resp.get("subaccount").asText();
 
-                    return Optional.of(builder.id(orderId)
+                    return Optional.of(builder.id(orderId + RandomStringUtils.randomAlphabetic(3))
                             .instrument(instrument)
                             .originalAmount(filled)
+                            .orderId(orderId)
                             .price(price)
                             .type(isBid ? Order.OrderType.BID : Order.OrderType.ASK)
                             .orderUserReference(respSubAccount)
