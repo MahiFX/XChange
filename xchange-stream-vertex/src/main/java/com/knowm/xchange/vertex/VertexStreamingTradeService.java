@@ -1,6 +1,5 @@
 package com.knowm.xchange.vertex;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.MoreObjects;
@@ -25,6 +24,7 @@ import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.OpenOrders;
 import org.knowm.xchange.dto.trade.UserTrade;
+import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.CancelAllOrders;
@@ -117,7 +117,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         tickerSubscriptions.values().stream().filter(Disposable::isDisposed).forEach(Disposable::dispose);
         if (requestResponseStream.isSocketOpen()) {
             if (!requestResponseStream.disconnect().blockingAwait(10, TimeUnit.SECONDS)) {
-                throw new RuntimeException("Timeout waiting for disconnect");
+                logger.warn("Timeout waiting for disconnect");
             }
         }
     }
@@ -220,7 +220,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 .map(Optional::get);
     }
 
-    private String placeOrder(Order marketOrder, BigDecimal price) throws JsonProcessingException {
+    private String placeOrder(Order marketOrder, BigDecimal price) throws IOException {
 
         Instrument instrument = marketOrder.getInstrument();
         long productId = productInfo.lookupProductId(instrument);
@@ -265,13 +265,15 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
         Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
         if (sendError.isPresent()) {
-            throw new RuntimeException("Failed to place order : " + orderMessage, sendError.get());
+            Throwable throwable = sendError.get();
+            logger.error("Failed to place order : " + orderMessage, throwable);
+            throw new ExchangeException(throwable.getMessage());
         }
 
         return signatureAndDigest.getDigest();
     }
 
-    private Optional<Throwable> sendWebsocketMessage(VertexRequest messageObj) throws JsonProcessingException {
+    private Optional<Throwable> sendWebsocketMessage(VertexRequest messageObj) throws IOException {
 
         String message = mapper.writeValueAsString(messageObj);
         logger.info("Sending order: {}", message);
@@ -280,7 +282,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             requestResponseStream.sendMessage(message);
 
             if (!replyLatch.await(5000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-                throw new RuntimeException("Timed out waiting for response");
+                throw new IOException("Timed out waiting for response");
             }
             Throwable error = errorHolder.get();
             if (error != null) {
@@ -399,7 +401,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             return sendError.isEmpty();
 
         }
-        throw new IOException(
+        throw new IllegalArgumentException(
                 "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelAllOrders interfaces.");
     }
 
@@ -445,8 +447,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 }
 
                 return responseHolder.get();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            } catch (InterruptedException ignored) {
+                return new OpenOrders(Collections.emptyList());
             }
         } else {
             throw new IllegalArgumentException("Only OpenOrdersParamInstrument is supported");
