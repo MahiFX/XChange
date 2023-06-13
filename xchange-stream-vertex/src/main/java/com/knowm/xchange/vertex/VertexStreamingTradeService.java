@@ -225,7 +225,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         Instrument instrument = marketOrder.getInstrument();
         long productId = productInfo.lookupProductId(instrument);
 
-        BigInteger expiration = getExpiration(marketOrder.getOrderFlags(), Instant.now().plus(10, ChronoUnit.SECONDS));
+        BigInteger expiration = getExpiration(marketOrder.getOrderFlags());
 
         InstrumentDefinition increments = exchange.getIncrements(productId);
         BigDecimal priceIncrement = increments.getPriceIncrement();
@@ -295,8 +295,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     }
 
-    private BigInteger getExpiration(Set<Order.IOrderFlags> orderFlags, Instant expiryTime) {
+    private BigInteger getExpiration(Set<Order.IOrderFlags> orderFlags) {
         BigInteger timeInForce = BigInteger.ZERO; // resting
+        Instant expiryTime = Instant.MAX; // No expiry
         if (orderFlags.contains(VertexOrderFlags.TIME_IN_FORCE_IOC)) {
             timeInForce = BigInteger.ONE;
             expiryTime = Instant.now().plus(5, ChronoUnit.SECONDS); // Force IOC/FOK timeouts
