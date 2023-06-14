@@ -16,6 +16,7 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
@@ -27,10 +28,7 @@ import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.CancelAllOrders;
-import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
-import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
-import org.knowm.xchange.service.trade.params.CancelOrderParams;
+import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
@@ -345,10 +343,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     @Override
     public boolean cancelOrder(CancelOrderParams params) throws IOException {
 
-        if (params instanceof CancelOrderByIdParams && params instanceof CancelOrderByInstrument) {
+        String id = getOrderId(params);
+        Instrument instrument = getInstrument(params);
 
-            String id = ((CancelOrderByIdParams) params).getOrderId();
-            CurrencyPair instrument = (CurrencyPair) ((CancelOrderByInstrument) params).getInstrument();
+        if (StringUtils.isNotEmpty(id) && instrument != null) {
 
             long productId = productInfo.lookupProductId(instrument);
 
@@ -367,16 +365,13 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     signatureAndDigest.getSignature()
             ));
 
-
             Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
             sendError.ifPresent(throwable -> logger.error("Failed to cancel order " + orderMessage, throwable));
             return sendError.isEmpty();
 
-        } else if (params instanceof CancelAllOrders || params instanceof CancelOrderByInstrument) {
-            CurrencyPair instrument;
+        } else if (params instanceof CancelAllOrders || instrument != null) {
             List<Long> productIds = new ArrayList<>();
-            if (params instanceof CancelOrderByInstrument) {
-                instrument = (CurrencyPair) ((CancelOrderByInstrument) params).getInstrument();
+            if (instrument != null) {
                 productIds.add(productInfo.lookupProductId(instrument));
             }
 
@@ -403,7 +398,21 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
         }
         throw new IllegalArgumentException(
-                "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelAllOrders interfaces.");
+                "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelOrderByCurrencyPair, CancelAllOrders interfaces.");
+    }
+
+    private String getOrderId(CancelOrderParams params) {
+        if (params instanceof CancelOrderByIdParams) {
+            return ((CancelOrderByIdParams) params).getOrderId();
+        }
+        return null;
+    }
+
+    private Instrument getInstrument(CancelOrderParams params) {
+        if (params instanceof CancelOrderByCurrencyPair || params instanceof CancelOrderByInstrument) {
+            return params instanceof CancelOrderByCurrencyPair ? ((CancelOrderByCurrencyPair) params).getCurrencyPair() : ((CancelOrderByInstrument) params).getInstrument();
+        }
+        return null;
     }
 
     private String getSubAccountOrDefault() {
