@@ -367,7 +367,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
             Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
             sendError.ifPresent(throwable -> logger.error("Failed to cancel order " + orderMessage, throwable));
-            return sendError.isEmpty();
+            return sendError.isEmpty() || isAlreadyCancelled(sendError.get());
 
         } else if (params instanceof CancelAllOrders || instrument != null) {
             List<Long> productIds = new ArrayList<>();
@@ -399,6 +399,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         }
         throw new IllegalArgumentException(
                 "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelOrderByCurrencyPair, CancelAllOrders interfaces.");
+    }
+
+    private boolean isAlreadyCancelled(Throwable throwable) {
+        return throwable.getMessage().matches("Order with the provided digest .* could not be found");
     }
 
     private String getOrderId(CancelOrderParams params) {
