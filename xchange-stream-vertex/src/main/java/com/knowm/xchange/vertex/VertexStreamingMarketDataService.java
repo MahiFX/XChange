@@ -205,9 +205,9 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
         logger.info("Requesting snapshot for product " + productId);
         exchange.submitQueries(new Query(snapshotQuery(DEFAULT_DEPTH, productId), (data) -> {
             VertexMarketDataUpdateMessage snapshot = buildSnapshotFromQueryResponse(productId, data);
-            snapshotTimeHolder.set(snapshot.getMaxTime());
-            snapshots.onNext(snapshot);
             logger.info("Snapshot for product " + productId + " " + snapshot);
+            snapshots.onNext(snapshot);
+            snapshotTimeHolder.set(snapshot.getMaxTime());
         }));
     }
 
