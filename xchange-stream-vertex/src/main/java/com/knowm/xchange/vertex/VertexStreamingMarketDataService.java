@@ -140,9 +140,10 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                     Observable<VertexMarketDataUpdateMessage> marketDataUpdates = subscriptionStream.subscribeChannel(channelName)
                             .map(json -> {
                                 VertexMarketDataUpdateMessage marketDataUpdate = mapper.treeToValue(json, VertexMarketDataUpdateMessage.class);
-
                                 return Objects.requireNonNullElse(marketDataUpdate, VertexMarketDataUpdateMessage.EMPTY);
                             }).filter(update -> {
+                                if (update.getLastMaxTime() == null) return true; // Pass through snapshots
+
                                 //Subscribe to updates but drop until snapshot reply - there is still a chance we could miss a message but not much we can do about that
                                 Instant snapshotTime = snapshotTimeHolder.get();
                                 if (snapshotTime == null || update.getMaxTime().isAfter(snapshotTime)) {
