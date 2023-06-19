@@ -402,7 +402,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     private boolean isAlreadyCancelled(Throwable throwable) {
-        return throwable.getMessage().matches("Order with the provided digest .* could not be found");
+        return throwable.getMessage().matches(".*Order with the provided digest .* could not be found.*");
     }
 
     private String getOrderId(CancelOrderParams params) {
