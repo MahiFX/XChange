@@ -85,7 +85,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
         return "{\n" +
                 "  \"method\": \"unsubscribe\",\n" +
                 "  \"stream\": {\n" +
-                "    \"type\": \"" + typeAndProduct[0] + "\",\n" +
+                "    \"type\": \"" + typeAndProduct[0] + "\"\n" +
                 productIdField(typeAndProduct) +
                 subAccountField(typeAndProduct) +
                 "  },\n" +

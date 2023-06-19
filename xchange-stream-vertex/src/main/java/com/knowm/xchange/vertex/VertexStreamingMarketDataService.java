@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -135,7 +136,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                             });
 
 
-                    AtomicReference<Instant> lastChangeId = new AtomicReference<>(null);
+                    AtomicReference<Instant> lastIncrementTimestamp = new AtomicReference<>(null);
 
                     Observable<VertexMarketDataUpdateMessage> marketDataUpdates = subscriptionStream.subscribeChannel(channelName)
                             .map(json -> {
@@ -156,25 +157,20 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                             });
 
                     Observable<VertexMarketDataUpdateMessage> updatesWithMissedMsgFilter = marketDataUpdates.filter(update -> {
-                        if (lastChangeId.get() == null || update.getLastMaxTime() == null) {
-                            lastChangeId.set(update.getMaxTime());
-                        } else {
-                            // compareAndSet relies on instance equality thanks to cache in NanoSecondsDeserializer
-                            if (!lastChangeId.compareAndSet(update.getLastMaxTime(), update.getMaxTime())) {
-                                if (!lastChangeId.get().equals(update.getLastMaxTime())) {
-                                    logger.error("Unexpected gap in timestamps for {} {} != {}. Re-snapshot...", instrument, lastChangeId.get(), update.getLastMaxTime());
-                                    requestSnapshot(productId, snapshotTimeHolder, snapshots);
-                                    return false;
-
-                                } else {
-                                    lastChangeId.set(update.getMaxTime());
-                                }
+                        Instant lastIncrementTime = lastIncrementTimestamp.get();
+                        if (lastIncrementTime != null && update.getLastMaxTime() != null) {
+                            if (!lastIncrementTime.equals(update.getLastMaxTime())) {
+                                logger.error("Unexpected gap in timestamps for {} {} != {}. Re-snapshot...", instrument, lastIncrementTime, update.getLastMaxTime());
+                                requestSnapshot(productId, snapshotTimeHolder, snapshots, lastIncrementTimestamp);
+                                return false;
                             }
                         }
+                        lastIncrementTimestamp.set(update.getMaxTime());
+
                         return true;
                     });
 
-                    Consumer<Disposable> triggerSnapshot = (d) -> requestSnapshot(productId, snapshotTimeHolder, snapshots);
+                    Consumer<Disposable> triggerSnapshot = (d) -> requestSnapshot(productId, snapshotTimeHolder, snapshots, lastIncrementTimestamp);
                     Observable<VertexMarketDataUpdateMessage> stream = Observable.merge(
                                     snapshots,
                                     updatesWithMissedMsgFilter,
@@ -194,13 +190,19 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                 .subscribe(instrumentAndDepthStream);
 
         return instrumentAndDepthStream
-                .doOnSubscribe(cachedInstrumentStream.getTriggerSnapshot())
+                .doOnSubscribe((d) -> {
+                    //trigger snapshot after delay
+                    Observable.timer(500, TimeUnit.MILLISECONDS)
+                            .subscribe(o -> cachedInstrumentStream.getTriggerSnapshot().accept(d));
+                })
                 .doOnDispose(instrumentStream::dispose);
 
     }
 
-    private void requestSnapshot(long productId, AtomicReference<Instant> snapshotTimeHolder, Subject<VertexMarketDataUpdateMessage> snapshots) {
+    private void requestSnapshot(long productId, AtomicReference<Instant> snapshotTimeHolder, Subject<VertexMarketDataUpdateMessage> snapshots, AtomicReference<Instant> lastChangeId) {
+        if (Instant.MAX.equals(snapshotTimeHolder.get())) return; // Already requested (or in progress
         snapshotTimeHolder.set(Instant.MAX); // Block all updates while we request a snapshot
+        snapshots.onNext(VertexMarketDataUpdateMessage.EMPTY); //Clear book
         // Request snapshot for new subscriber
         logger.info("Requesting snapshot for product " + productId);
         exchange.submitQueries(new Query(snapshotQuery(DEFAULT_DEPTH, productId), (data) -> {
@@ -208,6 +210,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
             logger.info("Snapshot for product " + productId + " " + snapshot);
             snapshots.onNext(snapshot);
             snapshotTimeHolder.set(snapshot.getMaxTime());
+            lastChangeId.set(null);
         }));
     }
 
