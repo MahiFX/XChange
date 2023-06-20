@@ -15,6 +15,7 @@ import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -150,7 +151,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             BigDecimal filled = readX18Decimal(resp, "filled_qty");
             Instant timestamp = NanoSecondsDeserializer.parse(resp.get("timestamp").asText());
             String respSubAccount = resp.get("subaccount").asText();
-            Order.OrderStatus status = getOrderStatus(remaining, filled);
+            Order.OrderStatus status = getOrderStatus(remaining, filled, original);
             return builder.id(orderId)
                     .instrument(instrument)
                     .originalAmount(original)
@@ -164,11 +165,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         });
     }
 
-    private static Order.OrderStatus getOrderStatus(BigDecimal remaining, BigDecimal filled) {
+    private static Order.OrderStatus getOrderStatus(BigDecimal remaining, BigDecimal filled, BigDecimal original) {
         Order.OrderStatus status;
-        if (remaining.equals(BigDecimal.ZERO)) {
+        if (remaining.equals(BigDecimal.ZERO) || filled.equals(original)) {
             status = Order.OrderStatus.FILLED;
-        } else if (filled.equals(BigDecimal.ZERO)) {
+        } else if (filled.equals(BigDecimal.ZERO) || remaining.equals(original)) {
             status = Order.OrderStatus.NEW;
         } else {
             status = Order.OrderStatus.PARTIALLY_FILLED;
@@ -203,7 +204,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     Instant timestamp = NanoSecondsDeserializer.parse(timestampText);
                     String respSubAccount = resp.get("subaccount").asText();
 
-                    return Optional.of(builder.id(timestampText)
+                    return Optional.of(builder.id(timestampText + RandomStringUtils.randomAlphanumeric(5))
                             .instrument(instrument)
                             .originalAmount(filled)
                             .orderId(orderId)
@@ -446,7 +447,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                             .limitPrice(price)
                             .originalAmount(amount)
                             .remainingAmount(unfilledAmount)
-                            .orderStatus(getOrderStatus(unfilledAmount, filled))
+                            .orderStatus(getOrderStatus(unfilledAmount, filled, amount))
                             .cumulativeAmount(filled)
                             .timestamp(placedAt);
                     orders.add(builder.build());
