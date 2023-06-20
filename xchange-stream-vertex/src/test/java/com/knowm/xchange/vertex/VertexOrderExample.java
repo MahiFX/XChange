@@ -1,5 +1,6 @@
 package com.knowm.xchange.vertex;
 
+import com.knowm.xchange.vertex.dto.RewardsList;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
 import io.reactivex.disposables.Disposable;
@@ -48,6 +49,10 @@ public class VertexOrderExample {
         VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
         exchange.connect().blockingAwait();
+
+
+        RewardsList rewardsList = exchange.queryRewards(address);
+        System.out.println(rewardsList);
 
         VertexStreamingTradeService tradeService = exchange.getStreamingTradeService();
 

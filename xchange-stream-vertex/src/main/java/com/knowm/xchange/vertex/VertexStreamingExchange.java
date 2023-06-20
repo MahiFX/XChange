@@ -2,6 +2,9 @@ package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.knowm.xchange.vertex.api.VertexIndexerApi;
+import com.knowm.xchange.vertex.dto.RewardsList;
+import com.knowm.xchange.vertex.dto.RewardsRequest;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
@@ -11,6 +14,7 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
 
@@ -28,9 +32,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     public static final String USE_LEVERAGE = "useLeverage";
     public static final String MAX_SLIPPAGE_RATIO = "maxSlippageRatio";
-
-    private static final String WS_TESTNET_API_URL = "wss://test.vertexprotocol-backend.com";
-    private static final String WS_API_URL = "wss://prod.vertexprotocol-backend.com";
     private VertexStreamingService subscriptionStream;
     private VertexStreamingMarketDataService streamingMarketDataService;
     private VertexStreamingTradeService streamingTradeService;
@@ -53,6 +54,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     private final Set<Long> perpProducts = new TreeSet<>();
 
     private Observable<JsonNode> allMessages;
+    private VertexIndexerApi indexerApi;
 
 
     private VertexStreamingService createStreamingService(String suffix, String wallet) {
@@ -63,26 +65,31 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     }
 
     private String getApiUrl() {
-        if (useTestnet) {
-            return WS_TESTNET_API_URL;
-        } else {
-            return WS_API_URL;
-        }
+        return "wss://" + getHost(useTestnet);
+
     }
 
     @Override
     public ExchangeSpecification getDefaultExchangeSpecification() {
         ExchangeSpecification exchangeSpecification = new ExchangeSpecification(this.getClass());
-        exchangeSpecification.setSslUri("https://prod.vertexprotocol-backend.com");
-        exchangeSpecification.setHost("prod.vertexprotocol-backend.com");
+        String host = getHost(useTestnet);
+        exchangeSpecification.setSslUri("https://" + host);
+        exchangeSpecification.setHost(host);
         exchangeSpecification.setExchangeName("Vertex");
         exchangeSpecification.setExchangeDescription("Vertex - One DEX. Everything you need.");
         return exchangeSpecification;
     }
 
+    private static String getHost(boolean useTestnet) {
+        return useTestnet ? "test.vertexprotocol-backend.com" : "prod.vertexprotocol-backend.com";
+    }
+
 
     public void applySpecification(ExchangeSpecification exchangeSpecification) {
         this.useTestnet = !Boolean.FALSE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX));
+
+        exchangeSpecification.setSslUri("https://" + getHost(useTestnet));
+
         super.applySpecification(exchangeSpecification);
     }
 
@@ -147,6 +154,10 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         }
     }
 
+    public RewardsList queryRewards(String walletAddress) {
+        return indexerApi.rewards(new RewardsRequest(new RewardsRequest.RewardAddress(walletAddress)));
+    }
+
     public synchronized void submitQueries(Query... queries) {
 
         Observable<JsonNode> stream = subscribeToAllMessages();
@@ -191,6 +202,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
         this.subscriptionStream = createStreamingService("/subscribe", wallet);
         this.requestResponseStream = createStreamingService("/ws", wallet);
+
+        this.indexerApi = ExchangeRestProxyBuilder.forInterface(VertexIndexerApi.class, exchangeSpecification).build();
 
     }
 
