@@ -56,8 +56,8 @@ public class VertexOrderExample {
 
         VertexStreamingTradeService tradeService = exchange.getStreamingTradeService();
 
-//        CurrencyPair btc = new CurrencyPair("wBTC-USDC");
-        CurrencyPair btc = new CurrencyPair("BTC-PERP");
+//        CurrencyPair btc = new CurrencyPair("BTC/USDC");
+        CurrencyPair btc = new CurrencyPair("BTC-PERP", "USDC");
 
         Disposable trades = tradeService.getUserTrades(btc, subAccount).subscribe(userTrade -> {
             log.info("User trade: {}", userTrade);
@@ -73,6 +73,8 @@ public class VertexOrderExample {
 
         Thread.sleep(2000);
 
+        log.info("Open positions before sell: {}", tradeService.getOpenPositions());
+
         MarketOrder sell = new MarketOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc);
         sell.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_FOK);
         tradeService.placeMarketOrder(sell);
@@ -83,6 +85,7 @@ public class VertexOrderExample {
         Thread.sleep(5000);
 
         log.info("Open orders before cancel: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
+        log.info("Open positions before cancel: {}", tradeService.getOpenPositions());
 
         tradeService.cancelOrder(new DefaultCancelOrderByInstrumentAndIdParams(btc, orderId));
 

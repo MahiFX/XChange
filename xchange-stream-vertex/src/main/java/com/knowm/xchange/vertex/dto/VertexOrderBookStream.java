@@ -77,7 +77,7 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
                 BigInteger price = order.getPrice();
                 BigInteger quantityAsInt = order.getQuantity();
 
-                if (quantityAsInt.equals(BigInteger.ZERO)) {
+                if (isZero(quantityAsInt)) {
                     mapForInsert.remove(price);
                 } else {
                     LimitOrder exising = mapForInsert.get(price);
@@ -91,6 +91,10 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
 
             }
         }
+    }
+
+    private static boolean isZero(BigInteger quantityAsInt) {
+        return quantityAsInt.compareTo(BigInteger.ZERO) == 0;
     }
 
     private void publishOrderBookFromUpdate(Instant timestamp) {

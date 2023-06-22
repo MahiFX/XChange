@@ -2,7 +2,7 @@ package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.knowm.xchange.vertex.api.VertexIndexerApi;
+import com.knowm.xchange.vertex.api.VertexApi;
 import com.knowm.xchange.vertex.dto.RewardsList;
 import com.knowm.xchange.vertex.dto.RewardsRequest;
 import info.bitrich.xchangestream.core.ProductSubscription;
@@ -54,7 +54,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     private final Set<Long> perpProducts = new TreeSet<>();
 
     private Observable<JsonNode> allMessages;
-    private VertexIndexerApi indexerApi;
+    private VertexApi restApiClient;
 
 
     private VertexStreamingService createStreamingService(String suffix, String wallet) {
@@ -117,7 +117,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
             processProductIncrements(data.withArray("spot_products"), spotProducts);
             processProductIncrements(data.withArray("perp_products"), perpProducts);
 
-            productInfo = new VertexProductInfo(spotProducts, perpProducts);
+            productInfo = new VertexProductInfo(spotProducts, restApiClient.symbols());
 
 
             for (Long productId : productInfo.getProductsIds()) {
@@ -155,7 +155,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     }
 
     public RewardsList queryRewards(String walletAddress) {
-        return indexerApi.rewards(new RewardsRequest(new RewardsRequest.RewardAddress(walletAddress)));
+        return restApiClient.rewards(new RewardsRequest(new RewardsRequest.RewardAddress(walletAddress)));
     }
 
     public synchronized void submitQueries(Query... queries) {
@@ -203,7 +203,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         this.subscriptionStream = createStreamingService("/subscribe", wallet);
         this.requestResponseStream = createStreamingService("/ws", wallet);
 
-        this.indexerApi = ExchangeRestProxyBuilder.forInterface(VertexIndexerApi.class, exchangeSpecification).build();
+        this.restApiClient = ExchangeRestProxyBuilder.forInterface(VertexApi.class, exchangeSpecification).build();
 
     }
 

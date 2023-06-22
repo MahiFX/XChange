@@ -2,7 +2,10 @@ package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
@@ -15,11 +18,12 @@ import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.account.OpenPosition;
+import org.knowm.xchange.dto.account.OpenPositions;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
@@ -37,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -57,6 +62,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     public static final Consumer<Ticker> NO_OP = ticker -> {
     };
     public static final String DEFAULT_SUB_ACCOUNT = "default";
+    public static final HashFunction ORDER_ID_HASHER = Hashing.murmur3_32_fixed();
     private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
     private final VertexStreamingService requestResponseStream;
@@ -167,14 +173,18 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     private static Order.OrderStatus getOrderStatus(BigDecimal remaining, BigDecimal filled, BigDecimal original) {
         Order.OrderStatus status;
-        if (remaining.equals(BigDecimal.ZERO) || filled.equals(original)) {
+        if (isZero(remaining) || filled.equals(original)) {
             status = Order.OrderStatus.FILLED;
-        } else if (filled.equals(BigDecimal.ZERO) || remaining.equals(original)) {
+        } else if (isZero(filled) || remaining.equals(original)) {
             status = Order.OrderStatus.NEW;
         } else {
             status = Order.OrderStatus.PARTIALLY_FILLED;
         }
         return status;
+    }
+
+    private static boolean isZero(BigDecimal remaining) {
+        return remaining.compareTo(BigDecimal.ZERO) == 0;
     }
 
     private Observable<JsonNode> subscribeToFills(Instrument instrument) {
@@ -197,14 +207,16 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     String orderId = resp.get("order_digest").asText();
                     BigDecimal price = readX18Decimal(resp, "price");
                     BigDecimal filled = readX18Decimal(resp, "filled_qty");
-                    if (filled.equals(BigDecimal.ZERO)) {
+                    if (isZero(filled)) {
                         return Optional.<UserTrade>empty();
                     }
                     String timestampText = resp.get("timestamp").asText();
                     Instant timestamp = NanoSecondsDeserializer.parse(timestampText);
                     String respSubAccount = resp.get("subaccount").asText();
+                    BigDecimal orderQty = readX18Decimal(resp, "original_qty");
+                    String filledPercentage = filled.divide(orderQty, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).round(new MathContext(2)).toPlainString();
 
-                    return Optional.of(builder.id(timestampText + RandomStringUtils.randomAlphanumeric(5))
+                    return Optional.of(builder.id(ORDER_ID_HASHER.hashString(orderId, Charsets.UTF_8) + "-" + filledPercentage)
                             .instrument(instrument)
                             .originalAmount(filled)
                             .orderId(orderId)
@@ -217,6 +229,52 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get);
+    }
+
+    public OpenPositions getOpenPositions() throws IOException {
+
+        CountDownLatch response = new CountDownLatch(1);
+        AtomicReference<OpenPositions> responseHolder = new AtomicReference<>();
+        String subAccount = getSubAccountOrDefault();
+        exchange.submitQueries(new Query(subAccountInfo(subAccount), (data) -> {
+            List<OpenPosition> positions = new ArrayList<>();
+            data.withArray("spot_balances").elements().forEachRemaining(bal -> addBalance(positions, bal));
+            data.withArray("perp_balances").elements().forEachRemaining(bal -> addBalance(positions, bal));
+            responseHolder.set(new OpenPositions(positions));
+            response.countDown();
+        }));
+        try {
+            if (!response.await(10, TimeUnit.SECONDS)) {
+                throw new IOException("Timeout waiting for open positions response");
+            }
+
+            return responseHolder.get();
+        } catch (InterruptedException ignored) {
+            return new OpenPositions(Collections.emptyList());
+        }
+
+
+    }
+
+    private void addBalance(List<OpenPosition> positions, JsonNode bal) {
+        int productId = bal.get("product_id").asInt();
+        Instrument instrument = productInfo.lookupInstrument(productId);
+        if (instrument == null) {
+            logger.warn("No instrument found for product id {}", productId);
+            return;
+        }
+        BigDecimal position = readX18Decimal(bal.get("balance"), "amount");
+        if (isZero(position)) {
+            return;
+        }
+        positions.add(new OpenPosition(instrument, position.compareTo(BigDecimal.ZERO) >= 0 ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT, position.abs(), null, null, null));
+    }
+
+    private String subAccountInfo(String subAccount) {
+        String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+        return "{\n" +
+                "  \"type\": \"subaccount_info\",\n" +
+                "  \"subaccount\": \"" + sender + "\"\n}";
     }
 
     private String placeOrder(Order marketOrder, BigDecimal price) throws IOException {
@@ -493,7 +551,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     public static BigDecimal roundToIncrement(BigDecimal value, BigDecimal increment) {
-        if (increment.equals(BigDecimal.ZERO)) return value;
+        if (isZero(increment)) return value;
         BigDecimal divided = value.divide(increment, 0, RoundingMode.FLOOR);
         return divided.multiply(increment);
     }
