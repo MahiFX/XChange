@@ -1,5 +1,6 @@
 package com.knowm.xchange.vertex.api;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.knowm.xchange.vertex.dto.RewardsList;
 import com.knowm.xchange.vertex.dto.RewardsRequest;
 import com.knowm.xchange.vertex.dto.Symbol;
@@ -17,6 +18,10 @@ public interface VertexApi {
     @POST
     @Path("/indexer")
     RewardsList rewards(RewardsRequest req);
+
+    @POST
+    @Path("/indexer")
+    JsonNode indexerRequest(JsonNode req);
 
 
     @GET

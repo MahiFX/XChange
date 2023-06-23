@@ -279,4 +279,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     public InstrumentDefinition getIncrements(Long productId) {
         return increments.get(productId);
     }
+
+    public VertexApi getRestClient() {
+        return restApiClient;
+    }
 }

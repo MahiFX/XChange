@@ -58,6 +58,7 @@ import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
     public static final double DEFAULT_MAX_SLIPPAGE_RATIO = 0.005;
+    public static final ObjectMapper MAPPER = new ObjectMapper();
     private static final boolean DEFAULT_USE_LEVERAGE = false;
     public static final Consumer<Ticker> NO_OP = ticker -> {
     };
@@ -234,21 +235,28 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     public OpenPositions getOpenPositions() throws IOException {
 
         CountDownLatch response = new CountDownLatch(1);
-        AtomicReference<OpenPositions> responseHolder = new AtomicReference<>();
+
         String subAccount = getSubAccountOrDefault();
-        exchange.submitQueries(new Query(subAccountInfo(subAccount), (data) -> {
-            List<OpenPosition> positions = new ArrayList<>();
-            data.withArray("spot_balances").elements().forEachRemaining(bal -> addBalance(positions, bal));
-            data.withArray("perp_balances").elements().forEachRemaining(bal -> addBalance(positions, bal));
-            responseHolder.set(new OpenPositions(positions));
+        AtomicReference<JsonNode> subAccountInfoHolder = new AtomicReference<>();
+        exchange.submitQueries(new Query(subAccountInfo(subAccount), newValue -> {
+            subAccountInfoHolder.set(newValue);
             response.countDown();
         }));
+
         try {
             if (!response.await(10, TimeUnit.SECONDS)) {
                 throw new IOException("Timeout waiting for open positions response");
             }
 
-            return responseHolder.get();
+
+            JsonNode summary = exchange.getRestClient().indexerRequest(summary(subAccount));
+
+            JsonNode subAccountInfo = subAccountInfoHolder.get();
+            List<OpenPosition> positions = new ArrayList<>();
+            subAccountInfo.withArray("spot_balances").elements().forEachRemaining(bal -> addBalance(positions, bal, summary));
+            subAccountInfo.withArray("perp_balances").elements().forEachRemaining(bal -> addBalance(positions, bal, summary));
+
+            return new OpenPositions(positions);
         } catch (InterruptedException ignored) {
             return new OpenPositions(Collections.emptyList());
         }
@@ -256,7 +264,18 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     }
 
-    private void addBalance(List<OpenPosition> positions, JsonNode bal) {
+    private JsonNode summary(String subAccount) {
+        String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+        String jsonString = String.format("{\"summary\": {\"subaccount\": \"%s\"}}", sender);
+
+        try {
+            return MAPPER.readTree(jsonString);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void addBalance(List<OpenPosition> positions, JsonNode bal, JsonNode summary) {
         int productId = bal.get("product_id").asInt();
         Instrument instrument = productInfo.lookupInstrument(productId);
         if (instrument == null) {
@@ -267,14 +286,28 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         if (isZero(position)) {
             return;
         }
-        positions.add(new OpenPosition(instrument, position.compareTo(BigDecimal.ZERO) >= 0 ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT, position.abs(), null, null, null));
+        BigDecimal price = findPrice(productId, summary);
+        positions.add(new OpenPosition(instrument, position.compareTo(BigDecimal.ZERO) >= 0 ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT, position.abs(), price, null, null));
+    }
+
+    private BigDecimal findPrice(int productId, JsonNode summary) {
+        Iterator<JsonNode> events = summary.withArray("events").elements();
+
+        while (events.hasNext()) {
+            JsonNode event = events.next();
+            if (event.get("product_id").asInt() == productId) {
+                JsonNode postBalance = event.get("post_balance");
+                BigDecimal balance = readX18Decimal(MoreObjects.firstNonNull(postBalance.get("perp"), postBalance.get("spot")).get("balance"), "amount");
+                BigDecimal netUnrealised = readX18Decimal(event, "net_entry_unrealized");
+                return netUnrealised.divide(balance, RoundingMode.HALF_UP).abs();
+            }
+        }
+        return null;
     }
 
     private String subAccountInfo(String subAccount) {
         String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
-        return "{\n" +
-                "  \"type\": \"subaccount_info\",\n" +
-                "  \"subaccount\": \"" + sender + "\"\n}";
+        return String.format("{\"type\": \"subaccount_info\",\"subaccount\": \"%s\"}", sender);
     }
 
     private String placeOrder(Order marketOrder, BigDecimal price) throws IOException {
@@ -535,11 +568,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     private String openOrders(long productId, String subAccount) {
         String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
-        return "{\n" +
-                "  \"type\": \"subaccount_orders\",\n" +
-                "  \"sender\": \"" + sender + "\",\n" +
-                "  \"product_id\": " + productId + "\n" +
-                "}";
+        return String.format("{\"type\": \"subaccount_orders\",\"sender\": \"%s\",\"product_id\": %d}", sender, productId);
     }
 
     private BigDecimal getQuantity(Order order) {
