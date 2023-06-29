@@ -16,4 +16,9 @@ public class SignatureAndDigest {
     public String getDigest() {
         return digest;
     }
+
+    @Override
+    public String toString() {
+        return "Sig: " + signature + ", Digest: " + digest;
+    }
 }
