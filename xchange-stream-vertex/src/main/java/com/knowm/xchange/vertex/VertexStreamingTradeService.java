@@ -1,12 +1,24 @@
 package com.knowm.xchange.vertex;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.knowm.xchange.vertex.dto.*;
+import com.knowm.xchange.vertex.dto.CancelOrders;
+import com.knowm.xchange.vertex.dto.CancelProductOrders;
+import com.knowm.xchange.vertex.dto.Tx;
+import com.knowm.xchange.vertex.dto.VertexCancelOrdersMessage;
+import com.knowm.xchange.vertex.dto.VertexCancelProductOrdersMessage;
+import com.knowm.xchange.vertex.dto.VertexModelUtils;
+import com.knowm.xchange.vertex.dto.VertexOrder;
+import com.knowm.xchange.vertex.dto.VertexPlaceOrder;
+import com.knowm.xchange.vertex.dto.VertexPlaceOrderMessage;
+import com.knowm.xchange.vertex.dto.VertexRequest;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
@@ -19,6 +31,7 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
@@ -32,7 +45,11 @@ import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.*;
+import org.knowm.xchange.service.trade.params.CancelAllOrders;
+import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
+import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
+import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
+import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
@@ -45,15 +62,29 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
@@ -78,11 +109,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private final String endpointContract;
     private final double slippage;
     private final boolean useLeverage;
-    private final Map<String, CountDownLatch> responseLatches = new ConcurrentHashMap<>();
+    private final Map<Pair<String, String>, CompletableFuture<JsonNode>> responses = new ConcurrentHashMap<>();
     private final Map<Long, Disposable> tickerSubscriptions = new ConcurrentHashMap<>();
     private final Map<String, Observable<JsonNode>> fillSubscriptions = new ConcurrentHashMap<>();
     private final Disposable allMessageSubscription;
-    private final AtomicReference<Throwable> errorHolder = new AtomicReference<>();
     private final StreamingMarketDataService marketDataService;
 
     public VertexStreamingTradeService(VertexStreamingService requestResponseStream, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService) {
@@ -100,21 +130,39 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
 
         this.allMessageSubscription = exchange.subscribeToAllMessages().subscribe(resp -> {
-            if (resp.get("status").asText().equals("success")) {
-                logger.info("Received response: {}", resp);
-            } else {
-                logger.error("Received error: {}", resp);
-                errorHolder.set(new RuntimeException("Websocket message error: " + resp.get("error").asText()));
+            JsonNode statusNode = resp.get("status");
+            JsonNode typeNode = resp.get("request_type");
+            JsonNode signatureNode = resp.get("signature");
+
+            if (statusNode == null || typeNode == null || signatureNode == null) {
+                logger.error("Unable to handle incomplete response: {}", resp);
+                return;
             }
-            JsonNode respSignature = resp.get("signature");
-            if (respSignature != null) {
-                CountDownLatch replyLatch = responseLatches.remove(respSignature.asText());
-                if (replyLatch != null) {
-                    replyLatch.countDown();
+
+            boolean success = "success".equals(statusNode.asText());
+            String type = typeNode.asText();
+            String signature = signatureNode.asText();
+
+            CompletableFuture<JsonNode> responseFuture = responses.remove(Pair.of(type, signature));
+
+            if (responseFuture != null) {
+                if (success) {
+                    logger.info("Received success for {} ({}): {}", type, signature, resp);
+                    responseFuture.complete(resp);
+                } else {
+                    logger.error("Received error for {} ({}): {}", type, signature, resp);
+                    responseFuture.completeExceptionally(new ExchangeException(resp.get("error").asText()));
                 }
+
+            } else {
+                if (success) {
+                    logger.warn("Received success for unknown {} ({}): {}", type, signature, resp);
+                } else {
+                    logger.error("Received error for unknown {} ({}): {}", type, signature, resp);
+                }
+
             }
         });
-
     }
 
     public void disconnect() {
@@ -125,11 +173,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 logger.warn("Timeout waiting for disconnect");
             }
         }
+        responses.clear();
     }
 
     @Override
     public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
-
         BigDecimal price = limitOrder.getLimitPrice();
 
         return placeOrder(limitOrder, price);
@@ -137,14 +185,12 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     @Override
     public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
-
         long productId = productInfo.lookupProductId(marketOrder.getInstrument());
 
         BigDecimal price = getPrice(marketOrder, productId);
 
         return placeOrder(marketOrder, price);
     }
-
 
     @Override
     public Observable<Order> getOrderChanges(Instrument instrument, Object... args) {
@@ -311,7 +357,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     private String placeOrder(Order marketOrder, BigDecimal price) throws IOException {
-
         Instrument instrument = marketOrder.getInstrument();
         long productId = productInfo.lookupProductId(instrument);
 
@@ -329,7 +374,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         }
         quantity = roundToIncrement(quantity, quantityIncrement);
         BigInteger quantityAsInt = convertToInteger(quantity);
-
 
         String subAccount = getSubAccountOrDefault();
         String nonce = buildNonce(60000);
@@ -353,36 +397,45 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 productInfo.isSpot(instrument) ? useLeverage : null));
 
 
-        Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
-        if (sendError.isPresent()) {
-            Throwable throwable = sendError.get();
-            logger.error("Failed to place order : " + orderMessage, throwable);
-            throw new ExchangeException(throwable.getMessage());
+        try {
+            sendWebsocketMessage(orderMessage);
+
+        } catch (Exception e) {
+            logger.error("Failed to place order : " + orderMessage, e);
+            throw new ExchangeException(e);
+
         }
 
         return signatureAndDigest.getDigest();
     }
 
-    private Optional<Throwable> sendWebsocketMessage(VertexRequest messageObj) throws IOException {
+    private JsonNode sendWebsocketMessage(VertexRequest messageObj) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
+        String requestType = messageObj.getRequestType();
+        String signature = messageObj.getSignature();
 
         String message = mapper.writeValueAsString(messageObj);
-        logger.info("Sending order: {}", message);
+
+        logger.info("Sending {} ({}): {}", requestType, signature, message);
+
+        CompletableFuture<JsonNode> responseFuture = getResponseFuture(requestType, signature);
+
+        requestResponseStream.sendMessage(message);
+
         try {
-            CountDownLatch replyLatch = responseLatches.computeIfAbsent(messageObj.getSignature(), s -> new CountDownLatch(1));
-            requestResponseStream.sendMessage(message);
+            return responseFuture.get(5000, TimeUnit.MILLISECONDS);
 
-            if (!replyLatch.await(5000, java.util.concurrent.TimeUnit.MILLISECONDS)) {
-                throw new IOException("Timed out waiting for response");
-            }
-            Throwable error = errorHolder.get();
-            if (error != null) {
-                errorHolder.set(null);
-                return Optional.of(error);
-            }
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            responses.remove(Pair.of(requestType, signature));
+            throw e;
+
         }
-        return Optional.empty();
+    }
 
+    private CompletableFuture<JsonNode> getResponseFuture(String requestType, String signature) {
+        CompletableFuture<JsonNode> responseFuture = new CompletableFuture<>();
+        CompletableFuture<JsonNode> oldFuture = responses.putIfAbsent(Pair.of(requestType, signature), responseFuture);
+        Preconditions.checkState(oldFuture == null, "Already pending a response for %s (%s): %s", requestType, signature, oldFuture);
+        return responseFuture;
     }
 
     private BigInteger getExpiration(Set<Order.IOrderFlags> orderFlags) {
@@ -402,7 +455,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         BigInteger tifMask = timeInForce.shiftLeft(62);
         return expiry.or(tifMask);
     }
-
 
     private BigDecimal getPrice(Order order, long productId) {
         BigDecimal price;
@@ -457,9 +509,15 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     signatureAndDigest.getSignature()
             ));
 
-            Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
-            sendError.ifPresent(throwable -> logger.error("Failed to cancel order " + orderMessage, throwable));
-            return sendError.isEmpty() || isAlreadyCancelled(sendError.get());
+            try {
+                sendWebsocketMessage(orderMessage);
+                return true;
+
+            } catch (Exception e) {
+                logger.error("Failed to cancel order " + orderMessage, e);
+                return isAlreadyCancelled(Throwables.getRootCause(e));
+
+            }
 
         } else if (params instanceof CancelAllOrders || instrument != null) {
             List<Long> productIds = new ArrayList<>();
@@ -483,10 +541,15 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     signatureAndDigest.getSignature()
             ));
 
+            try {
+                sendWebsocketMessage(orderMessage);
+                return true;
 
-            Optional<Throwable> sendError = sendWebsocketMessage(orderMessage);
-            sendError.ifPresent(throwable -> logger.error("Failed to cancel order " + orderMessage, throwable));
-            return sendError.isEmpty();
+            } catch (Exception e) {
+                logger.error("Failed to cancel order " + orderMessage, e);
+                return false;
+
+            }
 
         }
         throw new IllegalArgumentException(

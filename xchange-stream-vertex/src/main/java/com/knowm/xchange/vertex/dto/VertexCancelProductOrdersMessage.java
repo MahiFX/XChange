@@ -8,13 +8,17 @@ public class VertexCancelProductOrdersMessage implements VertexRequest {
     private final CancelProductOrders cancelProductOrders;
 
     public VertexCancelProductOrdersMessage(CancelProductOrders cancelProductOrders) {
-
         this.cancelProductOrders = cancelProductOrders;
     }
 
     @JsonProperty("cancel_product_orders")
     public CancelProductOrders getCancelProductOrders() {
         return cancelProductOrders;
+    }
+
+    @Override
+    public String getRequestType() {
+        return "execute_cancel_product_orders";
     }
 
     @Override
