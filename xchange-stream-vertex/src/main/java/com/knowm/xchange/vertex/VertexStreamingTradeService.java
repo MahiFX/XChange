@@ -9,16 +9,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.knowm.xchange.vertex.dto.CancelOrders;
-import com.knowm.xchange.vertex.dto.CancelProductOrders;
-import com.knowm.xchange.vertex.dto.Tx;
-import com.knowm.xchange.vertex.dto.VertexCancelOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexCancelProductOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexModelUtils;
-import com.knowm.xchange.vertex.dto.VertexOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrderMessage;
-import com.knowm.xchange.vertex.dto.VertexRequest;
+import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
@@ -45,11 +36,7 @@ import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.CancelAllOrders;
-import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
-import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
-import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
-import org.knowm.xchange.service.trade.params.CancelOrderParams;
+import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
@@ -62,29 +49,13 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
@@ -132,6 +103,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.allMessageSubscription = exchange.subscribeToAllMessages().subscribe(resp -> {
             JsonNode statusNode = resp.get("status");
             JsonNode typeNode = resp.get("request_type");
+            if (typeNode != null && typeNode.textValue().startsWith("query")) {
+                return; // ignore query responses that are handled in VertexStreamingExchange
+            }
             JsonNode signatureNode = resp.get("signature");
 
             if (statusNode == null || typeNode == null || signatureNode == null) {
@@ -584,8 +558,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         if (params instanceof OpenOrdersParamInstrument) {
             CurrencyPair instrument = (CurrencyPair) ((OpenOrdersParamInstrument) params).getInstrument();
             long productId = productInfo.lookupProductId(instrument);
-            CountDownLatch response = new CountDownLatch(1);
-            AtomicReference<OpenOrders> responseHolder = new AtomicReference<>();
+            CompletableFuture<OpenOrders> responseLatch = new CompletableFuture<>();
+
             String subAccount = getSubAccountOrDefault();
             exchange.submitQueries(new Query(openOrders(productId, subAccount), (data) -> {
                 List<LimitOrder> orders = new ArrayList<>();
@@ -608,17 +582,16 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     orders.add(builder.build());
 
                 });
-                responseHolder.set(new OpenOrders(orders));
-                response.countDown();
+                responseLatch.complete(new OpenOrders(orders));
             }));
             try {
-                if (!response.await(10, TimeUnit.SECONDS)) {
-                    throw new IOException("Timeout waiting for open orders response");
-                }
-
-                return responseHolder.get();
+                return responseLatch.get(10, TimeUnit.SECONDS);
             } catch (InterruptedException ignored) {
                 return new OpenOrders(Collections.emptyList());
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            } catch (TimeoutException e) {
+                throw new IOException("Timeout waiting for open orders response");
             }
         } else {
             throw new IllegalArgumentException("Only OpenOrdersParamInstrument is supported");
