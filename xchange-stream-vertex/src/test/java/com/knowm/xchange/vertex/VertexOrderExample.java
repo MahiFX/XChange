@@ -106,7 +106,7 @@ public class VertexOrderExample {
         String orderId2 = tradeService.placeLimitOrder(resting);
 
 
-        log.info("Open orders before cancel all instrument: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
+        log.info("Open orders before cancel all instrument: {}", tradeService.getOpenOrders());
 
         tradeService.cancelOrder(new DefaultCancelAllOrdersByInstrument(btc));
 

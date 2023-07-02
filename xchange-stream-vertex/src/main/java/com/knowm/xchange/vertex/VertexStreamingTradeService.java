@@ -45,13 +45,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
@@ -235,7 +235,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     Instant timestamp = NanoSecondsDeserializer.parse(timestampText);
                     String respSubAccount = resp.get("subaccount").asText();
                     BigDecimal orderQty = readX18Decimal(resp, "original_qty");
-                    String filledPercentage = filled.divide(orderQty, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).round(new MathContext(2)).toPlainString();
+                    String filledPercentage = filled.divide(orderQty, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).setScale(3, RoundingMode.HALF_DOWN).toPlainString();
 
                     return Optional.of(builder.id(ORDER_ID_HASHER.hashString(orderId, Charsets.UTF_8) + "-" + filledPercentage)
                             .instrument(instrument)
@@ -260,6 +260,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         AtomicReference<JsonNode> subAccountInfoHolder = new AtomicReference<>();
         exchange.submitQueries(new Query(subAccountInfo(subAccount), newValue -> {
             subAccountInfoHolder.set(newValue);
+            response.countDown();
+        }, (code, error) -> {
+            logger.error("Error getting subaccount info: {} {}", code, error);
             response.countDown();
         }));
 
@@ -554,47 +557,99 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     @Override
+    public OpenOrders getOpenOrders() throws IOException {
+        return getOpenOrders(null);
+    }
+
+    @Override
     public OpenOrders getOpenOrders(OpenOrdersParams params) throws IOException {
-        if (params instanceof OpenOrdersParamInstrument) {
-            CurrencyPair instrument = (CurrencyPair) ((OpenOrdersParamInstrument) params).getInstrument();
-            long productId = productInfo.lookupProductId(instrument);
+        try {
+
+
             CompletableFuture<OpenOrders> responseLatch = new CompletableFuture<>();
 
-            String subAccount = getSubAccountOrDefault();
-            exchange.submitQueries(new Query(openOrders(productId, subAccount), (data) -> {
-                List<LimitOrder> orders = new ArrayList<>();
-                data.withArray("orders").elements().forEachRemaining(order -> {
-                    String priceX18 = "price_x18";
-                    BigDecimal price = readX18Decimal(order, priceX18);
-                    BigDecimal amount = readX18Decimal(order, "amount");
-                    BigDecimal unfilledAmount = readX18Decimal(order, "unfilled_amount");
+            if (params instanceof OpenOrdersParamInstrument) {
+                CurrencyPair instrument = (CurrencyPair) ((OpenOrdersParamInstrument) params).getInstrument();
+                long productId = productInfo.lookupProductId(instrument);
 
-                    Date placedAt = new Date(Instant.ofEpochSecond(order.get("placed_at").asLong()).toEpochMilli());
-                    BigDecimal filled = amount.subtract(unfilledAmount);
-                    LimitOrder.Builder builder = new LimitOrder.Builder(amount.compareTo(BigDecimal.ZERO) > 0 ? Order.OrderType.BID : Order.OrderType.ASK, instrument)
-                            .id(order.get("digest").asText())
-                            .limitPrice(price)
-                            .originalAmount(amount)
-                            .remainingAmount(unfilledAmount)
-                            .orderStatus(getOrderStatus(unfilledAmount, filled, amount))
-                            .cumulativeAmount(filled)
-                            .timestamp(placedAt);
-                    orders.add(builder.build());
+                String subAccount = getSubAccountOrDefault();
+                exchange.submitQueries(new Query(openOrders(productId, subAccount), (data) -> {
+                    List<LimitOrder> orders = new ArrayList<>();
+                    data.withArray("orders").elements().forEachRemaining(order -> {
+                        String priceX18 = "price_x18";
+                        BigDecimal price = readX18Decimal(order, priceX18);
+                        BigDecimal amount = readX18Decimal(order, "amount");
+                        BigDecimal unfilledAmount = readX18Decimal(order, "unfilled_amount");
 
-                });
-                responseLatch.complete(new OpenOrders(orders));
-            }));
-            try {
+                        Date placedAt = new Date(Instant.ofEpochSecond(order.get("placed_at").asLong()).toEpochMilli());
+                        BigDecimal filled = amount.subtract(unfilledAmount);
+                        LimitOrder.Builder builder = new LimitOrder.Builder(amount.compareTo(BigDecimal.ZERO) > 0 ? Order.OrderType.BID : Order.OrderType.ASK, instrument)
+                                .id(order.get("digest").asText())
+                                .limitPrice(price)
+                                .originalAmount(amount)
+                                .remainingAmount(unfilledAmount)
+                                .orderStatus(getOrderStatus(unfilledAmount, filled, amount))
+                                .cumulativeAmount(filled)
+                                .timestamp(placedAt);
+                        orders.add(builder.build());
+
+                    });
+                    responseLatch.complete(new OpenOrders(orders));
+                }, (code, error) -> responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error))));
+
                 return responseLatch.get(10, TimeUnit.SECONDS);
-            } catch (InterruptedException ignored) {
-                return new OpenOrders(Collections.emptyList());
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
-            } catch (TimeoutException e) {
-                throw new IOException("Timeout waiting for open orders response");
+
+            } else {
+
+                String subAccount = getSubAccountOrDefault();
+                List<LimitOrder> orders = new ArrayList<>();
+
+                List<Query> queries = new ArrayList<>();
+                List<Long> productsIds = productInfo.getProductsIds().stream().filter(id -> id != 0).collect(Collectors.toList());
+                CountDownLatch pendingQueries = new CountDownLatch(productsIds.size());
+                for (Long productId : productsIds) {
+                    Instrument instrument = productInfo.lookupInstrument(productId);
+                    queries.add(new Query(openOrders(productId, subAccount), (data) -> {
+                        data.withArray("orders").elements().forEachRemaining(order -> {
+                            String priceX18 = "price_x18";
+                            BigDecimal price = readX18Decimal(order, priceX18);
+                            BigDecimal amount = readX18Decimal(order, "amount");
+                            BigDecimal unfilledAmount = readX18Decimal(order, "unfilled_amount");
+
+                            Date placedAt = new Date(Instant.ofEpochSecond(order.get("placed_at").asLong()).toEpochMilli());
+                            BigDecimal filled = amount.subtract(unfilledAmount);
+                            LimitOrder.Builder builder = new LimitOrder.Builder(amount.compareTo(BigDecimal.ZERO) > 0 ? Order.OrderType.BID : Order.OrderType.ASK, instrument)
+                                    .id(order.get("digest").asText())
+                                    .limitPrice(price)
+                                    .originalAmount(amount)
+                                    .remainingAmount(unfilledAmount)
+                                    .orderStatus(getOrderStatus(unfilledAmount, filled, amount))
+                                    .cumulativeAmount(filled)
+                                    .timestamp(placedAt);
+                            orders.add(builder.build());
+
+                        });
+                        pendingQueries.countDown();
+                    }, (code, error) -> {
+                        pendingQueries.countDown();
+                        responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error));
+                    }));
+                }
+
+                exchange.submitQueries(queries.toArray(new Query[0]));
+                if (!pendingQueries.await(10, TimeUnit.SECONDS)) {
+                    throw new IOException("Timeout waiting for open orders response");
+                }
+                responseLatch.complete(new OpenOrders(orders));
             }
-        } else {
-            throw new IllegalArgumentException("Only OpenOrdersParamInstrument is supported");
+
+            return responseLatch.get(10, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+            return new OpenOrders(Collections.emptyList());
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (TimeoutException e) {
+            throw new IOException("Timeout waiting for open orders response");
         }
 
     }

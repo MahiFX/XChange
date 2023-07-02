@@ -211,7 +211,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
             snapshots.onNext(snapshot);
             snapshotTimeHolder.set(snapshot.getMaxTime());
             lastChangeId.set(null);
-        }));
+        }, (code, error) -> logger.error("Error requesting snapshot for product " + productId + " " + code + " " + error)));
     }
 
     private VertexMarketDataUpdateMessage buildSnapshotFromQueryResponse(long productId, JsonNode data) {

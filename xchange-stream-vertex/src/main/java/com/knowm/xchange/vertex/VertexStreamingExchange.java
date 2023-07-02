@@ -110,7 +110,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
                     endpointContract = data1.get("endpoint_addr").asText();
                     bookContracts = new ArrayList<>();
                     data1.withArray("book_addrs").elements().forEachRemaining(node -> bookContracts.add(node.asText()));
-                }));
+                }, (code, error) -> logger.error("Error loading contract data: " + code + " " + error)));
 
 
         queries.add(new Query("{\"type\":\"all_products\"}", data -> {
@@ -121,18 +121,19 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
 
             for (Long productId : productInfo.getProductsIds()) {
-                Query marketPricesQuery = new Query("{\"type\":\"market_price\", \"product_id\": " + productId + "}",
-                        priceData -> {
-                            JsonNode bidX18 = priceData.get("bid_x18");
-                            BigInteger bid = new BigInteger(bidX18.asText());
-                            JsonNode offerX18 = priceData.get("ask_x18");
-                            BigInteger offer = new BigInteger(offerX18.asText());
-                            marketPrices.computeIfAbsent(productId, k -> new TopOfBookPrice(convertToDecimal(bid), convertToDecimal(offer)));
-                        });
-                priceQueries.add(marketPricesQuery);
-
+                if (productId != 0) {
+                    Query marketPricesQuery = new Query("{\"type\":\"market_price\", \"product_id\": " + productId + "}",
+                            priceData -> {
+                                JsonNode bidX18 = priceData.get("bid_x18");
+                                BigInteger bid = new BigInteger(bidX18.asText());
+                                JsonNode offerX18 = priceData.get("ask_x18");
+                                BigInteger offer = new BigInteger(offerX18.asText());
+                                marketPrices.computeIfAbsent(productId, k -> new TopOfBookPrice(convertToDecimal(bid), convertToDecimal(offer)));
+                            }, (code, error) -> logger.error("Error loading market prices: " + code + " " + error));
+                    priceQueries.add(marketPricesQuery);
+                }
             }
-        }));
+        }, (code, error) -> logger.error("Error loading product info: " + code + " " + error)));
 
         submitQueries(queries.toArray(new Query[0]));
 
@@ -162,15 +163,25 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
         Observable<JsonNode> stream = subscribeToAllMessages();
 
+
         for (Query query : queries) {
             CountDownLatch responseLatch = new CountDownLatch(1);
             Disposable subscription = stream.subscribe(resp -> {
-                JsonNode data = resp.get("data");
-                if (data != null) {
-                    query.getRespHandler().accept(data);
-                    logger.info("Query response " + data.toPrettyString());
+                JsonNode requestType = resp.get("request_type");
+                if (requestType != null && requestType.textValue().startsWith("query_")) {
+                    JsonNode data = resp.get("data");
+                    JsonNode error = resp.get("error");
+                    JsonNode errorCode = resp.get("error_code");
+                    JsonNode status = resp.get("status");
+                    boolean success = status != null && status.asText().equals("success");
+                    if (!success) {
+                        query.getErrorHandler().accept(errorCode.asInt(-1), error.asText("Unknown error"));
+                    } else {
+                        query.getRespHandler().accept(data);
+                        logger.info("Query response " + data.toPrettyString());
+                    }
+                    responseLatch.countDown();
                 }
-                responseLatch.countDown();
             }, (err) -> logger.error("Query error running " + query.getQueryMsg(), err));
             try {
                 logger.info("Sending query " + query.getQueryMsg());
