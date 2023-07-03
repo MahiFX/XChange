@@ -29,15 +29,15 @@
   },
   "public_rate_limits": [
     {
-      "calls": 200,
-      "time_span": 1,
+      "calls": 60,
+      "time_span": 10,
       "time_unit": "seconds"
     }
   ],
   "private_rate_limits": [
     {
-      "calls": 200,
-      "time_span": 1,
+      "calls": 60,
+      "time_span": 10,
       "time_unit": "seconds"
     }
   ],
