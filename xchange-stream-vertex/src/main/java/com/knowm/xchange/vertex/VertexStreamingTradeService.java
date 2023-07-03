@@ -423,7 +423,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 signatureAndDigest.getSignature(),
                 productInfo.isSpot(instrument) ? useLeverage : null));
 
-        logger.info("Send order {} -> {}", marketOrder, signatureAndDigest);
+        logger.info("Send order {} -> {} (valid for {}ms)", marketOrder, signatureAndDigest, placeOrderValidUntilMs);
 
         try {
             sendWebsocketMessage(orderMessage);
