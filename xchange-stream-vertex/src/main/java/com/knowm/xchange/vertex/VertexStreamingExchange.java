@@ -32,6 +32,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     public static final String USE_LEVERAGE = "useLeverage";
     public static final String MAX_SLIPPAGE_RATIO = "maxSlippageRatio";
+    public static final String PLACE_ORDER_VALID_UNTIL_MS_PROP = "placeOrderValidUntilMs";
+
     private VertexStreamingService subscriptionStream;
     private VertexStreamingMarketDataService streamingMarketDataService;
     private VertexStreamingTradeService streamingTradeService;

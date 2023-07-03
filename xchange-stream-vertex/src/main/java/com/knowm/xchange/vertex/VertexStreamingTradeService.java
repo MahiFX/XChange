@@ -6,10 +6,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.knowm.xchange.vertex.dto.*;
+import com.knowm.xchange.vertex.dto.CancelOrders;
+import com.knowm.xchange.vertex.dto.CancelProductOrders;
+import com.knowm.xchange.vertex.dto.Tx;
+import com.knowm.xchange.vertex.dto.VertexCancelOrdersMessage;
+import com.knowm.xchange.vertex.dto.VertexCancelProductOrdersMessage;
+import com.knowm.xchange.vertex.dto.VertexModelUtils;
+import com.knowm.xchange.vertex.dto.VertexOrder;
+import com.knowm.xchange.vertex.dto.VertexPlaceOrder;
+import com.knowm.xchange.vertex.dto.VertexPlaceOrderMessage;
+import com.knowm.xchange.vertex.dto.VertexRequest;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
@@ -17,6 +25,7 @@ import com.knowm.xchange.vertex.signing.schemas.CancelProductOrdersSchema;
 import com.knowm.xchange.vertex.signing.schemas.PlaceOrderSchema;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.core.StreamingTradeService;
+import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
@@ -36,7 +45,11 @@ import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.*;
+import org.knowm.xchange.service.trade.params.CancelAllOrders;
+import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
+import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
+import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
+import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
@@ -48,14 +61,31 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
+import static com.knowm.xchange.vertex.VertexStreamingExchange.PLACE_ORDER_VALID_UNTIL_MS_PROP;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
@@ -80,6 +110,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private final String endpointContract;
     private final double slippage;
     private final boolean useLeverage;
+    private final int placeOrderValidUntilMs;
     private final Map<Pair<String, String>, CompletableFuture<JsonNode>> responses = new ConcurrentHashMap<>();
     private final Map<Long, Disposable> tickerSubscriptions = new ConcurrentHashMap<>();
     private final Map<String, Observable<JsonNode>> fillSubscriptions = new ConcurrentHashMap<>();
@@ -99,13 +130,36 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         this.mapper = StreamingObjectMapperHelper.getObjectMapper();
         this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO).toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
         this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
+        this.placeOrderValidUntilMs = exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP) != null ? (int) exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP) : 60000;
+
+        exchange.connectionStateObservable().subscribe(
+                s -> {
+                    if (!ConnectionStateModel.State.CLOSED.equals(s)) {
+                        return;
+                    }
+
+                    Collection<CompletableFuture<JsonNode>> futures = responses.values();
+
+                    if (futures.isEmpty()) {
+                        return;
+                    }
+
+                    logger.info("Cancelling {} pending operations due to {} state", futures.size(), s);
+
+                    futures.forEach(f -> f.cancel(false));
+                    responses.clear();
+                },
+                t -> logger.error("Connection state observer error", t)
+        );
 
         this.allMessageSubscription = exchange.subscribeToAllMessages().subscribe(resp -> {
-            JsonNode statusNode = resp.get("status");
             JsonNode typeNode = resp.get("request_type");
+
             if (typeNode != null && typeNode.textValue().startsWith("query")) {
                 return; // ignore query responses that are handled in VertexStreamingExchange
             }
+
+            JsonNode statusNode = resp.get("status");
             JsonNode signatureNode = resp.get("signature");
 
             if (statusNode == null || typeNode == null || signatureNode == null) {
@@ -147,18 +201,17 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 logger.warn("Timeout waiting for disconnect");
             }
         }
-        responses.clear();
     }
 
     @Override
-    public String placeLimitOrder(LimitOrder limitOrder) throws IOException {
+    public String placeLimitOrder(LimitOrder limitOrder) {
         BigDecimal price = limitOrder.getLimitPrice();
 
         return placeOrder(limitOrder, price);
     }
 
     @Override
-    public String placeMarketOrder(MarketOrder marketOrder) throws IOException {
+    public String placeMarketOrder(MarketOrder marketOrder) {
         long productId = productInfo.lookupProductId(marketOrder.getInstrument());
 
         BigDecimal price = getPrice(marketOrder, productId);
@@ -217,10 +270,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         return fillSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
     }
 
-
     @Override
     public Observable<UserTrade> getUserTrades(Instrument instrument, Object... args) {
-
         return subscribeToFills(instrument).map(resp -> {
                     boolean isBid = resp.get("is_bid").asBoolean();
                     UserTrade.Builder builder = new UserTrade.Builder();
@@ -253,7 +304,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     public OpenPositions getOpenPositions() throws IOException {
-
         CountDownLatch response = new CountDownLatch(1);
 
         String subAccount = getSubAccountOrDefault();
@@ -333,7 +383,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         return String.format("{\"type\": \"subaccount_info\",\"subaccount\": \"%s\"}", sender);
     }
 
-    private String placeOrder(Order marketOrder, BigDecimal price) throws IOException {
+    private String placeOrder(Order marketOrder, BigDecimal price) {
         Instrument instrument = marketOrder.getInstrument();
         long productId = productInfo.lookupProductId(instrument);
 
@@ -353,7 +403,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         BigInteger quantityAsInt = convertToInteger(quantity);
 
         String subAccount = getSubAccountOrDefault();
-        String nonce = buildNonce(60000);
+        String nonce = buildNonce(placeOrderValidUntilMs);
         String walletAddress = exchangeSpecification.getApiKey();
         String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
 
@@ -457,13 +507,13 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     @Override
-    public Collection<String> cancelAllOrders(CancelAllOrders orderParams) throws IOException {
+    public Collection<String> cancelAllOrders(CancelAllOrders orderParams) {
         cancelOrder(orderParams);
         return Collections.emptyList();
     }
 
     @Override
-    public boolean cancelOrder(CancelOrderParams params) throws IOException {
+    public boolean cancelOrder(CancelOrderParams params) {
 
         String id = getOrderId(params);
         Instrument instrument = getInstrument(params);
@@ -493,7 +543,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
             } catch (Exception e) {
                 logger.error("Failed to cancel order " + orderMessage, e);
-                return isAlreadyCancelled(Throwables.getRootCause(e));
+                return false;
 
             }
 
@@ -532,10 +582,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         }
         throw new IllegalArgumentException(
                 "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelOrderByCurrencyPair, CancelAllOrders interfaces.");
-    }
-
-    private boolean isAlreadyCancelled(Throwable throwable) {
-        return throwable.getMessage().matches(".*Order with the provided digest .* could not be found.*");
     }
 
     private String getOrderId(CancelOrderParams params) {

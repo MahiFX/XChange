@@ -23,6 +23,8 @@ import org.web3j.utils.Numeric;
 import java.io.IOException;
 import java.math.BigDecimal;
 
+import static com.knowm.xchange.vertex.VertexStreamingExchange.PLACE_ORDER_VALID_UNTIL_MS_PROP;
+
 public class VertexOrderExample {
 
     private static final Logger log = LoggerFactory.getLogger(VertexOrderExample.class);
