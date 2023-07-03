@@ -8,16 +8,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.knowm.xchange.vertex.dto.CancelOrders;
-import com.knowm.xchange.vertex.dto.CancelProductOrders;
-import com.knowm.xchange.vertex.dto.Tx;
-import com.knowm.xchange.vertex.dto.VertexCancelOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexCancelProductOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexModelUtils;
-import com.knowm.xchange.vertex.dto.VertexOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrderMessage;
-import com.knowm.xchange.vertex.dto.VertexRequest;
+import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
@@ -45,11 +36,7 @@ import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.CancelAllOrders;
-import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
-import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
-import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
-import org.knowm.xchange.service.trade.params.CancelOrderParams;
+import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
@@ -61,31 +48,13 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.PLACE_ORDER_VALID_UNTIL_MS_PROP;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
+import static com.knowm.xchange.vertex.VertexStreamingExchange.*;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
@@ -288,7 +257,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     BigDecimal orderQty = readX18Decimal(resp, "original_qty");
                     String filledPercentage = filled.divide(orderQty, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).setScale(3, RoundingMode.HALF_DOWN).toPlainString();
 
-                    return Optional.of(builder.id(ORDER_ID_HASHER.hashString(orderId, Charsets.UTF_8) + "-" + filledPercentage)
+                    return Optional.of(builder.id(ORDER_ID_HASHER.hashString(orderId + ":" + filled.toPlainString() + ":" + price.toPlainString(), Charsets.UTF_8) + "-" + filledPercentage)
                             .instrument(instrument)
                             .originalAmount(filled)
                             .orderId(orderId)
