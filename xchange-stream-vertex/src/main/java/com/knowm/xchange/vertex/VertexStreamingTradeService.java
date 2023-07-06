@@ -543,7 +543,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 return true;
 
             } catch (Exception e) {
-                logger.error("Failed to cancel order " + orderMessage, e);
+                logger.error("Failed to cancel order (" + id + "): " + orderMessage, e);
                 return isAlreadyCancelled(Throwables.getRootCause(e));
 
             }
