@@ -7,24 +7,34 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Trade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.ECKeyPair;
+import org.web3j.crypto.Keys;
 
 import java.util.concurrent.atomic.AtomicLong;
 
 public class VertexMarketDataExample {
 
     private static final Logger logger = LoggerFactory.getLogger(VertexMarketDataExample.class);
-    public static final String BTC_USDC = "wBTC-USDC";
+
 
     public static void main(String[] args) throws InterruptedException {
         ExchangeSpecification exchangeSpecification = new ExchangeSpecification(VertexStreamingExchange.class);
 
-        exchangeSpecification.setApiKey("YOUR_WALLET_ADDRESS");
-        exchangeSpecification.setSecretKey("YOUR_WALLET_SECRET_KEY");
+        String privateKey = System.getProperty("WALLET_PRIVATE_KEY");
+        ECKeyPair ecKeyPair = Credentials.create(privateKey).getEcKeyPair();
+        String address = "0x" + Keys.getAddress(ecKeyPair.getPublicKey());
+
+        exchangeSpecification.setApiKey(address);
+        exchangeSpecification.setSecretKey(privateKey);
+//        exchangeSpecification.setExchangeSpecificParametersItem(SOCKS_PROXY_HOST, "localhost");
+//        exchangeSpecification.setExchangeSpecificParametersItem(SOCKS_PROXY_PORT, 8889);
 
         exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
 
@@ -32,17 +42,25 @@ public class VertexMarketDataExample {
 
         exchange.connect().blockingAwait();
 
-        Disposable ticker = exchange.getStreamingMarketDataService().getTicker(new CurrencyPair(BTC_USDC))
+        CurrencyPair btcUsdc = new CurrencyPair(Currency.BTC, Currency.USDC);
+        CurrencyPair ethUsdc = new CurrencyPair(Currency.ETH, Currency.USDC);
+
+        Disposable ticker = exchange.getStreamingMarketDataService().getTicker(btcUsdc)
                 .forEach(tick -> {
-                    logger.info(BTC_USDC + " TOB: " + tick);
+                    logger.info(btcUsdc + " TOB: " + tick);
                 });
 
-        Disposable disconnectBtcTOB = subscribe(exchange.getStreamingMarketDataService(), BTC_USDC, 1);
-        Disposable disconnectBtc15 = subscribe(exchange.getStreamingMarketDataService(), BTC_USDC, 15);
+        Disposable disconnectBtcTOB = subscribe(exchange.getStreamingMarketDataService(), btcUsdc.toString(), 1);
+        Disposable disconnectBtc15 = subscribe(exchange.getStreamingMarketDataService(), btcUsdc.toString(), 15);
 
-        Disposable disconnectEth = subscribe(exchange.getStreamingMarketDataService(), "wETH-USDC", 2);
+        Disposable disconnectEth = subscribe(exchange.getStreamingMarketDataService(), ethUsdc.toString(), 2);
 
-        Thread.sleep(10000);
+
+        for (int i = 0; i < 60; i++) {
+            Thread.sleep(1000);
+            logger.info("Alive? " + exchange.isAlive());
+        }
+
 
         logger.info("\n\n Disconnecting 15 depth BTC-USDC \n\n");
 

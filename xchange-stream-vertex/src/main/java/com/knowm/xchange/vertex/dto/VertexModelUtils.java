@@ -1,5 +1,7 @@
 package com.knowm.xchange.vertex.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.web3j.utils.Numeric;
@@ -7,6 +9,8 @@ import org.web3j.utils.Numeric;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.Instant;
+import java.util.Iterator;
+import java.util.List;
 
 public class VertexModelUtils {
     public static final BigDecimal NUMBER_CONVERSION_FACTOR = BigDecimal.ONE.scaleByPowerOfTen(18);
@@ -36,5 +40,18 @@ public class VertexModelUtils {
         System.arraycopy(paddedSubAccount, 0, sender, walletBytes.length, paddedSubAccount.length);
 
         return Numeric.toHexString(sender);
+    }
+
+    public static BigDecimal readX18Decimal(JsonNode obj, String fieldName) {
+        return convertToDecimal(new BigInteger(obj.get(fieldName).asText()));
+    }
+
+    public static void readX18DecimalArray(JsonNode node, String fieldName, List<BigDecimal> outputList) {
+        ArrayNode jsonNode = node.withArray(fieldName);
+        Iterator<JsonNode> elements = jsonNode.elements();
+        while (elements.hasNext()) {
+            JsonNode next = elements.next();
+            outputList.add(convertToDecimal(new BigInteger(next.asText())));
+        }
     }
 }

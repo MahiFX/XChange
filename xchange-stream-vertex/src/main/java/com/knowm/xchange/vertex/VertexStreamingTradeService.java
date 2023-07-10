@@ -9,16 +9,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.knowm.xchange.vertex.dto.CancelOrders;
-import com.knowm.xchange.vertex.dto.CancelProductOrders;
-import com.knowm.xchange.vertex.dto.Tx;
-import com.knowm.xchange.vertex.dto.VertexCancelOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexCancelProductOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexModelUtils;
-import com.knowm.xchange.vertex.dto.VertexOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrderMessage;
-import com.knowm.xchange.vertex.dto.VertexRequest;
+import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
@@ -34,6 +25,7 @@ import io.reactivex.functions.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.account.OpenPosition;
@@ -46,11 +38,7 @@ import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.CancelAllOrders;
-import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
-import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
-import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
-import org.knowm.xchange.service.trade.params.CancelOrderParams;
+import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
@@ -62,31 +50,13 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.PLACE_ORDER_VALID_UNTIL_MS_PROP;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
+import static com.knowm.xchange.vertex.VertexStreamingExchange.*;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
@@ -95,8 +65,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private static final boolean DEFAULT_USE_LEVERAGE = false;
     public static final Consumer<Ticker> NO_OP = ticker -> {
     };
-    public static final String DEFAULT_SUB_ACCOUNT = "default";
     public static final HashFunction ORDER_ID_HASHER = Hashing.murmur3_32_fixed();
+    public static final BigDecimal BPS_TO_MULTIPLIER = BigDecimal.valueOf(0.0001);
     private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
     private final VertexStreamingService requestResponseStream;
@@ -265,7 +235,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     private Observable<JsonNode> subscribeToFills(Instrument instrument) {
         long productId = productInfo.lookupProductId(instrument);
 
-        String subAccount = getSubAccountOrDefault();
+        String subAccount = exchange.getSubAccountOrDefault();
 
         String channel = "fill." + productId + "." + buildSender(exchangeSpecification.getApiKey(), subAccount);
         return fillSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
@@ -273,8 +243,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     @Override
     public Observable<UserTrade> getUserTrades(Instrument instrument, Object... args) {
+        long productId = productInfo.lookupProductId(instrument);
+
         return subscribeToFills(instrument).map(resp -> {
                     boolean isBid = resp.get("is_bid").asBoolean();
+                    boolean isTaker = resp.get("is_taker").asBoolean();
                     UserTrade.Builder builder = new UserTrade.Builder();
 
                     String orderId = resp.get("order_digest").asText();
@@ -289,6 +262,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     BigDecimal orderQty = readX18Decimal(resp, "original_qty");
                     String filledPercentage = filled.divide(orderQty, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).setScale(3, RoundingMode.HALF_DOWN).toPlainString();
 
+                    BigDecimal fee = calcFee(isTaker, filled, productId, price);
                     return Optional.of(builder.id(ORDER_ID_HASHER.hashString(orderId + ":" + filled.toPlainString() + ":" + price.toPlainString(), Charsets.UTF_8) + "-" + filledPercentage)
                             .instrument(instrument)
                             .originalAmount(filled)
@@ -297,6 +271,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                             .type(isBid ? Order.OrderType.BID : Order.OrderType.ASK)
                             .orderUserReference(respSubAccount)
                             .timestamp(new Date(timestamp.toEpochMilli()))
+                            .feeCurrency(Currency.USDC)
+                            .feeAmount(fee)
                             .creationTimestamp(new Date())
                             .build());
                 })
@@ -304,10 +280,20 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 .map(Optional::get);
     }
 
+    private BigDecimal calcFee(boolean isTaker, BigDecimal filled, long productId, BigDecimal price) {
+        BigDecimal bpsFee = isTaker ? exchange.getTakerTradeFee(productId) : exchange.getMakerTradeFee(productId);
+        BigDecimal lhsFee = filled.multiply(bpsFee);
+        BigDecimal usdcFee = lhsFee.multiply(price).setScale(2, RoundingMode.HALF_UP);
+        if (isTaker) {
+            usdcFee = usdcFee.add(exchange.getTakerFee());
+        }
+        return isTaker ? usdcFee : usdcFee.negate();
+    }
+
     public OpenPositions getOpenPositions() throws IOException {
         CountDownLatch response = new CountDownLatch(1);
 
-        String subAccount = getSubAccountOrDefault();
+        String subAccount = exchange.getSubAccountOrDefault();
         AtomicReference<JsonNode> subAccountInfoHolder = new AtomicReference<>();
         exchange.submitQueries(new Query(subAccountInfo(subAccount), newValue -> {
             subAccountInfoHolder.set(newValue);
@@ -403,7 +389,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         quantity = roundToIncrement(quantity, quantityIncrement);
         BigInteger quantityAsInt = convertToInteger(quantity);
 
-        String subAccount = getSubAccountOrDefault();
+        String subAccount = exchange.getSubAccountOrDefault();
         String nonce = buildNonce(placeOrderValidUntilMs);
         String walletAddress = exchangeSpecification.getApiKey();
         String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
@@ -523,7 +509,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
             long productId = productInfo.lookupProductId(instrument);
 
-            String subAccount = getSubAccountOrDefault();
+            String subAccount = exchange.getSubAccountOrDefault();
             String nonce = buildNonce(60000);
             String walletAddress = exchangeSpecification.getApiKey();
             String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
@@ -554,7 +540,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 productIds.add(productInfo.lookupProductId(instrument));
             }
 
-            String subAccount = getSubAccountOrDefault();
+            String subAccount = exchange.getSubAccountOrDefault();
             String nonce = buildNonce(60000);
             String walletAddress = exchangeSpecification.getApiKey();
             String sender = VertexModelUtils.buildSender(walletAddress, subAccount);
@@ -624,7 +610,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 CurrencyPair instrument = (CurrencyPair) ((OpenOrdersParamInstrument) params).getInstrument();
                 long productId = productInfo.lookupProductId(instrument);
 
-                String subAccount = getSubAccountOrDefault();
+                String subAccount = exchange.getSubAccountOrDefault();
                 exchange.submitQueries(new Query(openOrders(productId, subAccount), (data) -> {
                     List<LimitOrder> orders = new ArrayList<>();
                     data.withArray("orders").elements().forEachRemaining(order -> {
@@ -704,10 +690,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             throw new IOException("Timeout waiting for open orders response");
         }
 
-    }
-
-    private static BigDecimal readX18Decimal(JsonNode obj, String fieldName) {
-        return convertToDecimal(new BigInteger(obj.get(fieldName).asText()));
     }
 
     private String openOrders(long productId, String subAccount) {

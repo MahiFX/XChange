@@ -2,6 +2,7 @@ package com.knowm.xchange.vertex;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.google.common.base.MoreObjects;
 import com.knowm.xchange.vertex.api.VertexApi;
 import com.knowm.xchange.vertex.dto.RewardsList;
 import com.knowm.xchange.vertex.dto.RewardsRequest;
@@ -24,14 +25,16 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
 
     public static final String USE_LEVERAGE = "useLeverage";
     public static final String MAX_SLIPPAGE_RATIO = "maxSlippageRatio";
+    public static final String DEFAULT_SUB_ACCOUNT = "default";
     public static final String PLACE_ORDER_VALID_UNTIL_MS_PROP = "placeOrderValidUntilMs";
 
     private VertexStreamingService subscriptionStream;
@@ -114,12 +117,21 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
                     data1.withArray("book_addrs").elements().forEachRemaining(node -> bookContracts.add(node.asText()));
                 }, (code, error) -> logger.error("Error loading contract data: " + code + " " + error)));
 
+        List<BigDecimal> takerFees = new ArrayList<>();
+        List<BigDecimal> makerFees = new ArrayList<>();
+        AtomicReference<BigDecimal> takerSequencerFee = new AtomicReference<>();
+        queries.add(new Query("{\"type\":\"fee_rates\", \"sender\": \"" + buildSender(exchangeSpecification.getApiKey(), getSubAccountOrDefault()) + "\"}",
+                feeData -> {
+                    readX18DecimalArray(feeData, "taker_fee_rates_x18", takerFees);
+                    readX18DecimalArray(feeData, "maker_fee_rates_x18", makerFees);
+                    takerSequencerFee.set(readX18Decimal(feeData, "taker_sequencer_fee"));
+                }, (code, error) -> logger.error("Error loading fees data: " + code + " " + error)));
 
-        queries.add(new Query("{\"type\":\"all_products\"}", data -> {
-            processProductIncrements(data.withArray("spot_products"), spotProducts);
-            processProductIncrements(data.withArray("perp_products"), perpProducts);
+        queries.add(new Query("{\"type\":\"all_products\"}", productData -> {
+            processProductIncrements(productData.withArray("spot_products"), spotProducts);
+            processProductIncrements(productData.withArray("perp_products"), perpProducts);
 
-            productInfo = new VertexProductInfo(spotProducts, restApiClient.symbols());
+            productInfo = new VertexProductInfo(spotProducts, restApiClient.symbols(), takerFees, makerFees, takerSequencerFee.get());
 
 
             for (Long productId : productInfo.getProductsIds()) {
@@ -188,8 +200,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
             try {
                 logger.info("Sending query " + query.getQueryMsg());
                 requestResponseStream.sendMessage(query.getQueryMsg());
-                if (!responseLatch.await(10, TimeUnit.SECONDS)) {
-                    throw new RuntimeException("Timed out waiting for response for " + query.getQueryMsg());
+                if (!responseLatch.await(20, TimeUnit.SECONDS)) {
+                    throw new RuntimeException("Timed out after 20 seconds waiting for response for " + query.getQueryMsg());
                 }
             } catch (InterruptedException e) {
                 logger.error("Failed to get contract data due to timeout");
@@ -295,5 +307,30 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     public VertexApi getRestClient() {
         return restApiClient;
+    }
+
+    /*
+     Fee charged on taker trades in BPS
+     */
+    public BigDecimal getTakerTradeFee(long productId) {
+        return productInfo.takerTradeFee(productId);
+    }
+
+    /*
+    Rebate paid on maker trades in BPS
+    */
+    public BigDecimal getMakerTradeFee(long productId) {
+        return productInfo.makerTradeFee(productId);
+    }
+
+    String getSubAccountOrDefault() {
+        return MoreObjects.firstNonNull(exchangeSpecification.getUserName(), DEFAULT_SUB_ACCOUNT);
+    }
+
+    /*
+     Fixed USDC fee charged on every taker trade
+     */
+    public BigDecimal getTakerFee() {
+        return productInfo.takerSequencerFee();
     }
 }
