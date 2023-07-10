@@ -253,6 +253,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     String orderId = resp.get("order_digest").asText();
                     BigDecimal price = readX18Decimal(resp, "price");
                     BigDecimal filled = readX18Decimal(resp, "filled_qty");
+
                     if (isZero(filled)) {
                         return Optional.<UserTrade>empty();
                     }
@@ -260,10 +261,12 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                     Instant timestamp = NanoSecondsDeserializer.parse(timestampText);
                     String respSubAccount = resp.get("subaccount").asText();
                     BigDecimal orderQty = readX18Decimal(resp, "original_qty");
-                    String filledPercentage = filled.divide(orderQty, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).setScale(3, RoundingMode.HALF_DOWN).toPlainString();
+                    BigDecimal remaining = readX18Decimal(resp, "remaining_qty");
+                    BigDecimal totalFilled = orderQty.subtract(remaining);
+                    String filledPercentage = totalFilled.divide(orderQty, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).setScale(3, RoundingMode.HALF_DOWN).toPlainString();
 
                     BigDecimal fee = calcFee(isTaker, filled, productId, price);
-                    return Optional.of(builder.id(ORDER_ID_HASHER.hashString(orderId + ":" + filled.toPlainString() + ":" + price.toPlainString(), Charsets.UTF_8) + "-" + filledPercentage)
+                    return Optional.of(builder.id(ORDER_ID_HASHER.hashString(orderId + ":" + totalFilled.toPlainString() + ":" + price.toPlainString(), Charsets.UTF_8) + "-" + filledPercentage)
                             .instrument(instrument)
                             .originalAmount(filled)
                             .orderId(orderId)
