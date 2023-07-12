@@ -18,12 +18,10 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
     private final AtomicLong reqCounter = new AtomicLong(1);
     private final String apiUrl;
-    private final String walletAddress;
 
-    public VertexStreamingService(String apiUrl, String walletAddress) {
+    public VertexStreamingService(String apiUrl) {
         super(apiUrl);
         this.apiUrl = apiUrl;
-        this.walletAddress = walletAddress;
     }
 
     @Override
@@ -93,14 +91,6 @@ public class VertexStreamingService extends JsonNettyStreamingService {
                 "}";
     }
 
-
-    public void sendUnsubscribeMessage(String channel) {
-        sendMessage(getUnsubscribeMessage(channel));
-    }
-
-    public void sendSubscribeMessage(String channel) {
-        sendMessage(getSubscribeMessage(channel));
-    }
 
     @Override
     public Completable disconnect() {

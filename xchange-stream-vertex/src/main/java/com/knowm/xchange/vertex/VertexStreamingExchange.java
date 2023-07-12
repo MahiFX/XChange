@@ -13,6 +13,7 @@ import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
@@ -62,8 +63,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     private VertexApi restApiClient;
 
 
-    private VertexStreamingService createStreamingService(String suffix, String wallet) {
-        VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix, wallet);
+    private VertexStreamingService createStreamingService(String suffix) {
+        VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix);
         applyStreamingSpecification(getExchangeSpecification(), streamingService);
 
         return streamingService;
@@ -120,13 +121,16 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         List<BigDecimal> takerFees = new ArrayList<>();
         List<BigDecimal> makerFees = new ArrayList<>();
         AtomicReference<BigDecimal> takerSequencerFee = new AtomicReference<>();
-        queries.add(new Query("{\"type\":\"fee_rates\", \"sender\": \"" + buildSender(exchangeSpecification.getApiKey(), getSubAccountOrDefault()) + "\"}",
-                feeData -> {
-                    readX18DecimalArray(feeData, "taker_fee_rates_x18", takerFees);
-                    readX18DecimalArray(feeData, "maker_fee_rates_x18", makerFees);
-                    takerSequencerFee.set(readX18Decimal(feeData, "taker_sequencer_fee"));
-                }, (code, error) -> logger.error("Error loading fees data: " + code + " " + error)));
+        String walletAddress = exchangeSpecification.getApiKey();
+        if (StringUtils.isNotEmpty(walletAddress)) {
+            queries.add(new Query("{\"type\":\"fee_rates\", \"sender\": \"" + buildSender(walletAddress, getSubAccountOrDefault()) + "\"}",
+                    feeData -> {
+                        readX18DecimalArray(feeData, "taker_fee_rates_x18", takerFees);
+                        readX18DecimalArray(feeData, "maker_fee_rates_x18", makerFees);
+                        takerSequencerFee.set(readX18Decimal(feeData, "taker_sequencer_fee"));
+                    }, (code, error) -> logger.error("Error loading fees data: " + code + " " + error)));
 
+        }
         queries.add(new Query("{\"type\":\"all_products\"}", productData -> {
             processProductIncrements(productData.withArray("spot_products"), spotProducts);
             processProductIncrements(productData.withArray("perp_products"), perpProducts);
@@ -225,8 +229,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
         String wallet = exchangeSpecification.getApiKey();
 
-        this.subscriptionStream = createStreamingService("/subscribe", wallet);
-        this.requestResponseStream = createStreamingService("/ws", wallet);
+        this.subscriptionStream = createStreamingService("/subscribe");
+        this.requestResponseStream = createStreamingService("/ws");
 
         this.restApiClient = ExchangeRestProxyBuilder.forInterface(VertexApi.class, exchangeSpecification).build();
 
@@ -271,6 +275,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     @Override
     public Completable connect(ProductSubscription... args) {
+        if (requestResponseStream.isSocketOpen()) {
+            return subscriptionStream.connect();
+        }
         return Completable.concatArray(subscriptionStream.connect(), requestResponseStream.connect());
     }
 

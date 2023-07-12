@@ -1,5 +1,8 @@
-package com.knowm.xchange.vertex;
+package org.knowm.xchange.examples.vertex;
 
+import com.knowm.xchange.vertex.VertexOrderFlags;
+import com.knowm.xchange.vertex.VertexStreamingExchange;
+import com.knowm.xchange.vertex.VertexStreamingTradeService;
 import com.knowm.xchange.vertex.dto.RewardsList;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
@@ -22,8 +25,6 @@ import org.web3j.utils.Numeric;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-
-import static com.knowm.xchange.vertex.VertexStreamingExchange.PLACE_ORDER_VALID_UNTIL_MS_PROP;
 
 public class VertexOrderExample {
 
@@ -58,7 +59,7 @@ public class VertexOrderExample {
 
         VertexStreamingTradeService tradeService = exchange.getStreamingTradeService();
 
-//        CurrencyPair btc = new CurrencyPair("BTC/USDC");
+
         CurrencyPair btc = new CurrencyPair("BTC-PERP", "USDC");
 
         Disposable trades = tradeService.getUserTrades(btc, subAccount).subscribe(userTrade -> {

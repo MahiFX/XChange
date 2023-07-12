@@ -1,5 +1,6 @@
-package com.knowm.xchange.vertex;
+package org.knowm.xchange.examples.vertex;
 
+import com.knowm.xchange.vertex.VertexStreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
@@ -33,8 +34,6 @@ public class VertexMarketDataExample {
 
         exchangeSpecification.setApiKey(address);
         exchangeSpecification.setSecretKey(privateKey);
-//        exchangeSpecification.setExchangeSpecificParametersItem(SOCKS_PROXY_HOST, "localhost");
-//        exchangeSpecification.setExchangeSpecificParametersItem(SOCKS_PROXY_PORT, 8889);
 
         exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
 
@@ -46,21 +45,12 @@ public class VertexMarketDataExample {
         CurrencyPair ethUsdc = new CurrencyPair(Currency.ETH, Currency.USDC);
 
         Disposable ticker = exchange.getStreamingMarketDataService().getTicker(btcUsdc)
-                .forEach(tick -> {
-                    logger.info(btcUsdc + " TOB: " + tick);
-                });
+                .forEach(tick -> logger.info(btcUsdc + " TOB: " + tick));
 
         Disposable disconnectBtcTOB = subscribe(exchange.getStreamingMarketDataService(), btcUsdc.toString(), 1);
         Disposable disconnectBtc15 = subscribe(exchange.getStreamingMarketDataService(), btcUsdc.toString(), 15);
 
         Disposable disconnectEth = subscribe(exchange.getStreamingMarketDataService(), ethUsdc.toString(), 2);
-
-
-        for (int i = 0; i < 60; i++) {
-            Thread.sleep(1000);
-            logger.info("Alive? " + exchange.isAlive());
-        }
-
 
         logger.info("\n\n Disconnecting 15 depth BTC-USDC \n\n");
 

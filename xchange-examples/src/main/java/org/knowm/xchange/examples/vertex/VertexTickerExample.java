@@ -1,5 +1,6 @@
-package com.knowm.xchange.vertex;
+package org.knowm.xchange.examples.vertex;
 
+import com.knowm.xchange.vertex.VertexStreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
 import io.reactivex.disposables.Disposable;
