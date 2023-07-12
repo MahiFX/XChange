@@ -418,7 +418,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         try {
             sendWebsocketMessage(orderMessage);
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             logger.error("Failed to place order : " + orderMessage, e);
             throw new ExchangeException(e);
 
@@ -442,7 +442,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         try {
             return responseFuture.get(5000, TimeUnit.MILLISECONDS);
 
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        } catch (Throwable e) {
             responses.remove(Pair.of(requestType, signature));
             throw e;
 
@@ -531,7 +531,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 sendWebsocketMessage(orderMessage);
                 return true;
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 logger.error("Failed to cancel order (" + id + "): " + orderMessage, e);
                 return isAlreadyCancelled(Throwables.getRootCause(e));
 
@@ -563,7 +563,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 sendWebsocketMessage(orderMessage);
                 return true;
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 logger.error("Failed to cancel order " + orderMessage, e);
                 return false;
 
@@ -576,7 +576,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     private boolean isAlreadyCancelled(Throwable throwable) {
         // Treat this as a successful cancel as automatic/unsolicited cancellations are not notified
-        return throwable.getMessage().matches(".*Order with the provided digest .* could not be found.*");
+        String message = throwable.getMessage();
+        return message != null && message.matches(".*Order with the provided digest .* could not be found.*");
     }
 
     private String getOrderId(CancelOrderParams params) {
@@ -685,12 +686,12 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             }
 
             return responseLatch.get(10, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException | CancellationException ignored) {
             return new OpenOrders(Collections.emptyList());
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
         } catch (TimeoutException e) {
             throw new IOException("Timeout waiting for open orders response");
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
 
     }
