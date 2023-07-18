@@ -23,11 +23,13 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.concurrent.ScheduledFuture;
 import io.netty.util.internal.SocketUtils;
 import io.netty.util.internal.StringUtil;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
 import org.slf4j.Logger;
@@ -50,6 +52,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
     protected static final Duration DEFAULT_CONNECTION_TIMEOUT = Duration.ofSeconds(10);
     protected static final Duration DEFAULT_RETRY_DURATION = Duration.ofSeconds(15);
     protected static final int DEFAULT_IDLE_TIMEOUT = 15;
+    private ScheduledFuture<Disposable> scheduledReconnection;
 
     protected class Subscription {
 
@@ -275,9 +278,10 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
 
     private void scheduleReconnect() {
         if (autoReconnect && !isManualDisconnect.get()) {
-            LOG.info("Scheduling reconnection");
+            LOG.info("Scheduling reconnection to " + uri.toString() + " in " + retryDuration.toMillis() + "ms");
+            if (scheduledReconnection != null) scheduledReconnection.cancel(true);
 
-            webSocketChannel
+            scheduledReconnection = webSocketChannel
                     .eventLoop()
                     .schedule(
                             () ->
@@ -428,7 +432,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
     }
 
     public void resubscribeChannels() {
-        LOG.info("Resubscribing to {} channels: {}", channels.size(), channels.keySet());
+        LOG.info("Resubscribing to {} channels on {}: {}", channels.size(), uri.toString(), channels.keySet());
         for (Entry<String, Subscription> entry : channels.entrySet()) {
             try {
                 Subscription subscription = entry.getValue();

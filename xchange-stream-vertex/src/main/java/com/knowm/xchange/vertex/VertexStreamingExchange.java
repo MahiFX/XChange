@@ -181,31 +181,37 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
         Observable<JsonNode> stream = subscribeToAllMessages();
 
-
         for (Query query : queries) {
             CountDownLatch responseLatch = new CountDownLatch(1);
             Disposable subscription = stream.subscribe(resp -> {
                 JsonNode requestType = resp.get("request_type");
                 if (requestType != null && requestType.textValue().startsWith("query_")) {
-                    JsonNode data = resp.get("data");
-                    JsonNode error = resp.get("error");
-                    JsonNode errorCode = resp.get("error_code");
-                    JsonNode status = resp.get("status");
-                    boolean success = status != null && status.asText().equals("success");
-                    if (!success) {
-                        query.getErrorHandler().accept(errorCode.asInt(-1), error.asText("Unknown error"));
-                    } else {
-                        query.getRespHandler().accept(data);
-                        logger.info("Query response " + data.toPrettyString());
+                    try {
+                        JsonNode data = resp.get("data");
+                        JsonNode error = resp.get("error");
+                        JsonNode errorCode = resp.get("error_code");
+                        JsonNode status = resp.get("status");
+                        boolean success = status != null && status.asText().equals("success");
+
+                        if (!success) {
+                            query.getErrorHandler().accept(errorCode.asInt(-1), error.asText("Unknown error"));
+                        } else {
+                            query.getRespHandler().accept(data);
+                            logger.info("Query response " + data.toPrettyString());
+                        }
+                    } catch (Throwable t) {
+                        logger.error("Query error running " + query.getQueryMsg(), t);
+                    } finally {
+                        responseLatch.countDown();
                     }
-                    responseLatch.countDown();
+
                 }
             }, (err) -> logger.error("Query error running " + query.getQueryMsg(), err));
             try {
                 logger.info("Sending query " + query.getQueryMsg());
                 requestResponseStream.sendMessage(query.getQueryMsg());
                 if (!responseLatch.await(20, TimeUnit.SECONDS)) {
-                    throw new RuntimeException("Timed out after 20 seconds waiting for response for " + query.getQueryMsg());
+                    query.getErrorHandler().accept(-1, "Timed out after 20 seconds waiting for response for " + query.getQueryMsg());
                 }
             } catch (InterruptedException e) {
                 logger.error("Failed to get contract data due to timeout");

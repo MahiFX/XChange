@@ -131,7 +131,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
                     Observable<VertexMarketDataUpdateMessage> clearOnDisconnect = subscriptionStream.subscribeDisconnect()
                             .map(o -> {
-                                logger.info("Clearing order books for {} due to disconnect: {}", newInstrument, o);
+                                logger.info("Clearing order books for {} due to disconnect", newInstrument);
                                 return VertexMarketDataUpdateMessage.EMPTY;
                             });
 
@@ -160,6 +160,10 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
                         Instant lastIncrementTime = lastIncrementTimestamp.get();
                         if (lastIncrementTime != null && update.getLastMaxTime() != null) {
                             if (!lastIncrementTime.equals(update.getLastMaxTime())) {
+                                if (update.getMaxTime().equals(lastIncrementTime)) {
+                                    logger.trace("Skipping update for {} {} == {}. Already processed.", instrument, lastIncrementTime, update.getLastMaxTime());
+                                    return false;
+                                }
                                 logger.error("Unexpected gap in timestamps for {} {} != {}. Re-snapshot...", instrument, lastIncrementTime, update.getLastMaxTime());
                                 requestSnapshot(productId, snapshotTimeHolder, snapshots, lastIncrementTimestamp);
                                 return false;
