@@ -21,7 +21,8 @@ public class StreamingObjectMapperHelper {
     objectMapper.setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
   }
 
-  private StreamingObjectMapperHelper() {}
+  private StreamingObjectMapperHelper() {
+  }
 
   public static ObjectMapper getObjectMapper() {
     return objectMapper;

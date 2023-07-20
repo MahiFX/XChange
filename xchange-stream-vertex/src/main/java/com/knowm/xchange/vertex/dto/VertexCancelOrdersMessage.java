@@ -8,26 +8,26 @@ import lombok.ToString;
 @ToString
 public class VertexCancelOrdersMessage implements VertexRequest {
 
-    private final CancelOrders cancelOrders;
+  private final CancelOrders cancelOrders;
 
-    public VertexCancelOrdersMessage(@JsonProperty("cancel_orders") CancelOrders cancelOrders) {
-        this.cancelOrders = cancelOrders;
-    }
+  public VertexCancelOrdersMessage(@JsonProperty("cancel_orders") CancelOrders cancelOrders) {
+    this.cancelOrders = cancelOrders;
+  }
 
-    @JsonProperty("cancel_orders")
-    public CancelOrders getCancelOrders() {
-        return cancelOrders;
-    }
+  @JsonProperty("cancel_orders")
+  public CancelOrders getCancelOrders() {
+    return cancelOrders;
+  }
 
-    @Override
-    public String getRequestType() {
-        return "execute_cancel_orders";
-    }
+  @Override
+  public String getRequestType() {
+    return "execute_cancel_orders";
+  }
 
-    @Override
-    public String getSignature() {
-        return cancelOrders.getSignature();
-    }
+  @Override
+  public String getSignature() {
+    return cancelOrders.getSignature();
+  }
 }
 
 

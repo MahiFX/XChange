@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public interface VertexRequest {
 
-    @JsonIgnore
-    String getRequestType();
+  @JsonIgnore
+  String getRequestType();
 
-    @JsonIgnore
-    String getSignature();
+  @JsonIgnore
+  String getSignature();
 }

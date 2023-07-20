@@ -7,8 +7,8 @@ import lombok.ToString;
 @ToString
 public class Symbol {
 
-    int product_id;
+  int product_id;
 
-    String symbol;
+  String symbol;
 
 }

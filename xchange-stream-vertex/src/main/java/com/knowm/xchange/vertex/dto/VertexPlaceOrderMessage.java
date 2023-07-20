@@ -6,19 +6,19 @@ import lombok.ToString;
 @Getter
 @ToString
 public class VertexPlaceOrderMessage implements VertexRequest {
-    private final VertexPlaceOrder place_order;
+  private final VertexPlaceOrder place_order;
 
-    public VertexPlaceOrderMessage(VertexPlaceOrder placeOrder) {
-        place_order = placeOrder;
-    }
+  public VertexPlaceOrderMessage(VertexPlaceOrder placeOrder) {
+    place_order = placeOrder;
+  }
 
-    @Override
-    public String getRequestType() {
-        return "execute_place_order";
-    }
+  @Override
+  public String getRequestType() {
+    return "execute_place_order";
+  }
 
-    @Override
-    public String getSignature() {
-        return place_order.getSignature();
-    }
+  @Override
+  public String getSignature() {
+    return place_order.getSignature();
+  }
 }

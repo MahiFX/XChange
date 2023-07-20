@@ -8,20 +8,20 @@ import lombok.ToString;
 public class RewardsRequest {
 
 
-    private final RewardAddress rewards;
+  private final RewardAddress rewards;
 
-    public RewardsRequest(RewardAddress rewards) {
-        this.rewards = rewards;
+  public RewardsRequest(RewardAddress rewards) {
+    this.rewards = rewards;
+  }
+
+  @ToString
+  @Getter
+  public static class RewardAddress {
+
+    private final String address;
+
+    public RewardAddress(String address) {
+      this.address = address;
     }
-
-    @ToString
-    @Getter
-    public static class RewardAddress {
-
-        private final String address;
-
-        public RewardAddress(String address) {
-            this.address = address;
-        }
-    }
+  }
 }

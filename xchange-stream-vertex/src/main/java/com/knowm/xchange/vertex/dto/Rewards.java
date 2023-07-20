@@ -11,12 +11,12 @@ import lombok.ToString;
 @Getter
 public class Rewards {
 
-    private int epoch;
-    private long start_time;
+  private int epoch;
+  private long start_time;
 
-    private long period;
-    private AddressRewards[] address_rewards;
-    private GlobalRewards[] global_rewards;
+  private long period;
+  private AddressRewards[] address_rewards;
+  private GlobalRewards[] global_rewards;
 
 
 }
