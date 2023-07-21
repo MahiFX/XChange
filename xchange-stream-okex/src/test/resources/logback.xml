@@ -11,13 +11,14 @@
     </appender>
 
 
-    <root level="WARN">
+    <root level="INFO">
         <appender-ref ref="CONSOLE_APPENDER"/>
     </root>
 
 
     <!-- Define logging for organization applications only -->
-<!--    <logger name="org.knowm.xchange" level="DEBUG"/>-->
-<!--    <logger name="si.mazi.rescu" level="TRACE"/>-->
+    <!--    <logger name="info.bitrich.xchangestream.service.netty" level="DEBUG"/>-->
+    <!--    <logger name="info.bitrich.xchangestream.okex" level="DEBUG"/>-->
+    <!--    <logger name="si.mazi.rescu" level="TRACE"/>-->
 
 </configuration>

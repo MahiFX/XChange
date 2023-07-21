@@ -1,20 +1,35 @@
 package info.bitrich.xchangestream.okex;
 
-import static info.bitrich.xchangestream.okex.OkexStreamingService.*;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
+import static info.bitrich.xchangestream.okex.OkexStreamingService.FUNDING_RATE;
+import static info.bitrich.xchangestream.okex.OkexStreamingService.ORDERBOOK;
+import static info.bitrich.xchangestream.okex.OkexStreamingService.TICKERS;
+import static info.bitrich.xchangestream.okex.OkexStreamingService.TRADES;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 import java.sql.Timestamp;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.marketdata.*;
+import org.knowm.xchange.dto.marketdata.FundingRate;
+import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.OrderBookUpdate;
+import org.knowm.xchange.dto.marketdata.Ticker;
+import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.okex.OkexAdapters;
-import org.knowm.xchange.okex.dto.marketdata.*;
+import org.knowm.xchange.okex.dto.marketdata.OkexFundingRate;
+import org.knowm.xchange.okex.dto.marketdata.OkexOrderbook;
+import org.knowm.xchange.okex.dto.marketdata.OkexPublicOrder;
+import org.knowm.xchange.okex.dto.marketdata.OkexTicker;
+import org.knowm.xchange.okex.dto.marketdata.OkexTrade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +51,7 @@ public class OkexStreamingMarketDataService implements StreamingMarketDataServic
 
   @Override
   public Observable<Ticker> getTicker(Instrument instrument, Object... args) {
-    String channelUniqueId = TICKERS + OkexAdapters.adaptInstrument(instrument);
+    String channelUniqueId = TICKERS + ":" + OkexAdapters.adaptInstrument(instrument);
 
     return service
         .subscribeChannel(channelUniqueId)
@@ -55,7 +70,7 @@ public class OkexStreamingMarketDataService implements StreamingMarketDataServic
 
   @Override
   public Observable<Trade> getTrades(Instrument instrument, Object... args) {
-    String channelUniqueId = TRADES + OkexAdapters.adaptInstrument(instrument);
+    String channelUniqueId = TRADES + ":" + OkexAdapters.adaptInstrument(instrument);
 
     return service
         .subscribeChannel(channelUniqueId)
@@ -73,7 +88,7 @@ public class OkexStreamingMarketDataService implements StreamingMarketDataServic
 
   @Override
   public Observable<FundingRate> getFundingRate(Instrument instrument, Object... args) {
-    String channelUniqueId = FUNDING_RATE + OkexAdapters.adaptInstrument(instrument);
+    String channelUniqueId = FUNDING_RATE + ":" + OkexAdapters.adaptInstrument(instrument);
 
     return service
         .subscribeChannel(channelUniqueId)
@@ -93,17 +108,15 @@ public class OkexStreamingMarketDataService implements StreamingMarketDataServic
   @Override
   public Observable<OrderBook> getOrderBook(Instrument instrument, Object... args) {
     String instId = OkexAdapters.adaptInstrument(instrument);
-    String channelName = args.length >= 1 ? args[0].toString() : "books";
-    String channelUniqueId = ORDERBOOK + instId;
+    String channelName = args.length >= 1 ? args[0].toString() : ORDERBOOK;
+    String channelUniqueId = channelName + ":" + instId;
 
     return service
         .subscribeChannel(channelUniqueId)
-        .filter(message -> message.has("action"))
+        .filter(jsonNode -> !jsonNode.has("event")) // ignore subscription r
         .flatMap(
             jsonNode -> {
-              // "books5" channel pushes 5 depth levels every time.
-              String action =
-                  channelName.equals(ORDERBOOK5) ? "snapshot" : jsonNode.get("action").asText();
+              String action = jsonNode.has("action") ? jsonNode.get("action").asText() : "snapshot";
               if ("snapshot".equalsIgnoreCase(action)) {
                 List<OkexOrderbook> okexOrderbooks =
                     mapper.treeToValue(
@@ -191,6 +204,6 @@ public class OkexStreamingMarketDataService implements StreamingMarketDataServic
       orderBookUpdates.add(o);
     }
     orderBookUpdatesSubscriptions.get(instrument).onNext(orderBookUpdates);
-    }
+  }
 
 }
