@@ -122,7 +122,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
           endpointContract = data1.get("endpoint_addr").asText();
           bookContracts = new ArrayList<>();
           data1.withArray("book_addrs").elements().forEachRemaining(node -> bookContracts.add(node.asText()));
-        }, (code, error) -> logger.error("Error loading contract data: " + code + " " + error)));
+        }, (code, error) -> {
+      throw new ExchangeException("Error loading contract data: " + code + " " + error);
+    }));
 
     List<BigDecimal> takerFees = new ArrayList<>();
     List<BigDecimal> makerFees = new ArrayList<>();
@@ -134,15 +136,15 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
             readX18DecimalArray(feeData, "taker_fee_rates_x18", takerFees);
             readX18DecimalArray(feeData, "maker_fee_rates_x18", makerFees);
             takerSequencerFee.set(readX18Decimal(feeData, "taker_sequencer_fee"));
-          }, (code, error) -> logger.error("Error loading fees data: " + code + " " + error)));
-
+          }, (code, error) -> {
+        throw new ExchangeException("Error loading fee data: " + code + " " + error);
+      }));
     }
     queries.add(new Query("{\"type\":\"all_products\"}", productData -> {
       processProductIncrements(productData.withArray("spot_products"), spotProducts);
       processProductIncrements(productData.withArray("perp_products"), perpProducts);
 
       productInfo = new VertexProductInfo(spotProducts, restApiClient.symbols(), takerFees, makerFees, takerSequencerFee.get());
-
 
       for (Long productId : productInfo.getProductsIds()) {
         if (productId != 0) {
@@ -157,7 +159,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
           priceQueries.add(marketPricesQuery);
         }
       }
-    }, (code, error) -> logger.error("Error loading product info: " + code + " " + error)));
+    }, (code, error) -> {
+      throw new ExchangeException("Error loading product data: " + code + " " + error);
+    }));
 
     submitQueries(queries.toArray(new Query[0]));
 
@@ -207,12 +211,17 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
             }
           } catch (Throwable t) {
             logger.error("Query error running " + query.getQueryMsg(), t);
+            query.getErrorHandler().accept(-1, "Query error running " + query.getQueryMsg() + ": " + t.getMessage());
           } finally {
             responseLatch.countDown();
           }
 
         }
-      }, (err) -> logger.error("Query error running " + query.getQueryMsg(), err));
+      }, (err) -> {
+        logger.error("Query error running " + query.getQueryMsg(), err);
+        query.getErrorHandler().accept(-1, "Query error running " + query.getQueryMsg() + ": " + err.getMessage());
+      });
+
       try {
         logger.info("Sending query " + query.getQueryMsg());
         requestResponseStream.sendMessage(query.getQueryMsg());
@@ -225,8 +234,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
         subscription.dispose();
       }
     }
-
-
   }
 
   public Observable<JsonNode> subscribeToAllMessages() {
@@ -238,8 +245,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   @Override
   protected void initServices() {
-
-    String wallet = exchangeSpecification.getApiKey();
 
     this.subscriptionStream = createStreamingService("/subscribe");
     this.requestResponseStream = createStreamingService("/ws");
