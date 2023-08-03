@@ -3,6 +3,7 @@ package com.knowm.xchange.vertex;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -97,7 +98,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   public static final Consumer<Ticker> NO_OP = ticker -> {
   };
   public static final HashFunction ORDER_ID_HASHER = Hashing.murmur3_32_fixed();
-  public static final BigDecimal BPS_TO_MULTIPLIER = BigDecimal.valueOf(0.0001);
   private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
   private final VertexStreamingService requestResponseStream;
@@ -532,15 +532,19 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
   @Override
   public Collection<String> cancelAllOrders(CancelAllOrders orderParams) {
-    cancelOrder(orderParams);
-    return Collections.emptyList();
+    return doCancel(orderParams);
   }
 
   @Override
   public boolean cancelOrder(CancelOrderParams params) {
+    return !doCancel(params).isEmpty();
+  }
 
+  private List<String> doCancel(CancelOrderParams params) {
     String id = getOrderId(params);
     Instrument instrument = getInstrument(params);
+
+    VertexRequest cancelReq;
 
     if (StringUtils.isNotEmpty(id) && instrument != null) {
 
@@ -556,20 +560,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       CancelOrdersSchema orderSchema = CancelOrdersSchema.build(chainId, endpointContract, Long.valueOf(nonce), sender, productIds, digests);
       SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
 
-      VertexCancelOrdersMessage orderMessage = new VertexCancelOrdersMessage(new CancelOrders(
+      cancelReq = new VertexCancelOrdersMessage(new CancelOrders(
           new Tx(sender, productIds, digests, nonce),
           signatureAndDigest.getSignature()
       ));
 
-      try {
-        sendWebsocketMessage(orderMessage);
-        return true;
-
-      } catch (Throwable e) {
-        logger.error("Failed to cancel order (" + id + "): " + orderMessage, e);
-        return isAlreadyCancelled(Throwables.getRootCause(e));
-
-      }
 
     } else if (params instanceof CancelAllOrders || instrument != null) {
       List<Long> productIds = new ArrayList<>();
@@ -588,24 +583,31 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
       SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(cancelAllSchema);
 
-      VertexCancelProductOrdersMessage orderMessage = new VertexCancelProductOrdersMessage(new CancelProductOrders(
+      cancelReq = new VertexCancelProductOrdersMessage(new CancelProductOrders(
           new Tx(sender, productIdsArray, null, nonce),
           signatureAndDigest.getSignature()
       ));
 
-      try {
-        sendWebsocketMessage(orderMessage);
-        return true;
 
-      } catch (Throwable e) {
-        logger.error("Failed to cancel order " + orderMessage, e);
-        return false;
+    } else {
+      throw new IllegalArgumentException(
+          "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelOrderByCurrencyPair, CancelAllOrders interfaces.");
+    }
 
-      }
+
+    try {
+      JsonNode resp = sendWebsocketMessage(cancelReq);
+      ArrayNode array = resp.get("data").withArray("cancelled_orders");
+      List<String> digests = new ArrayList<>();
+      array.forEach(order -> digests.add(order.get("digest").asText()));
+      return digests;
+
+    } catch (Throwable e) {
+      logger.error("Failed to cancel order (" + id + "): " + cancelReq, e);
+      boolean alreadyCancelled = isAlreadyCancelled(Throwables.getRootCause(e));
+      return alreadyCancelled ? List.of(id) : Collections.emptyList();
 
     }
-    throw new IllegalArgumentException(
-        "CancelOrderParams must implement some of CancelOrderByIdParams, CancelOrderByInstrument, CancelOrderByCurrencyPair, CancelAllOrders interfaces.");
   }
 
   private boolean isAlreadyCancelled(Throwable throwable) {

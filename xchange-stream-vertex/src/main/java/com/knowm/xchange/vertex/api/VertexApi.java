@@ -13,17 +13,18 @@ import javax.ws.rs.core.MediaType;
 
 
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 @Path("/")
 public interface VertexApi {
 
 
   @POST
   @Path("/indexer")
+  @Consumes(MediaType.APPLICATION_JSON)
   RewardsList rewards(RewardsRequest req);
 
   @POST
   @Path("/indexer")
+  @Consumes(MediaType.APPLICATION_JSON)
   JsonNode indexerRequest(JsonNode req);
 
 
