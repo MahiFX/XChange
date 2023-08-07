@@ -53,4 +53,12 @@ public class VertexModelUtils {
       outputList.add(convertToDecimal(new BigInteger(next.asText())));
     }
   }
+
+  public static boolean nonZero(BigInteger num) {
+    return num != null && !BigInteger.ZERO.equals(num);
+  }
+
+  public static boolean nonZero(BigDecimal num) {
+    return num != null && !BigDecimal.ZERO.equals(num);
+  }
 }

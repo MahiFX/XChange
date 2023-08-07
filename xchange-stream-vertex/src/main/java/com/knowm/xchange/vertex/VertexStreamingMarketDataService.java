@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.marketdata.Ticker;
@@ -93,10 +94,10 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
                 return new Ticker.Builder()
                     .instrument(newInstrument)
-                    .bid(bid)
-                    .ask(ask)
-                    .bidSize(bidQty)
-                    .askSize(askQty)
+                    .bid(VertexModelUtils.nonZero(bid) ? bid : null)
+                    .ask(VertexModelUtils.nonZero(ask) ? ask : null)
+                    .bidSize(VertexModelUtils.nonZero(bid) ? bidQty : null)
+                    .askSize(VertexModelUtils.nonZero(ask) ? askQty : null)
                     .timestamp(new Date(vertexBestBidOfferMessage.getTimestamp().toEpochMilli()))
                     .creationTimestamp(new Date(Instant.now().toEpochMilli()))
                     .build();
@@ -239,7 +240,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
-    return bids;
+    return bids.stream().filter(p -> VertexModelUtils.nonZero(p.getPrice())).collect(Collectors.toList());
   }
 
   @Override
