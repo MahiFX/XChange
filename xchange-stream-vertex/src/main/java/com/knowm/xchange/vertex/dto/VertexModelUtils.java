@@ -2,23 +2,26 @@ package com.knowm.xchange.vertex.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.web3j.utils.Numeric;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.commons.lang3.RandomUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.web3j.utils.Numeric;
 
 public class VertexModelUtils {
   public static final BigDecimal NUMBER_CONVERSION_FACTOR = BigDecimal.ONE.scaleByPowerOfTen(18);
 
   public static BigDecimal convertToDecimal(BigInteger integer) {
+    if (integer == null) return null;
     return new BigDecimal(integer).divide(NUMBER_CONVERSION_FACTOR);
   }
 
   public static BigInteger convertToInteger(BigDecimal decimal) {
+    if (decimal == null) return null;
     return decimal.multiply(NUMBER_CONVERSION_FACTOR).toBigInteger();
   }
 
@@ -59,6 +62,6 @@ public class VertexModelUtils {
   }
 
   public static boolean nonZero(BigDecimal num) {
-    return num != null && !BigDecimal.ZERO.equals(num);
+    return num != null && BigDecimal.ZERO.compareTo(num) != 0;
   }
 }
