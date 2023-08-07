@@ -21,14 +21,6 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
-import org.knowm.xchange.currency.CurrencyPair;
-import org.knowm.xchange.dto.marketdata.OrderBook;
-import org.knowm.xchange.dto.marketdata.Ticker;
-import org.knowm.xchange.dto.marketdata.Trade;
-import org.knowm.xchange.instrument.Instrument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -38,6 +30,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.Ticker;
+import org.knowm.xchange.dto.marketdata.Trade;
+import org.knowm.xchange.instrument.Instrument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class VertexStreamingMarketDataService implements StreamingMarketDataService {
@@ -84,30 +83,30 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
           return subscriptionStream.subscribeChannel(channelName)
               .map(jsonNode -> {
-                  VertexBestBidOfferMessage vertexBestBidOfferMessage = mapper.treeToValue(jsonNode, VertexBestBidOfferMessage.class);
+                VertexBestBidOfferMessage vertexBestBidOfferMessage = mapper.treeToValue(jsonNode, VertexBestBidOfferMessage.class);
 
-                  Ticker.Builder builder = new Ticker.Builder()
-                      .instrument(newInstrument)
-                      .timestamp(new Date(vertexBestBidOfferMessage.getTimestamp().toEpochMilli()))
-                      .creationTimestamp(new Date(Instant.now().toEpochMilli()));
+                Ticker.Builder builder = new Ticker.Builder()
+                    .instrument(newInstrument)
+                    .timestamp(new Date(vertexBestBidOfferMessage.getTimestamp().toEpochMilli()))
+                    .creationTimestamp(new Date(Instant.now().toEpochMilli()));
 
-                  if (VertexModelUtils.nonZero(vertexBestBidOfferMessage.getBid_qty())) {
-                      builder
-                              .bid(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_price()))
-                              .bidSize(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_qty()));
-                  }
+                if (VertexModelUtils.nonZero(vertexBestBidOfferMessage.getBid_qty())) {
+                  builder
+                      .bid(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_price()))
+                      .bidSize(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_qty()));
+                }
 
-                  if (VertexModelUtils.nonZero(vertexBestBidOfferMessage.getAsk_qty())) {
-                      builder
-                              .ask(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_price()))
-                              .askSize(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_qty()));
-                  }
+                if (VertexModelUtils.nonZero(vertexBestBidOfferMessage.getAsk_qty())) {
+                  builder
+                      .ask(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_price()))
+                      .askSize(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_qty()));
+                }
 
-                  Ticker ticker = builder.build();
+                Ticker ticker = builder.build();
 
-                  exchange.setMarketPrice(productId, new TopOfBookPrice(ticker.getBid(), ticker.getAsk()));
+                exchange.setMarketPrice(productId, new TopOfBookPrice(ticker.getBid(), ticker.getAsk()));
 
-                  return ticker;
+                return ticker;
 
 
               }).doOnDispose(() -> {
