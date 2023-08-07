@@ -15,6 +15,9 @@ import java.util.List;
 public class VertexModelUtils {
   public static final BigDecimal NUMBER_CONVERSION_FACTOR = BigDecimal.ONE.scaleByPowerOfTen(18);
 
+  //max value of a 128 byte integer
+  public static final BigInteger MAX_128_INTEGER = new BigInteger("170141183460469231731687303715884105727");
+
   public static BigDecimal convertToDecimal(BigInteger integer) {
     if (integer == null) return null;
     return new BigDecimal(integer).divide(NUMBER_CONVERSION_FACTOR);
@@ -63,5 +66,9 @@ public class VertexModelUtils {
 
   public static boolean nonZero(BigDecimal num) {
     return num != null && BigDecimal.ZERO.compareTo(num) != 0;
+  }
+
+  public static boolean isMaxInt(BigInteger askPrice) {
+    return MAX_128_INTEGER.equals(askPrice);
   }
 }
