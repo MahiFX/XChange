@@ -50,6 +50,7 @@ public class VertexOrderExample {
     exchangeSpecification.setSecretKey(Numeric.toHexStringNoPrefix(ecKeyPair.getPrivateKey()));
     exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
+    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
 
     exchangeSpecification.setUserName(subAccount); //subaccount name
 
@@ -132,7 +133,6 @@ public class VertexOrderExample {
 
     log.info("Open orders after cancel: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
 
-    exchange.disconnect().blockingAwait();
 
   }
 }

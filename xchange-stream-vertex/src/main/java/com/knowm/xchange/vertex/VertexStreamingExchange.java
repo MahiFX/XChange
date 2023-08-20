@@ -41,6 +41,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   public static final String USE_LEVERAGE = "useLeverage";
   public static final String MAX_SLIPPAGE_RATIO = "maxSlippageRatio";
+  public static final String BLEND_LIQUIDATION_TRADES = "blendLiquidationTrades";
   public static final String DEFAULT_SUB_ACCOUNT = "default";
   public static final String PLACE_ORDER_VALID_UNTIL_MS_PROP = "placeOrderValidUntilMs";
 
@@ -249,7 +250,10 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     this.subscriptionStream = createStreamingService("/subscribe");
     this.requestResponseStream = createStreamingService("/ws");
 
-    this.restApiClient = ExchangeRestProxyBuilder.forInterface(VertexApi.class, exchangeSpecification).build();
+    this.restApiClient = ExchangeRestProxyBuilder.forInterface(VertexApi.class, exchangeSpecification)
+        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60)))
+        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10)))
+        .build();
 
   }
 

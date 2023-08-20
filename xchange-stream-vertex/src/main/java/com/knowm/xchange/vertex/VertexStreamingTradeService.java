@@ -10,6 +10,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import static com.knowm.xchange.vertex.VertexStreamingExchange.BLEND_LIQUIDATION_TRADES;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.DEFAULT_SUB_ACCOUNT;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
 import static com.knowm.xchange.vertex.VertexStreamingExchange.PLACE_ORDER_VALID_UNTIL_MS_PROP;
@@ -44,12 +45,14 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +65,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
@@ -116,6 +120,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final Map<Pair<String, String>, CompletableFuture<JsonNode>> responses = new ConcurrentHashMap<>();
   private final Map<Long, Disposable> tickerSubscriptions = new ConcurrentHashMap<>();
   private final Map<String, Observable<JsonNode>> fillSubscriptions = new ConcurrentHashMap<>();
+  private final Map<String, Observable<JsonNode>> positionSubscriptions = new ConcurrentHashMap<>();
   private final Disposable allMessageSubscription;
   private final StreamingMarketDataService marketDataService;
 
@@ -195,6 +200,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     });
   }
 
+  @SuppressWarnings("unused")
   public void disconnect() {
     allMessageSubscription.dispose();
     tickerSubscriptions.values().stream().filter(Disposable::isDisposed).forEach(Disposable::dispose);
@@ -272,11 +278,21 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     return fillSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
   }
 
+
+  private Observable<JsonNode> subscribeToPositionChange(Instrument instrument) {
+    long productId = productInfo.lookupProductId(instrument);
+
+    String subAccount = exchange.getSubAccountOrDefault();
+
+    String channel = "position_change." + productId + "." + buildSender(exchangeSpecification.getApiKey(), subAccount);
+    return positionSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
+  }
+
   @Override
   public Observable<UserTrade> getUserTrades(Instrument instrument, Object... args) {
     long productId = productInfo.lookupProductId(instrument);
 
-    return subscribeToFills(instrument).map(resp -> {
+    Observable<UserTrade> tradeStream = subscribeToFills(instrument).map(resp -> {
           boolean isBid = resp.get("is_bid").asBoolean();
           boolean isTaker = resp.get("is_taker").asBoolean();
           UserTrade.Builder builder = new UserTrade.Builder();
@@ -313,6 +329,110 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         })
         .filter(Optional::isPresent)
         .map(Optional::get);
+
+    if (Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(BLEND_LIQUIDATION_TRADES).toString())) {
+      AtomicLong indexCounter = new AtomicLong();
+      String subAccount = getSubAccountOrDefault();
+
+      Instant startTime = Instant.now();
+      boolean isSpot = productInfo.isSpot(instrument);
+
+      String ourSender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+
+      Observable<UserTrade> liquidations = subscribeToPositionChange(instrument)
+          .debounce(5, TimeUnit.SECONDS).flatMap((change) -> {
+
+            logger.info("Checking for liquidation events");
+            List<UserTrade> liquidationTrades = new ArrayList<>();
+
+            JsonNode events_resp = exchange.getRestClient().indexerRequest(events("liquidate_subaccount", instrument));
+            ArrayNode txns = events_resp.withArray("txs");
+            Map<Long, JsonNode> txnMap = new HashMap<>();
+            txns.forEach(tx -> {
+              txnMap.put(Long.valueOf(tx.get("submission_idx").textValue()), tx);
+            });
+
+
+            ArrayNode events = events_resp.withArray("events");
+            Iterator<JsonNode> iterator = events.iterator();
+            long maxIdx = 0;
+            while (iterator.hasNext()) {
+              JsonNode event = iterator.next();
+              long idx = event.get("submission_idx").asLong();
+              if (idx >= indexCounter.get()) {
+                if (idx > maxIdx) {
+                  maxIdx = idx;
+                }
+                JsonNode transaction = txnMap.get(idx);
+                if (transaction == null) continue;
+                JsonNode timestampNode = transaction.get("timestamp");
+                Instant timestamp = EpochSecondsDeserializer.parse(timestampNode.textValue());
+                if (timestamp.isBefore(startTime)) {
+                  continue;
+                }
+
+                String instrumentFieldName = isSpot ? "spot" : "perp";
+
+                JsonNode postBalanceNode = event.get("post_balance").get(instrumentFieldName).get("balance");
+                BigDecimal postBalance = readX18Decimal(postBalanceNode, "amount");
+
+                JsonNode preBalanceNode = event.get("pre_balance").get(instrumentFieldName).get("balance");
+                BigDecimal preBalance = readX18Decimal(preBalanceNode, "amount");
+
+                BigDecimal tradeQuantity = postBalance.subtract(preBalance);
+                // We receive events for liquidations of other pairs, even with the product_id filter
+                if (tradeQuantity.compareTo(BigDecimal.ZERO) == 0) {
+                  continue;
+                }
+                JsonNode product = event.get("product").get(instrumentFieldName);
+                BigDecimal oraclePrice = readX18Decimal(product, "oracle_price_x18");
+
+                Order.OrderType side;
+                BigDecimal price;
+                BigDecimal weight;
+
+                String liquidator = transaction.get("tx").get("liquidate_subaccount").get("sender").textValue();
+                boolean wasLiquidator = ourSender.equals(liquidator);
+
+                // If we liquidated a long position then we will have bought it from the liquidatee and our position will increase
+                // If we had a long position liquidated then we will have sold and our position will decrease
+                boolean liquidatedPositionWasLong = wasLiquidator && tradeQuantity.compareTo(BigDecimal.ZERO) > 0 || !wasLiquidator && tradeQuantity.compareTo(BigDecimal.ZERO) < 0;
+
+                if (liquidatedPositionWasLong) {
+                  //long = product.oracle_price_x18 * (1 + product.long_weight_maintenance_x18)  / 2
+                  weight = readX18Decimal(product.get("risk"), "long_weight_maintenance_x18");
+                  side = wasLiquidator ? Order.OrderType.BID : Order.OrderType.ASK;
+                } else {
+                  //short = product.oracle_price_x18 * (1 + product.short_weight_maintenance_x18) /2
+                  weight = readX18Decimal(product.get("risk"), "short_weight_maintenance_x18");
+                  side = wasLiquidator ? Order.OrderType.ASK : Order.OrderType.BID;
+                }
+
+                price = oraclePrice.multiply(BigDecimal.ONE.add(weight)).divide(new BigDecimal("2.0"), RoundingMode.HALF_DOWN);
+
+                String id = ORDER_ID_HASHER.hashString("liquidation:" + productId + ":" + idx, StandardCharsets.UTF_8).toString();
+                UserTrade.Builder builder = new UserTrade.Builder();
+
+                builder.id(id)
+                    .instrument(instrument)
+                    .originalAmount(tradeQuantity)
+                    .orderId(id + "-liquidation")
+                    .price(price)
+                    .type(side)
+                    .orderUserReference(subAccount)
+                    .timestamp(new Date(timestamp.toEpochMilli()))
+                    .creationTimestamp(new Date());
+
+                liquidationTrades.add(builder.build());
+
+              }
+            }
+            indexCounter.set(maxIdx);
+            return Observable.fromArray(liquidationTrades.toArray(new UserTrade[0]));
+          });
+      return Observable.merge(tradeStream, liquidations);
+    }
+    return tradeStream;
   }
 
   private BigDecimal calcFee(boolean isTaker, BigDecimal filled, long productId, BigDecimal price, boolean isFirstFill) {
@@ -359,6 +479,23 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
 
+  }
+
+  private JsonNode events(String eventType, Instrument instrument) {
+    String subAccount = exchange.getSubAccountOrDefault();
+    String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+    long productId = productInfo.lookupProductId(instrument);
+    String jsonString = String.format("{\"events\": {" +
+        "\"subaccount\": \"%s\"," +
+        "\"product_ids\": [%s]," +
+        "\"event_types\": [\"%s\"]" +
+        "}}", sender, productId, eventType);
+
+    try {
+      return MAPPER.readTree(jsonString);
+    } catch (Throwable e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private JsonNode summary(String subAccount) {
