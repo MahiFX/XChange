@@ -385,10 +385,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                   continue;
                 }
                 JsonNode product = event.get("product").get(instrumentFieldName);
-                BigDecimal oraclePrice = readX18Decimal(product, "oracle_price_x18");
+                double oraclePrice = readX18Decimal(product, "oracle_price_x18").doubleValue();
 
                 Order.OrderType side;
-                BigDecimal price;
+                double price;
                 BigDecimal weight;
 
                 String liquidator = transaction.get("tx").get("liquidate_subaccount").get("sender").textValue();
@@ -399,25 +399,28 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 boolean liquidatedPositionWasLong = wasLiquidator && tradeQuantity.compareTo(BigDecimal.ZERO) > 0 || !wasLiquidator && tradeQuantity.compareTo(BigDecimal.ZERO) < 0;
 
                 if (liquidatedPositionWasLong) {
-                  //long = product.oracle_price_x18 * (1 + product.long_weight_maintenance_x18)  / 2
                   weight = readX18Decimal(product.get("risk"), "long_weight_maintenance_x18");
                   side = wasLiquidator ? Order.OrderType.BID : Order.OrderType.ASK;
                 } else {
-                  //short = product.oracle_price_x18 * (1 + product.short_weight_maintenance_x18) /2
                   weight = readX18Decimal(product.get("risk"), "short_weight_maintenance_x18");
                   side = wasLiquidator ? Order.OrderType.ASK : Order.OrderType.BID;
                 }
 
-                price = oraclePrice.multiply(BigDecimal.ONE.add(weight)).divide(new BigDecimal("2.0"), RoundingMode.HALF_DOWN);
+                //https://vertex-protocol.gitbook.io/docs/basics/liquidations-and-insurance-fund
+                // e.g. 25% = 0.25 TODO read from API
+                double insuranceFundRate = 0.25;
+                double insuranceMultiplier = 1 - insuranceFundRate;
+
+                price = oraclePrice - (oraclePrice * (1 - weight.doubleValue()) * 0.5 * insuranceMultiplier);
 
                 String id = ORDER_ID_HASHER.hashString("liquidation:" + productId + ":" + idx, StandardCharsets.UTF_8).toString();
                 UserTrade.Builder builder = new UserTrade.Builder();
 
                 builder.id(id)
                     .instrument(instrument)
-                    .originalAmount(tradeQuantity)
+                    .originalAmount(tradeQuantity.abs())
                     .orderId(id + "-liquidation")
-                    .price(price)
+                    .price(BigDecimal.valueOf(price))
                     .type(side)
                     .orderUserReference(subAccount)
                     .timestamp(new Date(timestamp.toEpochMilli()))
