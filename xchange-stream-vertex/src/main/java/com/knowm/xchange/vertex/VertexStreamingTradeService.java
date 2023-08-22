@@ -332,6 +332,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     if (Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(BLEND_LIQUIDATION_TRADES).toString())) {
       AtomicLong indexCounter = new AtomicLong();
+
       String subAccount = getSubAccountOrDefault();
 
       Instant startTime = Instant.now();
@@ -348,10 +349,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             JsonNode events_resp = exchange.getRestClient().indexerRequest(events("liquidate_subaccount", instrument));
             ArrayNode txns = events_resp.withArray("txs");
             Map<Long, JsonNode> txnMap = new HashMap<>();
-            txns.forEach(tx -> {
-              txnMap.put(Long.valueOf(tx.get("submission_idx").textValue()), tx);
-            });
-
+            txns.forEach(tx -> txnMap.put(Long.valueOf(tx.get("submission_idx").textValue()), tx));
 
             ArrayNode events = events_resp.withArray("events");
             Iterator<JsonNode> iterator = events.iterator();
@@ -359,7 +357,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             while (iterator.hasNext()) {
               JsonNode event = iterator.next();
               long idx = event.get("submission_idx").asLong();
-              if (idx >= indexCounter.get()) {
+              if (idx > indexCounter.get()) {
                 if (idx > maxIdx) {
                   maxIdx = idx;
                 }
