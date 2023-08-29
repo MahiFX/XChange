@@ -1,49 +1,50 @@
 package info.bitrich.xchangestream.binance;
 
 import info.bitrich.xchangestream.core.ProductSubscription;
-import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.instrument.Instrument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BinanceDapiTickerExample {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BinanceDapiTickerExample.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BinanceDapiTickerExample.class);
 
-    public static void main(String[] args) throws InterruptedException {
-        ExchangeSpecification spec = StreamingExchangeFactory.INSTANCE
-                .createExchange(BinanceCoinFuturesStreamingExchange.class)
-                .getDefaultExchangeSpecification();
-        spec.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
-        spec.setExchangeSpecificParametersItem("Use_Beta", true);
-        spec.setExchangeSpecificParametersItem(BinanceStreamingExchange.USE_REALTIME_BOOK_TICKER, true);
-        spec.setExchangeSpecificParametersItem(BinanceStreamingExchange.USE_HIGHER_UPDATE_FREQUENCY, true);
-        spec.setSslUri(args[1]);
+  public static void main(String[] args) throws InterruptedException {
+    ExchangeSpecification spec = StreamingExchangeFactory.INSTANCE
+        .createExchange(BinanceCoinFuturesStreamingExchange.class)
+        .getDefaultExchangeSpecification();
 
-        BinanceFuturesStreamingExchange exchange = (BinanceFuturesStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(spec);
+    spec.setExchangeSpecificParametersItem(BinanceStreamingExchange.USE_REALTIME_BOOK_TICKER, true);
+    spec.setExchangeSpecificParametersItem(BinanceStreamingExchange.USE_HIGHER_UPDATE_FREQUENCY, true);
+//        spec.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, false);
+//        spec.setExchangeSpecificParametersItem("Use_Beta", false);
+//        spec.setSslUri(WS_COIN_FUTURES_API_BASE_URI);
 
-        CurrencyPair pair = new CurrencyPair(args[0]);
+    BinanceFuturesStreamingExchange exchange = (BinanceFuturesStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(spec);
 
-        // First, we subscribe only for one currency pair at connection time (minimum requirement)
-        ProductSubscription subscription =
-                ProductSubscription.create()
-                        .addTicker(pair)
-                        .build();
+    Instrument pair = new CurrencyPair("BTC/USD_PERP");
 
-        // Note: at connection time, the live subscription is disabled
-        exchange.connect(subscription).blockingAwait();
+    // First, we subscribe only for one currency pair at connection time (minimum requirement)
+    ProductSubscription subscription =
+        ProductSubscription.create()
+            .addTicker(pair)
+            .build();
 
-        exchange
-                .getStreamingMarketDataService()
-                .getTicker(pair)
-                .subscribe(
-                        ticker -> {
-                            LOG.error("Top of Book: {} / {} -> {}", ticker.getBid(), ticker.getAsk(), ticker);
-                        });
+    // Note: at connection time, the live subscription is disabled
+    exchange.connect(subscription).blockingAwait();
 
-        Thread.sleep(Long.MAX_VALUE);
+    exchange
+        .getStreamingMarketDataService()
+        .getTicker(pair)
+        .subscribe(
+            ticker -> {
+              LOG.error("Top of Book: {} / {} -> {}", ticker.getBid(), ticker.getAsk(), ticker);
+            });
 
-    }
+    Thread.sleep(Long.MAX_VALUE);
+
+  }
 }

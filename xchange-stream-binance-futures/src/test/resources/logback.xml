@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration>
+
+    <!-- Standard console appender for checking activity (short on detail) -->
+    <appender name="CONSOLE_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- Simplified standard logging encoder -->
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%contextName] [%thread] %-5level %logger{36} - %msg %xEx%n</pattern>
+        </encoder>
+    </appender>
+
+
+    <root level="DEBUG">
+        <appender-ref ref="CONSOLE_APPENDER"/>
+    </root>
+
+
+    <!-- Define logging for organization applications only -->
+    <!--    <logger name="org.knowm.xchange" level="DEBUG"/>-->
+    <!--        <logger name="si.mazi.rescu" level="TRACE"/>-->
+    <!--        <logger name="info.bitrich.xchangestream.service.netty" level="TRACE"/>-->
+    <!--        <logger name="io.netty" level="TRACE"/>-->
+
+</configuration>
