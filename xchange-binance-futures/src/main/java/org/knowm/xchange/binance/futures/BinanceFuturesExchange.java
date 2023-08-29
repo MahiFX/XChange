@@ -9,15 +9,17 @@ import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.utils.AuthUtils;
 
 public class BinanceFuturesExchange extends BinanceExchange {
+    public static final String DEFAULT_SSL_URL = "https://fapi.binance.com/fapi";
+    public static final String TESTNET_SSL_URL = "https://testnet.binancefuture.com/fapi";
     private org.knowm.xchange.binance.futures.BinanceFuturesAuthenticated binance;
 
     @Override
     protected void initServices() {
         this.binance = ExchangeRestProxyBuilder.forInterface(
-                        BinanceFuturesAuthenticated.class, getExchangeSpecification())
-                .build();
+                BinanceFuturesAuthenticated.class, getExchangeSpecification())
+            .build();
         this.timestampFactory =
-                new BinanceTimestampFactory(getExchangeSpecification().getResilience(), getResilienceRegistries());
+            new BinanceTimestampFactory(getExchangeSpecification().getResilience(), getResilienceRegistries());
         this.marketDataService = new BinanceFuturesMarketDataService(this, binance, getResilienceRegistries());
         this.tradeService = new BinanceFuturesTradeService(this, binance, getResilienceRegistries());
 //        this.accountService = new BinanceFuturesAccountService(this, binance, getResilienceRegistries()); TODO - Binance Futures
@@ -26,7 +28,7 @@ public class BinanceFuturesExchange extends BinanceExchange {
     @Override
     public ExchangeSpecification getDefaultExchangeSpecification() {
         ExchangeSpecification spec = new ExchangeSpecification(this.getClass());
-        spec.setSslUri("https://fapi.binance.com/fapi");
+        spec.setSslUri(DEFAULT_SSL_URL);
         spec.setHost("www.binance.com");
         spec.setPort(80);
         spec.setExchangeName("Binance Futures");
@@ -44,11 +46,10 @@ public class BinanceFuturesExchange extends BinanceExchange {
     /**
      * Adjust host parameters depending on exchange specific parameters
      */
-    private static void concludeHostParams(ExchangeSpecification exchangeSpecification) {
+    protected void concludeHostParams(ExchangeSpecification exchangeSpecification) {
         if (exchangeSpecification.getExchangeSpecificParameters() != null) {
-            if (Boolean.TRUE.equals(
-                    exchangeSpecification.getExchangeSpecificParametersItem("Use_Sandbox")) && exchangeSpecification.getSslUri() == null) {
-                exchangeSpecification.setSslUri("https://testnet.binancefuture.com");
+            if (enabledSandbox(exchangeSpecification)) {
+                exchangeSpecification.setSslUri(TESTNET_SSL_URL);
                 exchangeSpecification.setHost("testnet.binancefuture.com");
             }
         }

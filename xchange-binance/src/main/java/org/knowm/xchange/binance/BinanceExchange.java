@@ -1,5 +1,6 @@
 package org.knowm.xchange.binance;
 
+import java.util.Map;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
@@ -12,17 +13,15 @@ import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.utils.AuthUtils;
 import si.mazi.rescu.SynchronizedValueFactory;
 
-import java.util.Map;
-
 public class BinanceExchange extends BaseExchange implements Exchange {
-    public static final String SPECIFIC_PARAM_USE_SANDBOX = "Use_Sandbox";
-    public static final String SPECIFIC_PARAM_USE_FUTURES_SANDBOX = "Use_Sandbox_Futures";
+  public static final String SPECIFIC_PARAM_USE_SANDBOX = "Use_Sandbox";
+  public static final String SPECIFIC_PARAM_USE_FUTURES_SANDBOX = "Use_Sandbox_Futures";
 
-    private static final String SPOT_URL = "https://api.binance.com";
-    public static final String FUTURES_URL = "https://fapi.binance.com";
-    public static final String SANDBOX_FUTURES_URL = "https://testnet.binancefuture.com";
-    protected static ResilienceRegistries RESILIENCE_REGISTRIES;
-    protected SynchronizedValueFactory<Long> timestampFactory;
+  private static final String SPOT_URL = "https://api.binance.com";
+  public static final String FUTURES_URL = "https://fapi.binance.com";
+  public static final String SANDBOX_FUTURES_URL = "https://testnet.binancefuture.com";
+  protected static ResilienceRegistries RESILIENCE_REGISTRIES;
+  protected SynchronizedValueFactory<Long> timestampFactory;
 
   @Override
   protected void initServices() {
@@ -73,9 +72,9 @@ public class BinanceExchange extends BaseExchange implements Exchange {
     super.applySpecification(exchangeSpecification);
   }
 
-  public boolean isFuturesSandbox(){
+  public boolean isFuturesSandbox() {
     return Boolean.TRUE.equals(
-            exchangeSpecification.getExchangeSpecificParametersItem(SPECIFIC_PARAM_USE_FUTURES_SANDBOX));
+        exchangeSpecification.getExchangeSpecificParametersItem(SPECIFIC_PARAM_USE_FUTURES_SANDBOX));
   }
 
   public boolean usingSandbox() {
@@ -94,8 +93,8 @@ public class BinanceExchange extends BaseExchange implements Exchange {
       if (!usingSandbox() && isAuthenticated()) {
         assetDetailMap = accountService.getAssetDetails(); // not available in sndbox
       }
-      if(usingSandbox()){
-        if(isFuturesSandbox()){
+      if (usingSandbox()) {
+        if (isFuturesSandbox()) {
           BinanceAdapters.adaptFutureExchangeMetaData(exchangeMetaData, marketDataService.getFutureExchangeInfo());
         } else {
           exchangeMetaData = BinanceAdapters.adaptExchangeMetaData(marketDataService.getExchangeInfo(), assetDetailMap);
@@ -116,8 +115,10 @@ public class BinanceExchange extends BaseExchange implements Exchange {
         && exchangeSpecification.getSecretKey() != null;
   }
 
-  /** Adjust host parameters depending on exchange specific parameters */
-  private static void concludeHostParams(ExchangeSpecification exchangeSpecification) {
+  /**
+   * Adjust host parameters depending on exchange specific parameters
+   */
+  protected void concludeHostParams(ExchangeSpecification exchangeSpecification) {
     if (exchangeSpecification.getExchangeSpecificParameters() != null) {
       if (enabledSandbox(exchangeSpecification)) {
         exchangeSpecification.setSslUri("https://testnet.binance.vision");
@@ -126,11 +127,13 @@ public class BinanceExchange extends BaseExchange implements Exchange {
     }
   }
 
-  private static boolean enabledSandbox(ExchangeSpecification exchangeSpecification) {
-    return Boolean.TRUE.equals(
-        exchangeSpecification.getExchangeSpecificParametersItem(SPECIFIC_PARAM_USE_SANDBOX)) ||
-            Boolean.TRUE.equals(
-                    exchangeSpecification.getExchangeSpecificParametersItem(SPECIFIC_PARAM_USE_FUTURES_SANDBOX));
+  protected boolean enabledSandbox(ExchangeSpecification exchangeSpecification) {
+    Object useSandbox = exchangeSpecification.getExchangeSpecificParametersItem(SPECIFIC_PARAM_USE_SANDBOX);
+    Object useFuturesSandbox = exchangeSpecification.getExchangeSpecificParametersItem(SPECIFIC_PARAM_USE_FUTURES_SANDBOX);
+    return
+        useSandbox != null && Boolean.parseBoolean(useSandbox.toString()) ||
+            useFuturesSandbox != null && Boolean.parseBoolean(useFuturesSandbox.toString());
+
   }
 
 }
