@@ -122,7 +122,7 @@ public interface BinanceFuturesAuthenticated extends BinanceFutures {
             throws IOException, BinanceException;
 
     @GET
-    @Path("v1/positionRisk")
+    @Path("v2/positionRisk")
     List<BinancePosition> getOpenPositions(
             @QueryParam("symbol") String symbol,
             @QueryParam("recvWindow") Long recvWindow,
