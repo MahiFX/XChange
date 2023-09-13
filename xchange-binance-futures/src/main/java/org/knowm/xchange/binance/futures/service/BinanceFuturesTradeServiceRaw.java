@@ -119,7 +119,7 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
             throws IOException, BinanceException {
         decorateApiCall(
                 () ->
-                        binanceFutures.cancelAllOpenOrders(
+                        binanceFutures.cancelAllFuturesOpenOrders(
                                 BinanceAdapters.toSymbol(currencyPair),
                                 getRecvWindow(),
                                 getTimestampFactory(),

@@ -21,7 +21,6 @@ import org.knowm.xchange.dto.trade.StopOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
-import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
 import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamCurrencyPair;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
@@ -80,10 +79,7 @@ public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw im
 
     @Override
     public boolean cancelOrder(CancelOrderParams orderParams) throws IOException {
-        if (orderParams instanceof CancelOrderByIdParams) {
-            CancelOrderByIdParams idParams = (CancelOrderByIdParams) orderParams;
-            return cancelOrder(idParams.getOrderId());
-        } else if (orderParams instanceof CancelOrderByCurrencyPair) {
+        if (orderParams instanceof CancelOrderByCurrencyPair) {
             cancelAllOpenOrders(((CancelOrderByCurrencyPair) orderParams).getCurrencyPair());
             return true;
         } else {
