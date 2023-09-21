@@ -276,7 +276,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   @Override
   public TradeService getTradeService() {
-    return streamingTradeService;
+    return getStreamingTradeService();
   }
 
   @Override
