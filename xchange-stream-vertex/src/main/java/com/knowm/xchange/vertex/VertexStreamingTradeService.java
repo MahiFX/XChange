@@ -346,7 +346,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       Observable<UserTrade> liquidations = subscribeToPositionChange(instrument)
           .debounce(2, TimeUnit.SECONDS, liquidationScheduler).flatMap((change) -> {
             synchronized (indexCounter) {
-              logger.info("Checking for " + instrument + " liquidation events");
+              logger.info("Checking for " + instrument + " liquidation events since " + indexCounter.get());
               List<UserTrade> liquidationTrades = new ArrayList<>();
 
               JsonNode events_resp = exchange.getRestClient().indexerRequest(events("liquidate_subaccount", instrument));
@@ -356,14 +356,13 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
               ArrayNode events = events_resp.withArray("events");
               Iterator<JsonNode> iterator = events.iterator();
-              long maxIdx = 0;
+              long maxIdx = indexCounter.get();
               while (iterator.hasNext()) {
                 JsonNode event = iterator.next();
                 long idx = event.get("submission_idx").asLong();
-                if (idx > indexCounter.get()) {
-                  if (idx > maxIdx) {
-                    maxIdx = idx;
-                  }
+                if (idx > maxIdx) {
+                  maxIdx = idx;
+
                   JsonNode transaction = txnMap.get(idx);
                   if (transaction == null) continue;
                   JsonNode timestampNode = transaction.get("timestamp");
@@ -428,7 +427,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                       .creationTimestamp(new Date());
 
                   liquidationTrades.add(builder.build());
-
                 }
               }
               indexCounter.set(maxIdx);
