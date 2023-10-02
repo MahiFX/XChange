@@ -51,7 +51,7 @@ public class VertexOrderExample {
     exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
-
+//    exchangeSpecification.setOverrideWebsocketApiUri("wss://prod-mm.vertexprotocol-backend.com/");
     exchangeSpecification.setUserName(subAccount); //subaccount name
 
     VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);

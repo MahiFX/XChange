@@ -20,6 +20,8 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -78,14 +80,14 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   }
 
   private String getApiUrl() {
-    return "wss://" + getHost(useTestnet);
+    return "wss://" + getHost(useTestnet, exchangeSpecification);
 
   }
 
   @Override
   public ExchangeSpecification getDefaultExchangeSpecification() {
     ExchangeSpecification exchangeSpecification = new ExchangeSpecification(this.getClass());
-    String host = getHost(useTestnet);
+    String host = getHost(useTestnet, exchangeSpecification);
     exchangeSpecification.setSslUri("https://" + host);
     exchangeSpecification.setHost(host);
     exchangeSpecification.setExchangeName("Vertex");
@@ -93,7 +95,14 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     return exchangeSpecification;
   }
 
-  private static String getHost(boolean useTestnet) {
+  private String getHost(boolean useTestnet, ExchangeSpecification exchangeSpecification) {
+    if (exchangeSpecification.getOverrideWebsocketApiUri() != null) {
+      try {
+        return new URI(exchangeSpecification.getOverrideWebsocketApiUri()).getHost();
+      } catch (URISyntaxException e) {
+        throw new RuntimeException("Invalid overrideWebsocketApiUri", e);
+      }
+    }
     return useTestnet ? "test.vertexprotocol-backend.com" : "prod.vertexprotocol-backend.com";
   }
 
@@ -101,7 +110,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public void applySpecification(ExchangeSpecification exchangeSpecification) {
     this.useTestnet = !Boolean.FALSE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX));
 
-    exchangeSpecification.setSslUri("https://" + getHost(useTestnet));
+    if (exchangeSpecification.getSslUri() == null) {
+      exchangeSpecification.setSslUri("https://" + getHost(useTestnet, exchangeSpecification));
+    }
 
     super.applySpecification(exchangeSpecification);
   }

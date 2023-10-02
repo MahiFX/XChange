@@ -24,6 +24,7 @@ public class VertexTickerIntegration {
     VertexStreamingExchange exchange = new VertexStreamingExchange();
     ExchangeSpecification spec = exchange.getDefaultExchangeSpecification();
     spec.setExchangeSpecificParametersItem(Exchange.USE_SANDBOX, false);
+
     exchange.applySpecification(spec);
     StreamingMarketDataService streamingMarketDataService = exchange.getStreamingMarketDataService();
 
