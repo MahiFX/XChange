@@ -7,8 +7,8 @@ import org.knowm.xchange.currency.CurrencyPair;
 import java.util.function.Function;
 
 public class BinanceFuturesStreamingMarketDataService extends BinanceStreamingMarketDataService {
-    public BinanceFuturesStreamingMarketDataService(BinanceStreamingService service, Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider, Runnable onApiCall, String orderBookUpdateFrequencyParameter, boolean tickerRealtimeSubscriptionParameter, int oderBookFetchLimitParameter) {
-        super(service, binanceOrderBookProvider, onApiCall, orderBookUpdateFrequencyParameter, tickerRealtimeSubscriptionParameter, oderBookFetchLimitParameter);
+    public BinanceFuturesStreamingMarketDataService(BinanceStreamingService service, Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider, Runnable onApiCall, String orderBookUpdateFrequencyParameter, boolean tickerRealtimeSubscriptionParameter, int oderBookFetchLimitParameter, boolean tradeRealtimeSubscriptionParameter) {
+        super(service, binanceOrderBookProvider, onApiCall, orderBookUpdateFrequencyParameter, tickerRealtimeSubscriptionParameter, oderBookFetchLimitParameter, tradeRealtimeSubscriptionParameter);
     }
 
     @Override

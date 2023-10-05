@@ -21,6 +21,7 @@ public class BinanceFuturesTopOfBookExample {
                 .createExchange(BinanceFuturesStreamingExchange.class)
                 .getDefaultExchangeSpecification();
         spec.setExchangeSpecificParametersItem(BinanceStreamingExchange.USE_REALTIME_BOOK_TICKER, true);
+        spec.setExchangeSpecificParametersItem(BinanceStreamingExchange.USE_REALTIME_TRADE, false);
         spec.setExchangeSpecificParametersItem(BinanceStreamingExchange.USE_HIGHER_UPDATE_FREQUENCY, true);
 
         BinanceFuturesStreamingExchange exchange = (BinanceFuturesStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(spec);

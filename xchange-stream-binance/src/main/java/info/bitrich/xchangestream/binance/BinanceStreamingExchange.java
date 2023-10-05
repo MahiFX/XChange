@@ -32,6 +32,7 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
   private static final String WS_SANDBOX_API_BASE_URI = "wss://testnet.binance.vision/";
   public static final String USE_HIGHER_UPDATE_FREQUENCY = "Binance_Orderbook_Use_Higher_Frequency";
   public static final String USE_REALTIME_BOOK_TICKER = "Binance_Ticker_Use_Realtime";
+  public static final String USE_REALTIME_TRADE = "Binance_Trade_Use_Realtime";
   public static final String FETCH_ORDER_BOOK_LIMIT = "Binance_Fetch_Order_Book_Limit";
   private BinanceStreamingService streamingService;
   private BinanceUserDataStreamingService userDataStreamingService;
@@ -157,7 +158,9 @@ public class BinanceStreamingExchange extends BinanceExchange implements Streami
             onApiCall,
             orderBookUpdateFrequencyParameter,
             realtimeOrderBookTicker,
-            oderBookFetchLimitParameter);
+            oderBookFetchLimitParameter,
+            true
+    );
   }
 
   private Completable createAndConnectUserDataService(String listenKey) {
