@@ -19,8 +19,11 @@ import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.dto.trade.OpenOrders;
 import org.knowm.xchange.dto.trade.StopOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
+import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
+import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
+import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
 import org.knowm.xchange.service.trade.params.CancelOrderParams;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamCurrencyPair;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
@@ -79,11 +82,31 @@ public class BinanceFuturesTradeService extends BinanceFuturesTradeServiceRaw im
 
     @Override
     public boolean cancelOrder(CancelOrderParams orderParams) throws IOException {
+        Instrument instrument;
+
         if (orderParams instanceof CancelOrderByCurrencyPair) {
-            cancelAllOpenOrders(((CancelOrderByCurrencyPair) orderParams).getCurrencyPair());
-            return true;
+            instrument = ((CancelOrderByCurrencyPair) orderParams).getCurrencyPair();
+
+        } else if (orderParams instanceof CancelOrderByInstrument) {
+            instrument = ((CancelOrderByInstrument) orderParams).getInstrument();
+
         } else {
             throw new ExchangeException("Binance Futures cancels must have pair and Client Order ID (ie. must implement CancelOrderByPairAndIdParams), or just pair to cancel all orders for that pair (ie. must implement CancelOrderByCurrencyPair)");
+
+        }
+
+        if (orderParams instanceof CancelOrderByIdParams) {
+            BinanceFuturesOrder cancelResult = cancelOrder(
+                    instrument,
+                    null,
+                    ((CancelOrderByIdParams) orderParams).getOrderId());
+
+            return cancelResult != null;
+
+        } else {
+            cancelAllOpenOrders(instrument);
+            return true;
+
         }
     }
 

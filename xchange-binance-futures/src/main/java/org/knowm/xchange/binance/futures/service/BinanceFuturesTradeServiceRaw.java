@@ -6,9 +6,12 @@ import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
 import org.knowm.xchange.binance.futures.BinanceFuturesAuthenticated;
 import org.knowm.xchange.binance.futures.BinanceFuturesExchange;
-import org.knowm.xchange.binance.futures.dto.*;
+import org.knowm.xchange.binance.futures.dto.BinanceFuturesOrder;
+import org.knowm.xchange.binance.futures.dto.BinancePosition;
+import org.knowm.xchange.binance.futures.dto.OrderType;
+import org.knowm.xchange.binance.futures.dto.PositionSide;
+import org.knowm.xchange.binance.futures.dto.WorkingType;
 import org.knowm.xchange.client.ResilienceRegistries;
-import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.instrument.Instrument;
 import si.mazi.rescu.SynchronizedValueFactory;
 
@@ -16,7 +19,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.knowm.xchange.binance.BinanceResilience.*;
+import static org.knowm.xchange.binance.BinanceResilience.ORDERS_PER_DAY_RATE_LIMITER;
+import static org.knowm.xchange.binance.BinanceResilience.ORDERS_PER_SECOND_RATE_LIMITER;
+import static org.knowm.xchange.binance.BinanceResilience.REQUEST_WEIGHT_RATE_LIMITER;
 import static org.knowm.xchange.client.ResilienceRegistries.NON_IDEMPOTENT_CALLS_RETRY_CONFIG_NAME;
 
 public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
@@ -74,7 +79,7 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
     }
 
     public BinanceFuturesOrder getOrderStatus(
-            CurrencyPair currencyPair,
+            Instrument currencyPair,
             Long orderId,
             String clientOrderId)
             throws IOException, BinanceException {
@@ -95,7 +100,7 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
     }
 
     public BinanceFuturesOrder cancelOrder(
-            CurrencyPair currencyPair,
+            Instrument currencyPair,
             Long orderId,
             String clientOrderId)
             throws IOException, BinanceException {
@@ -115,7 +120,7 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
                 .call();
     }
 
-    public void cancelAllOpenOrders(CurrencyPair currencyPair)
+    public void cancelAllOpenOrders(Instrument currencyPair)
             throws IOException, BinanceException {
         decorateApiCall(
                 () ->
@@ -135,7 +140,7 @@ public class BinanceFuturesTradeServiceRaw extends BinanceFuturesBaseService {
         return getAllOpenOrders(null);
     }
 
-    public List<BinanceFuturesOrder> getAllOpenOrders(CurrencyPair currencyPair) throws IOException, BinanceException {
+    public List<BinanceFuturesOrder> getAllOpenOrders(Instrument currencyPair) throws IOException, BinanceException {
         return decorateApiCall(
                 () ->
                         binanceFutures.getAllOpenOrders(
