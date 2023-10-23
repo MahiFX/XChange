@@ -57,7 +57,7 @@ public class BinanceFuturesAdapters {
         return new OpenPosition.Builder()
                 .instrument(BinanceAdapters.convert(binancePosition.getSymbol()))
                 .type(getType(binancePosition))
-                .size(size)
+                .size(size.abs())
                 .price(binancePosition.getEntryPrice()).build();
 
     }
