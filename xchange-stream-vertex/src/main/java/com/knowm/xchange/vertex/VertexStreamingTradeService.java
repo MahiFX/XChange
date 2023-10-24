@@ -10,25 +10,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.BLEND_LIQUIDATION_TRADES;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.DEFAULT_SUB_ACCOUNT;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.MAX_SLIPPAGE_RATIO;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.PLACE_ORDER_VALID_UNTIL_MS_PROP;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.USE_LEVERAGE;
-import com.knowm.xchange.vertex.dto.CancelOrders;
-import com.knowm.xchange.vertex.dto.CancelProductOrders;
-import com.knowm.xchange.vertex.dto.Tx;
-import com.knowm.xchange.vertex.dto.VertexCancelOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexCancelProductOrdersMessage;
-import com.knowm.xchange.vertex.dto.VertexModelUtils;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildNonce;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToInteger;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18Decimal;
-import com.knowm.xchange.vertex.dto.VertexOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrder;
-import com.knowm.xchange.vertex.dto.VertexPlaceOrderMessage;
-import com.knowm.xchange.vertex.dto.VertexRequest;
+import com.knowm.xchange.vertex.dto.*;
 import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.CancelOrdersSchema;
@@ -43,33 +25,6 @@ import io.reactivex.Scheduler;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.ExchangeSpecification;
@@ -86,15 +41,27 @@ import org.knowm.xchange.dto.trade.UserTrade;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.CancelAllOrders;
-import org.knowm.xchange.service.trade.params.CancelOrderByCurrencyPair;
-import org.knowm.xchange.service.trade.params.CancelOrderByIdParams;
-import org.knowm.xchange.service.trade.params.CancelOrderByInstrument;
-import org.knowm.xchange.service.trade.params.CancelOrderParams;
+import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParamInstrument;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import static com.knowm.xchange.vertex.VertexStreamingExchange.*;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingTradeService implements StreamingTradeService, TradeService {
 
@@ -356,9 +323,15 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
               ArrayNode events = events_resp.withArray("events");
               Iterator<JsonNode> iterator = events.iterator();
-              long maxIdx = indexCounter.get();
+              // reverse the events iterator as they are returned most recent first
+              List<JsonNode> eventsList = new ArrayList<>();
               while (iterator.hasNext()) {
-                JsonNode event = iterator.next();
+                eventsList.add(iterator.next());
+              }
+              Collections.reverse(eventsList);
+
+              long maxIdx = indexCounter.get();
+              for (JsonNode event : eventsList) {
                 long idx = event.get("submission_idx").asLong();
                 if (idx > maxIdx) {
                   maxIdx = idx;
