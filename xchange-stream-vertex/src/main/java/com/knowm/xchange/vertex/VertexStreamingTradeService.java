@@ -315,7 +315,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
             synchronized (indexCounter) {
               logger.info("Checking for " + instrument + " liquidation events since " + indexCounter.get());
               List<UserTrade> liquidationTrades = new ArrayList<>();
-
+              Set<String> newIds = new HashSet<>();
               JsonNode events_resp = exchange.getRestClient().indexerRequest(events("liquidate_subaccount", instrument));
               ArrayNode txns = events_resp.withArray("txs");
               Map<Long, JsonNode> txnMap = new HashMap<>();
@@ -387,6 +387,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                   price = oraclePrice - (oraclePrice * (1 - weight.doubleValue()) * 0.5 * insuranceMultiplier);
 
                   String id = ORDER_ID_HASHER.hashString("liquidation:" + productId + ":" + idx, StandardCharsets.UTF_8).toString();
+                  if (newIds.contains(id)) {
+                    continue;
+                  }
+                  newIds.add(id);
                   UserTrade.Builder builder = new UserTrade.Builder();
 
                   builder.id(id)
