@@ -362,7 +362,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
                   Order.OrderType side;
                   double price;
-                  BigDecimal weight;
+                  double maintenanceWeight;
 
                   String liquidator = transaction.get("tx").get("liquidate_subaccount").get("sender").textValue();
                   boolean wasLiquidator = ourSender.equals(liquidator);
@@ -372,10 +372,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                   boolean liquidatedPositionWasLong = wasLiquidator && tradeQuantity.compareTo(BigDecimal.ZERO) > 0 || !wasLiquidator && tradeQuantity.compareTo(BigDecimal.ZERO) < 0;
 
                   if (liquidatedPositionWasLong) {
-                    weight = readX18Decimal(product.get("risk"), "long_weight_maintenance_x18");
+                    maintenanceWeight = readX18Decimal(product.get("risk"), "long_weight_maintenance_x18").doubleValue();
                     side = wasLiquidator ? Order.OrderType.BID : Order.OrderType.ASK;
                   } else {
-                    weight = readX18Decimal(product.get("risk"), "short_weight_maintenance_x18");
+                    maintenanceWeight = readX18Decimal(product.get("risk"), "short_weight_maintenance_x18").doubleValue();
                     side = wasLiquidator ? Order.OrderType.ASK : Order.OrderType.BID;
                   }
 
@@ -384,7 +384,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                   double insuranceFundRate = 0.25;
                   double insuranceMultiplier = 1 - insuranceFundRate;
 
-                  price = oraclePrice - (oraclePrice * (1 - weight.doubleValue()) * 0.5 * insuranceMultiplier);
+                  price = oraclePrice - (oraclePrice * ((1 - maintenanceWeight) / 5) * insuranceMultiplier);
 
                   String id = ORDER_ID_HASHER.hashString("liquidation:" + productId + ":" + idx, StandardCharsets.UTF_8).toString();
                   if (newIds.contains(id)) {
