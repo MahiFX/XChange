@@ -7,8 +7,6 @@ import com.knowm.xchange.vertex.dto.RewardsList;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
 import io.reactivex.disposables.Disposable;
-import java.io.IOException;
-import java.math.BigDecimal;
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -26,13 +24,15 @@ import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+
 public class VertexOrderExample {
 
   private static final Logger log = LoggerFactory.getLogger(VertexOrderExample.class);
 
 
   public static void main(String[] args) throws IOException, InterruptedException {
-
     ExchangeSpecification exchangeSpecification = StreamingExchangeFactory.INSTANCE
         .createExchangeWithoutSpecification(VertexStreamingExchange.class)
         .getDefaultExchangeSpecification();
@@ -51,7 +51,6 @@ public class VertexOrderExample {
     exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
-//    exchangeSpecification.setOverrideWebsocketApiUri("wss://prod-mm.vertexprotocol-backend.com/");
     exchangeSpecification.setUserName(subAccount); //subaccount name
 
     VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
@@ -74,6 +73,8 @@ public class VertexOrderExample {
     Disposable changes = tradeService.getOrderChanges(btc, subAccount).subscribe(order -> {
       log.info("User order event: {}", order);
     });
+
+    Thread.sleep(2000);
 
     MarketOrder buy = new MarketOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc);
     buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);

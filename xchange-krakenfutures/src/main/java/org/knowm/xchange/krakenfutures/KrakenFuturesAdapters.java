@@ -1,5 +1,25 @@
 package org.knowm.xchange.krakenfutures;
 
+import org.knowm.xchange.currency.Currency;
+import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.derivative.FuturesContract;
+import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.Order.OrderStatus;
+import org.knowm.xchange.dto.Order.OrderType;
+import org.knowm.xchange.dto.account.*;
+import org.knowm.xchange.dto.marketdata.*;
+import org.knowm.xchange.dto.marketdata.Trades.TradeSortType;
+import org.knowm.xchange.dto.meta.CurrencyMetaData;
+import org.knowm.xchange.dto.meta.ExchangeMetaData;
+import org.knowm.xchange.dto.meta.InstrumentMetaData;
+import org.knowm.xchange.dto.trade.*;
+import org.knowm.xchange.instrument.Instrument;
+import org.knowm.xchange.krakenfutures.dto.account.KrakenFuturesAccountInfo;
+import org.knowm.xchange.krakenfutures.dto.account.KrakenFuturesAccounts;
+import org.knowm.xchange.krakenfutures.dto.marketData.*;
+import org.knowm.xchange.krakenfutures.dto.trade.KrakenFuturesOrderStatus;
+import org.knowm.xchange.krakenfutures.dto.trade.*;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
@@ -11,34 +31,16 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.Map.Entry;
 
-import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.account.*;
-import org.knowm.xchange.dto.trade.*;
-import org.knowm.xchange.krakenfutures.dto.account.KrakenFuturesAccountInfo;
-import org.knowm.xchange.krakenfutures.dto.account.KrakenFuturesAccounts;
-import org.knowm.xchange.krakenfutures.dto.marketData.*;
-import org.knowm.xchange.krakenfutures.dto.trade.*;
-import org.knowm.xchange.currency.Currency;
-import org.knowm.xchange.currency.CurrencyPair;
-import org.knowm.xchange.derivative.FuturesContract;
-import org.knowm.xchange.dto.Order.OrderStatus;
-import org.knowm.xchange.dto.Order.OrderType;
-import org.knowm.xchange.dto.marketdata.*;
-import org.knowm.xchange.dto.marketdata.Trades.TradeSortType;
-import org.knowm.xchange.dto.meta.CurrencyMetaData;
-import org.knowm.xchange.dto.meta.ExchangeMetaData;
-import org.knowm.xchange.dto.meta.InstrumentMetaData;
-import org.knowm.xchange.instrument.Instrument;
-import org.knowm.xchange.krakenfutures.dto.trade.KrakenFuturesOrderStatus;
-
-/** @author Jean-Christophe Laruelle */
+/**
+ * @author Jean-Christophe Laruelle
+ */
 public class KrakenFuturesAdapters {
 
   private static final String MULTI_COLLATERAL_PRODUCTS = "pf_";
   private static final String ACCOUNT_TYPE = "multiCollateralMarginAccount";
 
   public static Ticker adaptTicker(
-          KrakenFuturesTicker krakenFuturesTicker, Instrument instrument) {
+      KrakenFuturesTicker krakenFuturesTicker, Instrument instrument) {
 
     if (krakenFuturesTicker != null) {
       Ticker.Builder builder = new Ticker.Builder();
@@ -58,18 +60,20 @@ public class KrakenFuturesAdapters {
     return null;
   }
 
-  /** AccountInfo only for the MultiCollateral account is implemented*/
+  /**
+   * AccountInfo only for the MultiCollateral account is implemented
+   */
   public static AccountInfo adaptAccounts(KrakenFuturesAccounts krakenFuturesAccounts, KrakenFuturesOpenPositions krakenFuturesOpenPositions) {
     List<Balance> balances = new ArrayList<>();
     BigDecimal collateralValue = BigDecimal.ZERO;
 
     for (Entry<String, KrakenFuturesAccountInfo> krakenFuturesAccountInfo : krakenFuturesAccounts.getAccounts().entrySet()) {
-      if(krakenFuturesAccountInfo.getValue().getType().equals(ACCOUNT_TYPE)){
+      if (krakenFuturesAccountInfo.getValue().getType().equals(ACCOUNT_TYPE)) {
         for (Entry<String, KrakenFuturesAccountInfo.KrakenFuturesCurrency> krakenFuturesCurrencyEntry : krakenFuturesAccountInfo.getValue().getCurrencies().entrySet()) {
           balances.add(new Balance.Builder()
-                  .currency(new Currency(krakenFuturesCurrencyEntry.getKey()))
-                  .total(krakenFuturesCurrencyEntry.getValue().getAvailable())
-                  .build());
+              .currency(new Currency(krakenFuturesCurrencyEntry.getKey()))
+              .total(krakenFuturesCurrencyEntry.getValue().getAvailable())
+              .build());
         }
         collateralValue = krakenFuturesAccountInfo.getValue().getCollateralValue();
       }
@@ -78,14 +82,14 @@ public class KrakenFuturesAdapters {
     BigDecimal totalOpenPositionsUsdValue = BigDecimal.ZERO;
 
     for (KrakenFuturesOpenPosition openPosition : krakenFuturesOpenPositions.getOpenPositions()) {
-        totalOpenPositionsUsdValue = totalOpenPositionsUsdValue.add(openPosition.getPrice().multiply(openPosition.getSize()));
+      totalOpenPositionsUsdValue = totalOpenPositionsUsdValue.add(openPosition.getPrice().multiply(openPosition.getSize()));
     }
 
     return new AccountInfo("multiCollateralMarginAccount", new Wallet.Builder()
-            .features(Collections.singleton(Wallet.WalletFeature.FUTURES_TRADING))
-            .balances(balances)
-            .currentLeverage((totalOpenPositionsUsdValue.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO : totalOpenPositionsUsdValue.divide(collateralValue, 3, RoundingMode.HALF_EVEN))
-            .build());
+        .features(Collections.singleton(Wallet.WalletFeature.FUTURES_TRADING))
+        .balances(balances)
+        .currentLeverage((totalOpenPositionsUsdValue.compareTo(BigDecimal.ZERO) == 0) ? BigDecimal.ZERO : totalOpenPositionsUsdValue.divide(collateralValue, 3, RoundingMode.HALF_EVEN))
+        .build());
   }
 
   public static OrderType adaptOrderType(KrakenFuturesOrderSide krakenFuturesOrderType) {
@@ -93,29 +97,29 @@ public class KrakenFuturesAdapters {
   }
 
   public static LimitOrder adaptLimitOrder(KrakenFuturesOpenOrder ord) {
-    return new LimitOrder.Builder(adaptOrderType(ord.getSide()),adaptInstrument(ord.getSymbol()))
-            .originalAmount(ord.getFilledSize().add(ord.getUnfilledSize()))
-            .id(ord.getOrderId())
-            .timestamp(ord.getReceivedTime())
-            .limitPrice(ord.getLimitPrice())
-            .orderStatus(adaptOrderStatus(ord.getStatus()))
-            .remainingAmount(ord.getUnfilledSize())
-            .flag((ord.isReduceOnly()) ? KrakenFuturesOrderFlags.REDUCE_ONLY : null)
-            .build();
+    return new LimitOrder.Builder(adaptOrderType(ord.getSide()), adaptInstrument(ord.getSymbol()))
+        .originalAmount(ord.getFilledSize().add(ord.getUnfilledSize()))
+        .id(ord.getOrderId())
+        .timestamp(ord.getReceivedTime())
+        .limitPrice(ord.getLimitPrice())
+        .orderStatus(adaptOrderStatus(ord.getStatus()))
+        .remainingAmount(ord.getUnfilledSize())
+        .flag((ord.isReduceOnly()) ? KrakenFuturesOrderFlags.REDUCE_ONLY : null)
+        .build();
   }
 
   public static StopOrder adaptStopOrder(KrakenFuturesOpenOrder ord) {
-    return new StopOrder.Builder(adaptOrderType(ord.getSide()),adaptInstrument(ord.getSymbol()))
-            .originalAmount(ord.getFilledSize().add(ord.getUnfilledSize()))
-            .id(ord.getOrderId())
-            .timestamp(ord.getReceivedTime())
-            .limitPrice(ord.getLimitPrice())
-            .intention((ord.getOrderType().equals(KrakenFuturesOrderType.take_profit)) ? StopOrder.Intention.TAKE_PROFIT : StopOrder.Intention.STOP_LOSS)
-            .orderStatus(adaptOrderStatus(ord.getStatus()))
-            .remainingAmount(ord.getUnfilledSize())
-            .stopPrice(ord.getStopPrice())
-            .flag((ord.isReduceOnly()) ? KrakenFuturesOrderFlags.REDUCE_ONLY : null)
-            .build();
+    return new StopOrder.Builder(adaptOrderType(ord.getSide()), adaptInstrument(ord.getSymbol()))
+        .originalAmount(ord.getFilledSize().add(ord.getUnfilledSize()))
+        .id(ord.getOrderId())
+        .timestamp(ord.getReceivedTime())
+        .limitPrice(ord.getLimitPrice())
+        .intention((ord.getOrderType().equals(KrakenFuturesOrderType.take_profit)) ? StopOrder.Intention.TAKE_PROFIT : StopOrder.Intention.STOP_LOSS)
+        .orderStatus(adaptOrderStatus(ord.getStatus()))
+        .remainingAmount(ord.getUnfilledSize())
+        .stopPrice(ord.getStopPrice())
+        .flag((ord.isReduceOnly()) ? KrakenFuturesOrderFlags.REDUCE_ONLY : null)
+        .build();
   }
 
   public static OpenOrders adaptOpenOrders(KrakenFuturesOpenOrders orders) {
@@ -128,8 +132,8 @@ public class KrakenFuturesAdapters {
         // ignore anything but a plain limit order for now
         if (ord.getOrderType().equals(KrakenFuturesOrderType.lmt)) {
           limitOrders.add(adaptLimitOrder(ord));
-        } else if(ord.getOrderType().equals(KrakenFuturesOrderType.stop)
-                || ord.getOrderType().equals(KrakenFuturesOrderType.take_profit)){
+        } else if (ord.getOrderType().equals(KrakenFuturesOrderType.stop)
+            || ord.getOrderType().equals(KrakenFuturesOrderType.take_profit)) {
           triggerOrders.add(adaptStopOrder(ord));
         }
       }
@@ -166,14 +170,14 @@ public class KrakenFuturesAdapters {
     List<LimitOrder> asks = new ArrayList<>();
     List<LimitOrder> bids = new ArrayList<>();
 
-    krakenFuturesOrderBook.getBidsAsks().getAsks().forEach(order-> asks.add(new LimitOrder.Builder(OrderType.ASK,krakenFuturesOrderBook.getInstrument())
-                    .limitPrice(order.get(0))
-                    .originalAmount(order.get(1))
-            .build()));
-    krakenFuturesOrderBook.getBidsAsks().getBids().forEach(order-> bids.add(new LimitOrder.Builder(OrderType.BID,krakenFuturesOrderBook.getInstrument())
-            .limitPrice(order.get(0))
-            .originalAmount(order.get(1))
-            .build()));
+    krakenFuturesOrderBook.getBidsAsks().getAsks().forEach(order -> asks.add(new LimitOrder.Builder(OrderType.ASK, krakenFuturesOrderBook.getInstrument())
+        .limitPrice(order.get(0))
+        .originalAmount(order.get(1))
+        .build()));
+    krakenFuturesOrderBook.getBidsAsks().getBids().forEach(order -> bids.add(new LimitOrder.Builder(OrderType.BID, krakenFuturesOrderBook.getInstrument())
+        .limitPrice(order.get(0))
+        .originalAmount(order.get(1))
+        .build()));
 
     return new OrderBook(krakenFuturesOrderBook.getServerTime(), asks, bids);
   }
@@ -183,30 +187,30 @@ public class KrakenFuturesAdapters {
     Map<Currency, CurrencyMetaData> currencies = new HashMap<>();
 
     for (KrakenFuturesInstrument instrument : krakenFuturesInstruments.getInstruments()) {
-      if(instrument.getSymbol().contains("pf")){
-        instruments.put(adaptInstrument(instrument.getSymbol()),new InstrumentMetaData.Builder()
-                        .volumeScale(instrument.getVolumeScale())
-                        .priceScale(instrument.getTickSize().scale())
-                        .priceStepSize(instrument.getTickSize())
-                        .minimumAmount(getMinimumAmountFromVolumeScale(instrument.getVolumeScale()))
-                .build());
+      if (instrument.getSymbol().toLowerCase().contains("pf")) {
+        instruments.put(adaptInstrument(instrument.getSymbol()), new InstrumentMetaData.Builder()
+            .volumeScale(instrument.getVolumeScale())
+            .priceScale(instrument.getTickSize().scale())
+            .priceStepSize(instrument.getTickSize())
+            .minimumAmount(getMinimumAmountFromVolumeScale(instrument.getVolumeScale()))
+            .build());
       }
     }
 
-    return new ExchangeMetaData(instruments, currencies,null,null,true);
+    return new ExchangeMetaData(instruments, currencies, null, null, true);
   }
 
   public static Instrument adaptInstrument(String symbol) {
-      String main_symbol = symbol.replace(MULTI_COLLATERAL_PRODUCTS,"");
-      return new FuturesContract(new CurrencyPair(main_symbol.substring(0, main_symbol.length() - 3).replace("xbt","btc")+"/"+main_symbol.substring(main_symbol.length()-3)),"PERP");
+    String main_symbol = symbol.toLowerCase().replace(MULTI_COLLATERAL_PRODUCTS, "");
+    return new FuturesContract(new CurrencyPair(main_symbol.substring(0, main_symbol.length() - 3).replace("xbt", "btc") + "/" + main_symbol.substring(main_symbol.length() - 3)), "PERP");
   }
 
-  private static BigDecimal getMinimumAmountFromVolumeScale(Integer volumeScale){
-    if(volumeScale == 0){
+  private static BigDecimal getMinimumAmountFromVolumeScale(Integer volumeScale) {
+    if (volumeScale == 0) {
       return BigDecimal.ONE;
     } else {
       StringBuilder sb = new StringBuilder("0.");
-      for(int i = 1; i < volumeScale; i++) {
+      for (int i = 1; i < volumeScale; i++) {
         sb.append("0");
       }
       sb.append("1");
@@ -215,21 +219,21 @@ public class KrakenFuturesAdapters {
   }
 
   public static String adaptKrakenFuturesSymbol(Instrument instrument) {
-    return MULTI_COLLATERAL_PRODUCTS+instrument.getBase().toString().replace("BTC","XBT").toLowerCase()+instrument.getCounter().toString().toLowerCase();
+    return MULTI_COLLATERAL_PRODUCTS + instrument.getBase().toString().replace("BTC", "XBT").toLowerCase() + instrument.getCounter().toString().toLowerCase();
   }
 
   public static Trades adaptTrades(KrakenFuturesPublicFills krakenFuturesTrades, Instrument instrument) {
     List<Trade> trades = new ArrayList<>();
 
     for (KrakenFuturesPublicFill fill : krakenFuturesTrades.getFills()) {
-        trades.add(new Trade.Builder()
-                        .id(fill.getTradeId())
-                        .type(adaptOrderType(fill.getSide()))
-                        .price(fill.getPrice())
-                        .originalAmount(fill.getSize())
-                        .timestamp(fill.getTime())
-                        .instrument(instrument)
-                .build());
+      trades.add(new Trade.Builder()
+          .id(fill.getTradeId())
+          .type(adaptOrderType(fill.getSide()))
+          .price(fill.getPrice())
+          .originalAmount(fill.getSize())
+          .timestamp(fill.getTime())
+          .instrument(instrument)
+          .build());
     }
 
     return new Trades(trades, TradeSortType.SortByTimestamp);
@@ -239,52 +243,52 @@ public class KrakenFuturesAdapters {
     List<FundingRate> fundingRates = new ArrayList<>();
 
     for (KrakenFuturesTicker ticker : krakenFuturesTickers.getTickers()) {
-      if(ticker.getSymbol().contains(MULTI_COLLATERAL_PRODUCTS)){
+      if (ticker.getSymbol().toLowerCase().contains(MULTI_COLLATERAL_PRODUCTS)) {
         fundingRates.add(adaptFundingRate(ticker));
       }
     }
     return new FundingRates(fundingRates);
   }
 
-  public static FundingRate adaptFundingRate(KrakenFuturesTicker krakenFuturesTicker){
+  public static FundingRate adaptFundingRate(KrakenFuturesTicker krakenFuturesTicker) {
     LocalDateTime now = LocalDateTime.now();
     // KrakenFutures REST API getTicker returns absoluteValue for fundingRate. Needs to divided by markPrice in order to be the same value that kraken UI displays
-    BigDecimal relative1hFundingRate = krakenFuturesTicker.getAbsoluteFundingRate().divide(krakenFuturesTicker.getMarkPrice(),8,RoundingMode.HALF_EVEN);
+    BigDecimal relative1hFundingRate = krakenFuturesTicker.getAbsoluteFundingRate().divide(krakenFuturesTicker.getMarkPrice(), 8, RoundingMode.HALF_EVEN);
     return new FundingRate.Builder()
-            .fundingRate1h(relative1hFundingRate)
-            .fundingRate8h(relative1hFundingRate.multiply(BigDecimal.valueOf(8)))
-            .fundingRateDate(Date.from(now.plus(60-now.get(ChronoField.MINUTE_OF_HOUR), ChronoUnit.MINUTES).toInstant(ZoneOffset.UTC)))
-            .fundingRateEffectiveInMinutes(60-LocalTime.now().getMinute())
-            .instrument(adaptInstrument(krakenFuturesTicker.getSymbol()))
-            .build();
+        .fundingRate1h(relative1hFundingRate)
+        .fundingRate8h(relative1hFundingRate.multiply(BigDecimal.valueOf(8)))
+        .fundingRateDate(Date.from(now.plus(60 - now.get(ChronoField.MINUTE_OF_HOUR), ChronoUnit.MINUTES).toInstant(ZoneOffset.UTC)))
+        .fundingRateEffectiveInMinutes(60 - LocalTime.now().getMinute())
+        .instrument(adaptInstrument(krakenFuturesTicker.getSymbol()))
+        .build();
   }
 
   public static Order adaptKrakenFuturesOrder(KrakenFuturesOrdersStatusesResponse.KrakenFuturesOrder krakenFuturesOrder) {
     return new LimitOrder.Builder(adaptOrderType(krakenFuturesOrder.getOrder().getSide()), adaptInstrument(krakenFuturesOrder.getOrder().getSymbol()))
-            .limitPrice(krakenFuturesOrder.getOrder().getLimitPrice())
-            .originalAmount(krakenFuturesOrder.getOrder().getQuantity())
-            .id(krakenFuturesOrder.getOrder().getOrderId())
-            .userReference(krakenFuturesOrder.getOrder().getCliOrdId())
-            .orderStatus(adaptOrderStatus(krakenFuturesOrder.getOrder().getStatus()))
-            .build();
+        .limitPrice(krakenFuturesOrder.getOrder().getLimitPrice())
+        .originalAmount(krakenFuturesOrder.getOrder().getQuantity())
+        .id(krakenFuturesOrder.getOrder().getOrderId())
+        .userReference(krakenFuturesOrder.getOrder().getCliOrdId())
+        .orderStatus(adaptOrderStatus(krakenFuturesOrder.getOrder().getStatus()))
+        .build();
   }
 
-  public static OrderStatus adaptOrderStatus(KrakenFuturesOrderStatus krakenFuturesOrderStatus){
+  public static OrderStatus adaptOrderStatus(KrakenFuturesOrderStatus krakenFuturesOrderStatus) {
     OrderStatus orderStatus = OrderStatus.UNKNOWN;
 
-    if(krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.REJECTED)
-      || krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.TRIGGER_ACTIVATION_FAILURE)){
+    if (krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.REJECTED)
+        || krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.TRIGGER_ACTIVATION_FAILURE)) {
       orderStatus = OrderStatus.REJECTED;
-    } else if(krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.CANCELLED)){
+    } else if (krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.CANCELLED)) {
       orderStatus = OrderStatus.CANCELED;
-    } else if(krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.ENTERED_BOOK)){
+    } else if (krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.ENTERED_BOOK)) {
       orderStatus = OrderStatus.NEW;
-    } else if(krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.FULLY_EXECUTED)){
+    } else if (krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.FULLY_EXECUTED)) {
       orderStatus = OrderStatus.FILLED;
-    } else if(krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.TRIGGER_PLACED)
-      || krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.untouched)){
+    } else if (krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.TRIGGER_PLACED)
+        || krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.untouched)) {
       orderStatus = OrderStatus.OPEN;
-    } else if(krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.partiallyFilled)){
+    } else if (krakenFuturesOrderStatus.equals(KrakenFuturesOrderStatus.partiallyFilled)) {
       orderStatus = OrderStatus.PARTIALLY_FILLED;
     }
 
@@ -295,11 +299,11 @@ public class KrakenFuturesAdapters {
     List<OpenPosition> openPositions = new ArrayList<>();
 
     krakenFuturesOpenPositions.getOpenPositions().forEach(krakenFuturesOpenPosition -> openPositions.add(new OpenPosition.Builder()
-                    .instrument(adaptInstrument(krakenFuturesOpenPosition.getSymbol()))
-                    .type((krakenFuturesOpenPosition.getSide().equals("long")) ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT)
-                    .size(krakenFuturesOpenPosition.getSize())
-                    .price(krakenFuturesOpenPosition.getPrice())
-            .build()));
+        .instrument(adaptInstrument(krakenFuturesOpenPosition.getSymbol()))
+        .type((krakenFuturesOpenPosition.getSide().equals("long")) ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT)
+        .size(krakenFuturesOpenPosition.getSize())
+        .price(krakenFuturesOpenPosition.getPrice())
+        .build()));
     return new OpenPositions(openPositions);
   }
 }
