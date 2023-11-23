@@ -2,14 +2,15 @@ package com.knowm.xchange.vertex.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.web3j.utils.Numeric;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.commons.lang3.RandomUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.web3j.utils.Numeric;
 
 public class VertexModelUtils {
   public static final BigDecimal NUMBER_CONVERSION_FACTOR = BigDecimal.ONE.scaleByPowerOfTen(18);
@@ -28,7 +29,7 @@ public class VertexModelUtils {
   }
 
   public static String buildNonce(int timeoutMillis) {
-    return String.valueOf((Instant.now().toEpochMilli() + timeoutMillis << 20) + RandomUtils.nextInt(1, 10000));
+    return String.valueOf(((Instant.now().toEpochMilli() + timeoutMillis) << 20) + RandomUtils.nextInt(1, 10000));
   }
 
   public static String buildSender(String walletAddress, String subAccount) {

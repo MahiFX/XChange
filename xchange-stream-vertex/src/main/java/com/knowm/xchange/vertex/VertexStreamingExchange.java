@@ -3,14 +3,11 @@ package com.knowm.xchange.vertex;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.MoreObjects;
-import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
-import com.knowm.xchange.vertex.api.VertexApi;
+import com.knowm.xchange.vertex.api.VertexArchiveApi;
+import com.knowm.xchange.vertex.api.VertexGatewayApi;
 import com.knowm.xchange.vertex.dto.RewardsList;
 import com.knowm.xchange.vertex.dto.RewardsRequest;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18Decimal;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18DecimalArray;
+import com.knowm.xchange.vertex.dto.Symbol;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
@@ -18,26 +15,25 @@ import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.trade.TradeService;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
 
@@ -69,49 +65,63 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   private final Set<Long> perpProducts = new TreeSet<>();
 
   private Observable<JsonNode> allMessages;
-  private VertexApi restApiClient;
+  private VertexArchiveApi archiveApi;
+  private VertexGatewayApi gatewayApi;
 
 
   private VertexStreamingService createStreamingService(String suffix) {
-    VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix);
+    VertexStreamingService streamingService = new VertexStreamingService(getApiUrl() + suffix, exchangeSpecification, this);
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
 
     return streamingService;
   }
 
   private String getApiUrl() {
-    return "wss://" + getHost(useTestnet, exchangeSpecification);
+    return "wss://" + getGatewayHost(useTestnet, exchangeSpecification);
 
   }
 
   @Override
   public ExchangeSpecification getDefaultExchangeSpecification() {
     ExchangeSpecification exchangeSpecification = new ExchangeSpecification(this.getClass());
-    String host = getHost(useTestnet, exchangeSpecification);
-    exchangeSpecification.setSslUri("https://" + host);
-    exchangeSpecification.setHost(host);
+
+    exchangeSpecification.setHost(getGatewayHost(useTestnet, exchangeSpecification));
     exchangeSpecification.setExchangeName("Vertex");
     exchangeSpecification.setExchangeDescription("Vertex - One DEX. Everything you need.");
     return exchangeSpecification;
   }
 
-  private String getHost(boolean useTestnet, ExchangeSpecification exchangeSpecification) {
+  private String getGatewayHost(boolean useTestnet, ExchangeSpecification exchangeSpecification) {
     if (exchangeSpecification.getOverrideWebsocketApiUri() != null) {
       try {
-        return new URI(exchangeSpecification.getOverrideWebsocketApiUri()).getHost();
+        URI uri = new URI(exchangeSpecification.getOverrideWebsocketApiUri());
+        return uri.getHost() + uri.getPath();
       } catch (URISyntaxException e) {
         throw new RuntimeException("Invalid overrideWebsocketApiUri", e);
       }
     }
-    return useTestnet ? "test.vertexprotocol-backend.com" : "prod.vertexprotocol-backend.com";
+    return useTestnet ? "gateway.test.vertexprotocol.com/v1" : "gateway.prod.vertexprotocol.com/v1";
+  }
+
+
+  private String getArchiveHost(boolean useTestnet, ExchangeSpecification exchangeSpecification) {
+    if (exchangeSpecification.getOverrideWebsocketApiUri() != null) {
+      try {
+        URI uri = new URI(exchangeSpecification.getOverrideWebsocketApiUri());
+        return uri.getHost() + uri.getPath();
+      } catch (URISyntaxException e) {
+        throw new RuntimeException("Invalid overrideWebsocketApiUri", e);
+      }
+    }
+    return useTestnet ? "archive.test.vertexprotocol.com/v1" : "archive.prod.vertexprotocol.com/v1";
   }
 
 
   public void applySpecification(ExchangeSpecification exchangeSpecification) {
-    this.useTestnet = !Boolean.FALSE.equals(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX));
+    this.useTestnet = Boolean.TRUE.equals(Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX))));
 
-    if (exchangeSpecification.getSslUri() == null) {
-      exchangeSpecification.setSslUri("https://" + getHost(useTestnet, exchangeSpecification));
+    if (useTestnet) {
+      exchangeSpecification.setHost(getGatewayHost(useTestnet, exchangeSpecification));
     }
 
     super.applySpecification(exchangeSpecification);
@@ -124,6 +134,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     if (!requestResponseStream.isSocketOpen() && !requestResponseStream.connect().blockingAwait(10, TimeUnit.SECONDS)) {
       throw new RuntimeException("Timeout waiting for connection");
     }
+
+    Symbol[] symbols = gatewayApi.symbols().data.symbols.values().toArray(new Symbol[0]);
 
     ArrayList<Query> queries = new ArrayList<>();
     ArrayList<Query> priceQueries = new ArrayList<>();
@@ -156,7 +168,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       processProductIncrements(productData.withArray("spot_products"), spotProducts);
       processProductIncrements(productData.withArray("perp_products"), perpProducts);
 
-      productInfo = new VertexProductInfo(spotProducts, restApiClient.symbols(), takerFees, makerFees, takerSequencerFee.get());
+      productInfo = new VertexProductInfo(spotProducts, symbols, takerFees, makerFees, takerSequencerFee.get());
 
       for (Long productId : productInfo.getProductsIds()) {
         if (productId != 0) {
@@ -196,7 +208,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   }
 
   public RewardsList queryRewards(String walletAddress) {
-    return restApiClient.rewards(new RewardsRequest(new RewardsRequest.RewardAddress(walletAddress)));
+    return archiveApi.rewards(new RewardsRequest(new RewardsRequest.RewardAddress(walletAddress)));
   }
 
   public synchronized void submitQueries(Query... queries) {
@@ -261,7 +273,16 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     this.subscriptionStream = createStreamingService("/subscribe");
     this.requestResponseStream = createStreamingService("/ws");
 
-    this.restApiClient = ExchangeRestProxyBuilder.forInterface(VertexApi.class, exchangeSpecification)
+    ExchangeSpecification archiveSpec = new ExchangeSpecification(this.getClass());
+    archiveSpec.setSslUri("https://" + getArchiveHost(useTestnet, exchangeSpecification));
+    this.archiveApi = ExchangeRestProxyBuilder.forInterface(VertexArchiveApi.class, archiveSpec)
+        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60)))
+        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10)))
+        .build();
+
+    ExchangeSpecification gatewaySpec = new ExchangeSpecification(this.getClass());
+    gatewaySpec.setSslUri("https://" + getGatewayHost(useTestnet, exchangeSpecification));
+    this.gatewayApi = ExchangeRestProxyBuilder.forInterface(VertexGatewayApi.class, gatewaySpec)
         .clientConfigCustomizer(clientConfig -> clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60)))
         .clientConfigCustomizer(clientConfig -> clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10)))
         .build();
@@ -344,8 +365,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     return increments.get(productId);
   }
 
-  public VertexApi getRestClient() {
-    return restApiClient;
+  public VertexArchiveApi getRestClient() {
+    return archiveApi;
   }
 
   /*
@@ -371,5 +392,13 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
    */
   public BigDecimal getTakerFee() {
     return productInfo.takerSequencerFee();
+  }
+
+  public long getChainId() {
+    return chainId;
+  }
+
+  public String getEndpointContract() {
+    return endpointContract;
   }
 }

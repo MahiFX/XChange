@@ -105,9 +105,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     this.exchange = exchange;
     this.marketDataService = marketDataService;
     this.mapper = StreamingObjectMapperHelper.getObjectMapper();
-    this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO).toString()) : DEFAULT_MAX_SLIPPAGE_RATIO;
-    this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE).toString()) : DEFAULT_USE_LEVERAGE;
-    this.placeOrderValidUntilMs = exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP) != null ? (int) exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP) : 60000;
+    this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO))) : DEFAULT_MAX_SLIPPAGE_RATIO;
+    this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE))) : DEFAULT_USE_LEVERAGE;
+    this.placeOrderValidUntilMs = exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP) != null ? Integer.parseInt(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP))) : 60000;
 
     exchange.connectionStateObservable().subscribe(
         s -> {
@@ -199,31 +199,26 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
   @Override
   public Observable<Order> getOrderChanges(Instrument instrument, Object... args) {
-    return subscribeToFills(instrument).map(resp -> {
-      boolean isBid = resp.get("is_bid").asBoolean();
-      Order.Builder builder = new LimitOrder.Builder(isBid ? Order.OrderType.BID : Order.OrderType.ASK, instrument);
-      String orderId = resp.get("order_digest").asText();
-      BigDecimal original = readX18Decimal(resp, "original_qty");
-      BigDecimal remaining = readX18Decimal(resp, "remaining_qty");
-      BigDecimal price = readX18Decimal(resp, "price");
-      BigDecimal filled = readX18Decimal(resp, "filled_qty");
+    return subscribeToOrderUpdate(instrument).map(resp -> {
+
+      String reason = resp.get("reason").asText();
+
+      Order.Builder builder = new LimitOrder.Builder(null, instrument);
+      String orderId = resp.get("digest").asText();
+      BigDecimal remaining = readX18Decimal(resp, "amount");
+
       Instant timestamp = NanoSecondsDeserializer.parse(resp.get("timestamp").asText());
-      String respSubAccount = resp.get("subaccount").asText();
-      Order.OrderStatus status = getOrderStatus(remaining, filled, original);
+      Order.OrderStatus status = getOrderStatus(remaining, reason);
       return builder.id(orderId)
           .instrument(instrument)
-          .originalAmount(original)
-          .cumulativeAmount(filled)
           .orderStatus(status)
-          .averagePrice(price)
           .remainingAmount(remaining)
-          .userReference(respSubAccount)
           .timestamp(new Date(timestamp.toEpochMilli()))
           .build();
     });
   }
 
-  private static Order.OrderStatus getOrderStatus(BigDecimal remaining, BigDecimal filled, BigDecimal original) {
+  private static Order.OrderStatus getTradeStatus(BigDecimal remaining, BigDecimal filled, BigDecimal original) {
     Order.OrderStatus status;
     if (isZero(remaining) || filled.equals(original)) {
       status = Order.OrderStatus.FILLED;
@@ -231,6 +226,18 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       status = Order.OrderStatus.NEW;
     } else {
       status = Order.OrderStatus.PARTIALLY_FILLED;
+    }
+    return status;
+  }
+
+  private static Order.OrderStatus getOrderStatus(BigDecimal remaining, String reason) {
+    if ("cancelled".equals(reason)) return Order.OrderStatus.CANCELED;
+
+    Order.OrderStatus status = Order.OrderStatus.UNKNOWN;
+    if ("filled".equals(reason)) {
+      status = isZero(remaining) ? Order.OrderStatus.FILLED : Order.OrderStatus.PARTIALLY_FILLED;
+    } else if ("placed".equals(reason)) {
+      status = Order.OrderStatus.NEW;
     }
     return status;
   }
@@ -245,6 +252,17 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     String subAccount = exchange.getSubAccountOrDefault();
 
     String channel = "fill." + productId + "." + buildSender(exchangeSpecification.getApiKey(), subAccount);
+    return fillSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
+  }
+
+
+  private Observable<JsonNode> subscribeToOrderUpdate(Instrument instrument) {
+    subscriptionStream.authenticate();
+    long productId = productInfo.lookupProductId(instrument);
+
+    String subAccount = exchange.getSubAccountOrDefault();
+
+    String channel = "order_update." + productId + "." + buildSender(exchangeSpecification.getApiKey(), subAccount);
     return fillSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel));
   }
 
@@ -300,7 +318,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         .filter(Optional::isPresent)
         .map(Optional::get);
 
-    if (Boolean.parseBoolean(exchangeSpecification.getExchangeSpecificParametersItem(BLEND_LIQUIDATION_TRADES).toString())) {
+    if (Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(BLEND_LIQUIDATION_TRADES)))) {
       AtomicLong indexCounter = new AtomicLong();
 
       String subAccount = getSubAccountOrDefault();
@@ -450,9 +468,10 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
       JsonNode subAccountInfo = subAccountInfoHolder.get();
       List<OpenPosition> positions = new ArrayList<>();
-      subAccountInfo.withArray("spot_balances").elements().forEachRemaining(bal -> addBalance(positions, bal, summary));
-      subAccountInfo.withArray("perp_balances").elements().forEachRemaining(bal -> addBalance(positions, bal, summary));
-
+      if (subAccountInfo != null) {
+        subAccountInfo.withArray("spot_balances").elements().forEachRemaining(bal -> addBalance(positions, bal, summary));
+        subAccountInfo.withArray("perp_balances").elements().forEachRemaining(bal -> addBalance(positions, bal, summary));
+      }
       return new OpenPositions(positions);
     } catch (InterruptedException ignored) {
       return new OpenPositions(Collections.emptyList());
@@ -783,7 +802,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 .limitPrice(price)
                 .originalAmount(amount)
                 .remainingAmount(unfilledAmount)
-                .orderStatus(getOrderStatus(unfilledAmount, filled, amount))
+                .orderStatus(getTradeStatus(unfilledAmount, filled, amount))
                 .cumulativeAmount(filled)
                 .timestamp(placedAt);
             orders.add(builder.build());
@@ -818,7 +837,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                   .limitPrice(price)
                   .originalAmount(amount)
                   .remainingAmount(unfilledAmount)
-                  .orderStatus(getOrderStatus(unfilledAmount, filled, amount))
+                  .orderStatus(getTradeStatus(unfilledAmount, filled, amount))
                   .cumulativeAmount(filled)
                   .timestamp(placedAt);
               orders.add(builder.build());
