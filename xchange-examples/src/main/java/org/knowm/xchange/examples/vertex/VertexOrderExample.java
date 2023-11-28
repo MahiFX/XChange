@@ -11,8 +11,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
+import org.knowm.xchange.dto.account.OpenPosition;
+import org.knowm.xchange.dto.account.OpenPositions;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
+import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.trade.params.CancelAllOrders;
 import org.knowm.xchange.service.trade.params.DefaultCancelAllOrdersByInstrument;
 import org.knowm.xchange.service.trade.params.DefaultCancelOrderByInstrumentAndIdParams;
@@ -75,6 +78,28 @@ public class VertexOrderExample {
     });
 
     Thread.sleep(2000);
+
+    OpenPositions initial = tradeService.getOpenPositions();
+    log.info("Initial open positions: {}", initial);
+    initial.getOpenPositions().forEach(openPosition -> {
+      if (!openPosition.getInstrument().equals(btc)) return;
+      MarketOrder closeOrder = new MarketOrder(openPosition.getType().equals(OpenPosition.Type.LONG) ? Order.OrderType.ASK : Order.OrderType.BID, openPosition.getSize().abs(), openPosition.getInstrument());
+      try {
+        log.info("Closing old position via " + closeOrder);
+        String marketOrder = tradeService.placeMarketOrder(closeOrder);
+        log.info("Closed position " + openPosition + " via order " + marketOrder);
+      } catch (ExchangeException e) {
+        log.error("Failed to close position " + openPosition);
+      }
+
+    });
+
+
+    Thread.sleep(2000);
+
+    OpenPositions openPositions = tradeService.getOpenPositions();
+    assert openPositions.getOpenPositions().size() == 0;
+
 
     MarketOrder buy = new MarketOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc);
     buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);

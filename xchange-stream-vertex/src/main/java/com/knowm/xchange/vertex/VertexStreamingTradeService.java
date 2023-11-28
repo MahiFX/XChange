@@ -8,6 +8,8 @@ import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.knowm.xchange.vertex.dto.*;
@@ -90,6 +92,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final Map<Long, Disposable> tickerSubscriptions = new ConcurrentHashMap<>();
   private final Map<String, Observable<JsonNode>> fillSubscriptions = new ConcurrentHashMap<>();
   private final Map<String, Observable<JsonNode>> positionSubscriptions = new ConcurrentHashMap<>();
+  private final Cache<String, Order> orderCache = CacheBuilder.newBuilder().maximumSize(1000).build();
   private final Disposable allMessageSubscription;
   private final StreamingMarketDataService marketDataService;
   private final Scheduler liquidationScheduler = Schedulers.single();
@@ -203,8 +206,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
       String reason = resp.get("reason").asText();
 
-      Order.Builder builder = new LimitOrder.Builder(null, instrument);
       String orderId = resp.get("digest").asText();
+      Order knownOrder = orderCache.getIfPresent(orderId);
+      Order.Builder builder = new LimitOrder.Builder(null, instrument);
       BigDecimal remaining = readX18Decimal(resp, "amount");
 
       Instant timestamp = NanoSecondsDeserializer.parse(resp.get("timestamp").asText());
@@ -212,6 +216,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       return builder.id(orderId)
           .instrument(instrument)
           .orderStatus(status)
+          .originalAmount(knownOrder == null ? null : knownOrder.getOriginalAmount())
           .remainingAmount(remaining)
           .timestamp(new Date(timestamp.toEpochMilli()))
           .build();
@@ -587,7 +592,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     try {
       sendWebsocketMessage(orderMessage);
-
+      orderCache.put(signatureAndDigest.getDigest(), marketOrder);
     } catch (Throwable e) {
       logger.error("Failed to place order : " + orderMessage, e);
       throw new ExchangeException(e);

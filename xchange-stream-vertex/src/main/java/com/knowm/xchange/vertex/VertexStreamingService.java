@@ -36,6 +36,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private final ExchangeSpecification exchangeSpecification;
   private final VertexStreamingExchange exchange;
   private boolean authenticated;
+  private boolean wasAuthenticated;
   private Observable<JsonNode> allMessages;
 
   public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange) {
@@ -137,8 +138,9 @@ public class VertexStreamingService extends JsonNettyStreamingService {
         "}";
   }
 
-  public void authenticate() {
-
+  public synchronized void authenticate() {
+    wasAuthenticated = true;
+    if (authenticated) return;
     String subAccount = exchange.getSubAccountOrDefault();
 
     String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
@@ -167,8 +169,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
       logger.debug("Authentication response: {}", value);
       if (value.get("id").asLong() == requestId) {
         responseLatch.complete(value);
-      }
-      if (value.get("error") != null) {
+      } else if (value.get("error") != null) {
         responseLatch.complete(value);
       }
     });
@@ -185,8 +186,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
           "}");
 
       JsonNode response = responseLatch.get(5, TimeUnit.SECONDS);
-      if (response.get("error") != null) {
-        throw new RuntimeException("Authentication error: " + response.get("error"));
+      JsonNode error = response.get("error");
+      if (error != null) {
+        if (!error.textValue().contains("already authenticated")) {
+          throw new RuntimeException("Authentication error: " + error);
+        }
       }
     } catch (InterruptedException e) {
       logger.warn("Interrupted while waiting for authentication response");
@@ -202,7 +206,8 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
   @Override
   public void resubscribeChannels() {
-    if (authenticated) {
+    authenticated = false;
+    if (wasAuthenticated) {
       authenticate();
     }
     allMessages = subscribeChannel(ALL_MESSAGES).share();
