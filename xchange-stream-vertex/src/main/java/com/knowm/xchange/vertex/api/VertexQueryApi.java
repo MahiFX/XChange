@@ -9,8 +9,8 @@ import javax.ws.rs.core.MediaType;
 
 
 @Produces(MediaType.APPLICATION_JSON)
-@Path("/")
-public interface VertexGatewayApi {
+@Path("")
+public interface VertexQueryApi {
 
   @GET
   @Path("/query?type=symbols")

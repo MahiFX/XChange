@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.MoreObjects;
 import com.knowm.xchange.vertex.api.VertexArchiveApi;
-import com.knowm.xchange.vertex.api.VertexGatewayApi;
+import com.knowm.xchange.vertex.api.VertexQueryApi;
 import com.knowm.xchange.vertex.dto.RewardsList;
 import com.knowm.xchange.vertex.dto.RewardsRequest;
 import com.knowm.xchange.vertex.dto.Symbol;
@@ -68,42 +68,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   private Observable<JsonNode> allMessages;
   private VertexArchiveApi archiveApi;
-  private VertexGatewayApi gatewayApi;
+  private VertexQueryApi gatewayApi;
 
-
-  private String getGatewayWsUrl() {
-    Object exchangeSpecificParametersItem1 = exchangeSpecification.getExchangeSpecificParametersItem(GATEWAY_WEBSOCKET);
-    if (exchangeSpecificParametersItem1 != null) {
-      return String.valueOf(exchangeSpecificParametersItem1);
-    }
-    return "wss://" + getGatewayHost(useTestnet) + "/v1/ws";
-  }
-
-
-  private String getSubscriptionWsUrl() {
-    Object exchangeSpecificParametersItem1 = exchangeSpecification.getExchangeSpecificParametersItem(SUBSCRIPTIONS_WEBSOCKET);
-    if (exchangeSpecificParametersItem1 != null) {
-      return String.valueOf(exchangeSpecificParametersItem1);
-    }
-    return "wss://" + getGatewayHost(useTestnet) + "/v1/subscribe";
-  }
-
-
-  private String getGatewayRestUrl() {
-    Object exchangeSpecificParametersItem1 = exchangeSpecification.getExchangeSpecificParametersItem(GATEWAY_REST);
-    if (exchangeSpecificParametersItem1 != null) {
-      return String.valueOf(exchangeSpecificParametersItem1);
-    }
-    return "https://" + getGatewayHost(useTestnet);
-  }
-
-  private String getArchiveRestUrl() {
-    Object exchangeSpecificParametersItem1 = exchangeSpecification.getExchangeSpecificParametersItem(ARCHIVER_REST);
-    if (exchangeSpecificParametersItem1 != null) {
-      return String.valueOf(exchangeSpecificParametersItem1);
-    }
-    return "https://" + getArchiveHost(useTestnet) + "/v1";
-  }
 
   @Override
   public ExchangeSpecification getDefaultExchangeSpecification() {
@@ -290,7 +256,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
     ExchangeSpecification gatewaySpec = new ExchangeSpecification(this.getClass());
     gatewaySpec.setSslUri(getGatewayRestUrl());
-    this.gatewayApi = ExchangeRestProxyBuilder.forInterface(VertexGatewayApi.class, gatewaySpec)
+    this.gatewayApi = ExchangeRestProxyBuilder.forInterface(VertexQueryApi.class, gatewaySpec)
         .clientConfigCustomizer(clientConfig -> clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60)))
         .clientConfigCustomizer(clientConfig -> clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10)))
         .build();
@@ -307,6 +273,38 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     VertexStreamingService streamingService = new VertexStreamingService(getSubscriptionWsUrl(), exchangeSpecification, this);
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
+  }
+
+  private String getGatewayWsUrl() {
+    return overrideOrDefault(GATEWAY_WEBSOCKET, "wss://" + getGatewayHost(useTestnet) + "/v1/ws");
+  }
+
+  private String getSubscriptionWsUrl() {
+    return overrideOrDefault(SUBSCRIPTIONS_WEBSOCKET, "wss://" + getGatewayHost(useTestnet) + "/v1/subscribe");
+  }
+
+  private String getGatewayRestUrl() {
+    return overrideOrDefault(GATEWAY_REST, "https://" + getGatewayHost(useTestnet) + "/v1");
+  }
+
+  private String getArchiveRestUrl() {
+    return overrideOrDefault(ARCHIVER_REST, "https://" + getArchiveHost(useTestnet) + "/v1");
+
+  }
+
+  private String overrideOrDefault(String param, String defaultVl) {
+    String override = getParam(param);
+    if (override != null) return override;
+    return defaultVl;
+  }
+
+  private String getParam(String param) {
+    Object exchangeSpecificParametersItem1 = exchangeSpecification.getExchangeSpecificParametersItem(param);
+    if (exchangeSpecificParametersItem1 != null) {
+      String override = String.valueOf(exchangeSpecificParametersItem1);
+      return StringUtils.isNotEmpty(override) ? override : null;
+    }
+    return null;
   }
 
 
