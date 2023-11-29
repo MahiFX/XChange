@@ -97,12 +97,15 @@ public class VertexStreamingService extends JsonNettyStreamingService {
       }
     }));
 
+    String subAccount = exchange.getSubAccountOrDefault();
+    String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+
     return "{\n" +
         "  \"method\": \"subscribe\",\n" +
         "  \"stream\": {\n" +
         "    \"type\": \"" + typeAndProduct[0] + "\"\n" +
         productIdField(typeAndProduct) +
-        subAccountField(typeAndProduct) +
+        subAccountField(sender) +
         "  },\n" +
         "  \"id\": " + reqId + "\n" +
         "}";
@@ -112,12 +115,9 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     return typeAndProduct.length > 1 ? ", \"product_id\": " + typeAndProduct[1] + "\n" : "";
   }
 
-  private String subAccountField(String[] typeAndProduct) {
-    if (typeAndProduct.length > 2) {
-      return ",\"subaccount\": \"" + typeAndProduct[2] + "\"\n";
-    } else {
-      return "";
-    }
+  private String subAccountField(String sender) {
+    return ",\"subaccount\": \"" + sender + "\"\n";
+
   }
 
   @Override
@@ -127,12 +127,16 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     }
     String[] typeAndProduct = channelName.split("\\.");
     long reqId = reqCounter.incrementAndGet();
+
+    String subAccount = exchange.getSubAccountOrDefault();
+    String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+
     return "{\n" +
         "  \"method\": \"unsubscribe\",\n" +
         "  \"stream\": {\n" +
         "    \"type\": \"" + typeAndProduct[0] + "\"\n" +
         productIdField(typeAndProduct) +
-        subAccountField(typeAndProduct) +
+        subAccountField(sender) +
         "  },\n" +
         "  \"id\": " + reqId + "\n" +
         "}";
@@ -145,8 +149,6 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
     String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
 
-    Instant expiry = Instant.now().plus(10, ChronoUnit.SECONDS);
-    String timestamp = String.valueOf(expiry.toEpochMilli());
 
     long chainId = exchange.getChainId();
     String endpointContract = exchange.getEndpointContract();
@@ -155,6 +157,8 @@ public class VertexStreamingService extends JsonNettyStreamingService {
       throw new IllegalStateException("ChainId or EndpointContract not available. Cannot authenticate");
     }
 
+    Instant expiry = Instant.now().plus(20, ChronoUnit.SECONDS);
+    String timestamp = String.valueOf(expiry.toEpochMilli());
     StreamAuthentication streamAuth = StreamAuthentication.build(chainId,
         endpointContract,
         sender,
@@ -185,7 +189,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
           "  \"signature\": \"" + signatureAndDigest.getSignature() + "\"\n" +
           "}");
 
-      JsonNode response = responseLatch.get(5, TimeUnit.SECONDS);
+      JsonNode response = responseLatch.get(10, TimeUnit.SECONDS);
       JsonNode error = response.get("error");
       if (error != null) {
         if (!error.textValue().contains("already authenticated")) {
@@ -197,7 +201,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
       return;
 
     } catch (TimeoutException | ExecutionException e) {
-      throw new RuntimeException("Authentication timeout");
+      throw new RuntimeException("Authentication timeout", e);
     } finally {
       responseSub.dispose();
     }
@@ -207,10 +211,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   @Override
   public void resubscribeChannels() {
     authenticated = false;
+    allMessages = subscribeChannel(ALL_MESSAGES).share();
+
     if (wasAuthenticated) {
       authenticate();
     }
-    allMessages = subscribeChannel(ALL_MESSAGES).share();
     super.resubscribeChannels();
   }
 
