@@ -137,6 +137,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
           }, (code, error) -> {
         throw new ExchangeException("Error loading fee data: " + code + " " + error);
       }));
+    } else {
+      throw new ExchangeException("API key must be provided via exchange specification");
     }
     queries.add(new Query("{\"type\":\"all_products\"}", productData -> {
       processProductIncrements(productData.withArray("spot_products"), spotProducts);
