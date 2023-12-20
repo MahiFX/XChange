@@ -8,6 +8,7 @@ import com.knowm.xchange.vertex.api.VertexQueryApi;
 import com.knowm.xchange.vertex.dto.RewardsList;
 import com.knowm.xchange.vertex.dto.RewardsRequest;
 import com.knowm.xchange.vertex.dto.Symbol;
+import com.knowm.xchange.vertex.dto.SymbolListing;
 import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
@@ -109,7 +110,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       throw new RuntimeException("Timeout waiting for connection");
     }
 
-    Symbol[] symbols = gatewayApi.symbols().data.symbols.values().toArray(new Symbol[0]);
+    SymbolListing data = gatewayApi.symbols().data;
+    Symbol[] symbols = data.symbols.values().toArray(new Symbol[0]);
 
     ArrayList<Query> queries = new ArrayList<>();
     ArrayList<Query> priceQueries = new ArrayList<>();
