@@ -15,9 +15,12 @@ import org.slf4j.LoggerFactory;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
 
@@ -27,7 +30,6 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
   //Channel to use to subscribe to all response
   public static final String ALL_MESSAGES = "all_messages";
-  private static final int ONE_MB_FRAME_MAX = 1048576;
 
   private final AtomicLong reqCounter = new AtomicLong(1);
   private final String apiUrl;
@@ -36,15 +38,12 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private boolean authenticated;
   private boolean wasAuthenticated;
   private Observable<JsonNode> allMessages;
-  private final Map<Long, String> subscriptionReqs = new ConcurrentHashMap<>();
-  private Disposable allMsgSub;
 
   public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange) {
-    super(apiUrl, ONE_MB_FRAME_MAX);
+    super(apiUrl);
     this.apiUrl = apiUrl;
     this.exchangeSpecification = exchangeSpecification;
     this.exchange = exchange;
-
   }
 
   @Override
@@ -84,8 +83,19 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     }
     String[] typeAndProduct = channelName.split("\\.");
     long reqId = reqCounter.incrementAndGet();
+    AtomicReference<Disposable> responseSub = new AtomicReference<>();
 
-    subscriptionReqs.put(reqId, channelName);
+    responseSub.set(allMessages.subscribe((message) -> {
+      logger.debug("Subscription response: {}", message);
+      if (message.get("id").asLong() == reqId) {
+        if (message.get("error") != null) {
+          logger.error("Error subscribing to channel " + channelName + ": " + message.get("error"));
+        } else {
+          logger.info("Subscribed to channel " + channelName + " successfully");
+        }
+        responseSub.get().dispose();
+      }
+    }));
 
     String subAccount = exchange.getSubAccountOrDefault();
     String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
@@ -199,31 +209,9 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   }
 
   @Override
-  public Observable<JsonNode> subscribeChannel(String channelName, Object... args) {
-    if (channelName.equals(ALL_MESSAGES)) {
-      return allMessages;
-    }
-    return super.subscribeChannel(channelName, args);
-  }
-
-  @Override
   public void resubscribeChannels() {
     authenticated = false;
-    allMessages = super.subscribeChannel((ALL_MESSAGES));
-
-    allMsgSub = allMessages.subscribe((message) -> {
-      JsonNode id = message.get("id");
-      if (id != null) {
-        String channelName = subscriptionReqs.remove(id.longValue());
-        logger.debug("Subscription response: {}", message);
-        if (message.get("error") != null) {
-          logger.error("Error subscribing to channel " + channelName + ": " + message.get("error"));
-        } else {
-          logger.info("Subscribed to channel " + channelName + " successfully");
-        }
-      }
-
-    });
+    allMessages = subscribeChannel(ALL_MESSAGES).share();
 
     if (wasAuthenticated) {
       authenticate();
@@ -234,9 +222,6 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   @Override
   public Completable disconnect() {
     if (isSocketOpen()) {
-      if (allMsgSub != null) {
-        allMsgSub.dispose();
-      }
       logger.info("Disconnecting " + apiUrl);
       return super.disconnect();
     } else {
