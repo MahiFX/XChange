@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.hash.HashFunction;
@@ -745,16 +744,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     } catch (Throwable e) {
       logger.error("Failed to cancel order (" + id + "): " + cancelReq, e);
-      boolean alreadyCancelled = isAlreadyCancelled(Throwables.getRootCause(e));
-      return alreadyCancelled ? List.of(id) : Collections.emptyList();
+      return Collections.emptyList();
 
     }
-  }
-
-  private boolean isAlreadyCancelled(Throwable throwable) {
-    // Treat this as a successful cancel as automatic/unsolicited cancellations are not notified
-    String message = throwable.getMessage();
-    return message != null && message.matches(".*Order with the provided digest .* could not be found.*");
   }
 
   private String getOrderId(CancelOrderParams params) {
