@@ -20,7 +20,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
 
@@ -30,6 +29,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
 
   //Channel to use to subscribe to all response
   public static final String ALL_MESSAGES = "all_messages";
+  private static final int MAX_FRAME_KB = 1024 * 256;
 
   private final AtomicLong reqCounter = new AtomicLong(1);
   private final String apiUrl;
@@ -40,7 +40,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private Observable<JsonNode> allMessages;
 
   public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange) {
-    super(apiUrl);
+    super(apiUrl, MAX_FRAME_KB);
     this.apiUrl = apiUrl;
     this.exchangeSpecification = exchangeSpecification;
     this.exchange = exchange;
@@ -83,19 +83,19 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     }
     String[] typeAndProduct = channelName.split("\\.");
     long reqId = reqCounter.incrementAndGet();
-    AtomicReference<Disposable> responseSub = new AtomicReference<>();
-
-    responseSub.set(allMessages.subscribe((message) -> {
-      logger.debug("Subscription response: {}", message);
-      if (message.get("id").asLong() == reqId) {
-        if (message.get("error") != null) {
-          logger.error("Error subscribing to channel " + channelName + ": " + message.get("error"));
-        } else {
-          logger.info("Subscribed to channel " + channelName + " successfully");
-        }
-        responseSub.get().dispose();
-      }
-    }));
+//    AtomicReference<Disposable> responseSub = new AtomicReference<>();
+//
+//    responseSub.set(allMessages.subscribe((message) -> {
+//      logger.debug("Subscription response: {}", message);
+//      if (message.get("id").asLong() == reqId) {
+//        if (message.get("error") != null) {
+//          logger.error("Error subscribing to channel " + channelName + ": " + message.get("error"));
+//        } else {
+//          logger.info("Subscribed to channel " + channelName + " successfully");
+//        }
+//        responseSub.get().dispose();
+//      }
+//    }));
 
     String subAccount = exchange.getSubAccountOrDefault();
     String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
