@@ -559,11 +559,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     BigInteger priceAsInt = convertToInteger(price);
 
     BigDecimal quantity = getQuantity(marketOrder);
-    BigDecimal quantityIncrement = increments.getQuantityIncrement();
-    if (quantity.abs().compareTo(quantityIncrement) < 0) {
-      throw new IllegalArgumentException("Quantity must be greater than increment");
-    }
-    quantity = roundToIncrement(quantity, quantityIncrement);
+//    BigDecimal quantityIncrement = increments.getQuantityIncrement();
+//    if (quantity.abs().compareTo(quantityIncrement) < 0) {
+//      throw new IllegalArgumentException("Quantity must be greater than increment");
+//    }
+//    quantity = roundToIncrement(quantity, quantityIncrement);
     BigInteger quantityAsInt = convertToInteger(quantity);
 
     String subAccount = exchange.getSubAccountOrDefault();
