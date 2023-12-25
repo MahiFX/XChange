@@ -536,6 +536,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         JsonNode postBalance = event.get("post_balance");
         BigDecimal balance = readX18Decimal(MoreObjects.firstNonNull(postBalance.get("perp"), postBalance.get("spot")).get("balance"), "amount");
         BigDecimal netUnrealised = readX18Decimal(event, "net_entry_unrealized");
+        if (balance.equals(BigDecimal.ZERO)) {
+          continue;
+        }
         return netUnrealised.divide(balance, RoundingMode.HALF_UP).abs();
       }
     }
