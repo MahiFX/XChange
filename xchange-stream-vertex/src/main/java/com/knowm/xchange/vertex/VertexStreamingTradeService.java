@@ -781,22 +781,32 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
 
       CompletableFuture<OpenOrders> responseLatch = new CompletableFuture<>();
-
+      String subAccount = exchange.getSubAccountOrDefault();
+      List<Long> productsIds;
+      List<LimitOrder> orders = new ArrayList<>();
       if (params instanceof OpenOrdersParamInstrument) {
         CurrencyPair instrument = (CurrencyPair) ((OpenOrdersParamInstrument) params).getInstrument();
         long productId = productInfo.lookupProductId(instrument);
+        productsIds = List.of(productId);
+      } else {
+        productsIds = productInfo.getProductsIds().stream().filter(id -> id != 0).collect(Collectors.toList());
+      }
 
-        String subAccount = exchange.getSubAccountOrDefault();
-        exchange.submitQueries(new Query(openOrders(productId, subAccount), (data) -> {
-          List<LimitOrder> orders = new ArrayList<>();
-          data.withArray("orders").elements().forEachRemaining(order -> {
-            String priceX18 = "price_x18";
+      exchange.submitQueries(new Query(openOrders(productsIds, subAccount), (data) -> {
+        data.withArray("product_orders").forEach(productOrder -> {
+          long productId = productOrder.get("product_id").asLong();
+          String priceX18 = "price_x18";
+          productOrder.withArray("orders").forEach(order -> {
+
             BigDecimal price = readX18Decimal(order, priceX18);
             BigDecimal amount = readX18Decimal(order, "amount");
             BigDecimal unfilledAmount = readX18Decimal(order, "unfilled_amount");
 
             Date placedAt = new Date(Instant.ofEpochSecond(order.get("placed_at").asLong()).toEpochMilli());
             BigDecimal filled = amount.subtract(unfilledAmount);
+
+            Instrument instrument = productInfo.lookupInstrument(productId);
+
             LimitOrder.Builder builder = new LimitOrder.Builder(amount.compareTo(BigDecimal.ZERO) > 0 ? Order.OrderType.BID : Order.OrderType.ASK, instrument)
                 .id(order.get("digest").asText())
                 .limitPrice(price)
@@ -806,56 +816,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
                 .cumulativeAmount(filled)
                 .timestamp(placedAt);
             orders.add(builder.build());
-
           });
-          responseLatch.complete(new OpenOrders(orders));
-        }, (code, error) -> responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error))));
-
-        return responseLatch.get(10, TimeUnit.SECONDS);
-
-      } else {
-
-        String subAccount = getSubAccountOrDefault();
-        List<LimitOrder> orders = new ArrayList<>();
-
-        List<Query> queries = new ArrayList<>();
-        List<Long> productsIds = productInfo.getProductsIds().stream().filter(id -> id != 0).collect(Collectors.toList());
-        CountDownLatch pendingQueries = new CountDownLatch(productsIds.size());
-        for (Long productId : productsIds) {
-          Instrument instrument = productInfo.lookupInstrument(productId);
-          queries.add(new Query(openOrders(productId, subAccount), (data) -> {
-            data.withArray("orders").elements().forEachRemaining(order -> {
-              String priceX18 = "price_x18";
-              BigDecimal price = readX18Decimal(order, priceX18);
-              BigDecimal amount = readX18Decimal(order, "amount");
-              BigDecimal unfilledAmount = readX18Decimal(order, "unfilled_amount");
-
-              Date placedAt = new Date(Instant.ofEpochSecond(order.get("placed_at").asLong()).toEpochMilli());
-              BigDecimal filled = amount.subtract(unfilledAmount);
-              LimitOrder.Builder builder = new LimitOrder.Builder(amount.compareTo(BigDecimal.ZERO) > 0 ? Order.OrderType.BID : Order.OrderType.ASK, instrument)
-                  .id(order.get("digest").asText())
-                  .limitPrice(price)
-                  .originalAmount(amount)
-                  .remainingAmount(unfilledAmount)
-                  .orderStatus(getTradeStatus(unfilledAmount, filled, amount))
-                  .cumulativeAmount(filled)
-                  .timestamp(placedAt);
-              orders.add(builder.build());
-
-            });
-            pendingQueries.countDown();
-          }, (code, error) -> {
-            pendingQueries.countDown();
-            responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error));
-          }));
-        }
-
-        exchange.submitQueries(queries.toArray(new Query[0]));
-        if (!pendingQueries.await(10, TimeUnit.SECONDS)) {
-          throw new IOException("Timeout waiting for open orders response");
-        }
+        });
         responseLatch.complete(new OpenOrders(orders));
-      }
+      }, (code, error) -> responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error))));
+
 
       return responseLatch.get(10, TimeUnit.SECONDS);
     } catch (InterruptedException | CancellationException ignored) {
@@ -868,9 +833,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
   }
 
-  private String openOrders(long productId, String subAccount) {
+  private String openOrders(List<Long> productIds, String subAccount) {
     String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
-    return String.format("{\"type\": \"subaccount_orders\",\"sender\": \"%s\",\"product_id\": %d}", sender, productId);
+    return String.format("{\"type\": \"orders\",\"sender\": \"%s\",\"product_ids\": %s}", sender, productIds);
   }
 
   private BigDecimal getQuantity(Order order) {

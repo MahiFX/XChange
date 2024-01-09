@@ -8,12 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.knowm.xchange.vertex.dto.PriceAndQuantity;
-import com.knowm.xchange.vertex.dto.VertexBestBidOfferMessage;
-import com.knowm.xchange.vertex.dto.VertexMarketDataUpdateMessage;
-import com.knowm.xchange.vertex.dto.VertexModelUtils;
-import com.knowm.xchange.vertex.dto.VertexOrderBookStream;
-import com.knowm.xchange.vertex.dto.VertexTradeData;
+import com.knowm.xchange.vertex.dto.*;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
@@ -21,6 +16,14 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
+import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.Ticker;
+import org.knowm.xchange.dto.marketdata.Trade;
+import org.knowm.xchange.instrument.Instrument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -30,13 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import org.knowm.xchange.currency.CurrencyPair;
-import org.knowm.xchange.dto.marketdata.OrderBook;
-import org.knowm.xchange.dto.marketdata.Ticker;
-import org.knowm.xchange.dto.marketdata.Trade;
-import org.knowm.xchange.instrument.Instrument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 public class VertexStreamingMarketDataService implements StreamingMarketDataService {

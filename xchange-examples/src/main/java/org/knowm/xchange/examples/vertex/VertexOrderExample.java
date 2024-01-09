@@ -15,12 +15,12 @@ import org.knowm.xchange.dto.account.OpenPosition;
 import org.knowm.xchange.dto.account.OpenPositions;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
+import org.knowm.xchange.dto.trade.OpenOrders;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.trade.params.CancelAllOrders;
 import org.knowm.xchange.service.trade.params.DefaultCancelAllOrdersByInstrument;
 import org.knowm.xchange.service.trade.params.DefaultCancelOrderByInstrumentAndIdParams;
 import org.knowm.xchange.service.trade.params.orders.DefaultOpenOrdersParamInstrument;
-import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.web3j.crypto.Credentials;
@@ -38,7 +38,6 @@ public class VertexOrderExample {
 
 
   public static void main(String[] args) throws IOException, InterruptedException {
-    ILoggerFactory loggerFactory = org.slf4j.LoggerFactory.getILoggerFactory();
 
     ExchangeSpecification exchangeSpecification = StreamingExchangeFactory.INSTANCE
         .createExchangeWithoutSpecification(VertexStreamingExchange.class)
@@ -103,7 +102,8 @@ public class VertexOrderExample {
     assert openPositions.getOpenPositions().size() == 0;
 
 
-    MarketOrder buy = new MarketOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc);
+    BigDecimal orderSize = BigDecimal.valueOf(0.03);
+    MarketOrder buy = new MarketOrder(Order.OrderType.BID, orderSize, btc);
     buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);
     tradeService.placeMarketOrder(buy);
 
@@ -111,11 +111,11 @@ public class VertexOrderExample {
 
     log.info("Open positions before sell: {}", tradeService.getOpenPositions());
 
-    MarketOrder sell = new MarketOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc);
+    MarketOrder sell = new MarketOrder(Order.OrderType.ASK, orderSize, btc);
     sell.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_FOK);
     tradeService.placeMarketOrder(sell);
 
-    LimitOrder resting = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(20000));
+    LimitOrder resting = new LimitOrder(Order.OrderType.BID, orderSize, btc, null, null, BigDecimal.valueOf(20000));
     String orderId = tradeService.placeLimitOrder(resting);
 
     //Test re-connect
@@ -160,7 +160,8 @@ public class VertexOrderExample {
     String orderId3 = tradeService.placeLimitOrder(resting);
 
 
-    log.info("Open orders before cancel all instrument: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
+    OpenOrders openOrdersByInstrument = tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc));
+    log.info("Open orders before cancel all: {}", openOrdersByInstrument);
 
     tradeService.cancelOrder(new CancelAllOrders() {
     });

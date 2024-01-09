@@ -53,6 +53,10 @@ public class VertexModelUtils {
       throw new IllegalArgumentException("No such field " + fieldName);
     }
     String text = jsonNode.asText();
+    return readX18Decimal(text);
+  }
+
+  public static BigDecimal readX18Decimal(String text) {
     if (StringUtils.isEmpty(text)) {
       return BigDecimal.ZERO;
     }
