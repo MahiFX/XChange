@@ -12,6 +12,7 @@ import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18Decimal;
@@ -43,7 +44,7 @@ public class VertexMarketDataService implements MarketDataService {
       long productId = Long.parseLong(resp.getKey());
       FundingRateResponse snapshot = resp.getValue();
       return buildFunding(snapshot, productId);
-    }).collect(Collectors.toList()));
+    }).filter(Objects::nonNull).collect(Collectors.toList()));
   }
 
   @Override
@@ -56,6 +57,7 @@ public class VertexMarketDataService implements MarketDataService {
   }
 
   private FundingRate buildFunding(FundingRateResponse snapshot, long productId) {
+    if (snapshot == null) return null;
     BigDecimal funding24 = readX18Decimal(snapshot.getFunding_rate_x18());
     BigDecimal funding1h = funding24.divide(BigDecimal.valueOf(24), 8, RoundingMode.HALF_UP);
     BigDecimal funding8h = funding24.divide(BigDecimal.valueOf(3), 8, RoundingMode.HALF_UP);
