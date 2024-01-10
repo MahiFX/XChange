@@ -42,11 +42,7 @@ public class VertexMarketDataService implements MarketDataService {
     return new FundingRates(snapshotMap.entrySet().stream().map(resp -> {
       long productId = Long.parseLong(resp.getKey());
       FundingRateResponse snapshot = resp.getValue();
-
-      BigDecimal funding24 = readX18Decimal(snapshot.getFunding_rate_x18());
-      BigDecimal funding1h = funding24.divide(BigDecimal.valueOf(24), 8, RoundingMode.HALF_UP);
-      BigDecimal funding8h = funding24.divide(BigDecimal.valueOf(3), 8, RoundingMode.HALF_UP);
-      return new FundingRate(productInfo.lookupInstrument(productId), funding1h, funding8h, null, 0);
+      return buildFunding(snapshot, productId);
     }).collect(Collectors.toList()));
   }
 
@@ -56,6 +52,10 @@ public class VertexMarketDataService implements MarketDataService {
     FundingRateRequest req = new FundingRateRequest(new FundingRateRequest.FundingRateParams(new Long[]{productId}));
     Map<String, FundingRateResponse> snapshotMap = exchange.archiveApi().fundingRates(req);
     FundingRateResponse snapshot = snapshotMap.get(String.valueOf(productId));
+    return buildFunding(snapshot, productId);
+  }
+
+  private FundingRate buildFunding(FundingRateResponse snapshot, long productId) {
     BigDecimal funding24 = readX18Decimal(snapshot.getFunding_rate_x18());
     BigDecimal funding1h = funding24.divide(BigDecimal.valueOf(24), 8, RoundingMode.HALF_UP);
     BigDecimal funding8h = funding24.divide(BigDecimal.valueOf(3), 8, RoundingMode.HALF_UP);
