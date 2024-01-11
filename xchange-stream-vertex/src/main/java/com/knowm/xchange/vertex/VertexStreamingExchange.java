@@ -135,7 +135,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       processProductIncrements(productData.withArray("spot_products"), spotProducts);
       processProductIncrements(productData.withArray("perp_products"), perpProducts);
 
-      productInfo = new VertexProductInfo(spotProducts, symbols, takerFees, makerFees, takerSequencerFee.get());
+      //TODO - pull this from API when available
+      BigDecimal interestFee = BigDecimal.valueOf(0.2);
+      productInfo = new VertexProductInfo(spotProducts, symbols, takerFees, makerFees, takerSequencerFee.get(), interestFee);
 
       Query marketPricesQuery = new Query("{\"type\":\"market_prices\", \"product_ids\": " + productInfo.getProductsIds().stream().filter(id -> id != 0).collect(Collectors.toList()) + "}",
           priceData -> priceData.get("market_prices").forEach(price -> {
@@ -374,5 +376,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   public String getEndpointContract() {
     return endpointContract;
+  }
+
+  public VertexProductInfo getProductInfo() {
+    return productInfo;
   }
 }

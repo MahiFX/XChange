@@ -17,13 +17,13 @@ public class ProductSnapshotRequest {
   @Getter
   public static class ProductSnapshotParams {
 
-    private final String[] product_id;
+    private final Long[] product_ids;
 
 
     private final Long max_time;
 
-    public ProductSnapshotParams(String[] product_id, Long max_time) {
-      this.product_id = product_id;
+    public ProductSnapshotParams(Long[] product_id, Long max_time) {
+      this.product_ids = product_id;
       this.max_time = max_time;
     }
   }

@@ -27,6 +27,11 @@ public interface VertexArchiveApi {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
+  MarketSnapshotResponse marketSnapshots(MarketSnapshotRequest req);
+
+
+  @POST
+  @Consumes(MediaType.APPLICATION_JSON)
   Map<String, FundingRateResponse> fundingRates(FundingRateRequest req);
 
 
