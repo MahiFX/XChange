@@ -3,11 +3,12 @@ package info.bitrich.xchangestream.kraken;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
 import io.reactivex.disposables.Disposable;
-import java.util.concurrent.TimeUnit;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeUnit;
 
 public class KrakenTickerExample {
 
@@ -17,6 +18,7 @@ public class KrakenTickerExample {
 
     ExchangeSpecification exchangeSpecification =
         new ExchangeSpecification(KrakenStreamingExchange.class);
+    exchangeSpecification.setExchangeSpecificParametersItem(KrakenStreamingExchange.WEBSOCKET_REQUESTS_PER_SECOND, 10);
 
     StreamingExchange krakenExchange =
         StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);

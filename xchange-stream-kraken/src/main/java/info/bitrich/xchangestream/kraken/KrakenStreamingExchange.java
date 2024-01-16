@@ -11,8 +11,6 @@ import info.bitrich.xchangestream.kraken.dto.enums.KrakenEventType;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel.State;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
-import java.io.IOException;
-
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.kraken.KrakenExchange;
@@ -21,9 +19,12 @@ import org.knowm.xchange.kraken.service.KrakenAccountServiceRaw;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 /** @author makarid */
 public class KrakenStreamingExchange extends KrakenExchange implements StreamingExchange {
 
+  public static final String WEBSOCKET_REQUESTS_PER_SECOND = "Kraken_Websocket_Requests_Per_Second";
   private static final Logger LOG = LoggerFactory.getLogger(KrakenStreamingExchange.class);
   private static final String USE_BETA = "Use_Beta";
   private static final String USE_SPREAD_FOR_TICKER = "Spread_For_Ticker";

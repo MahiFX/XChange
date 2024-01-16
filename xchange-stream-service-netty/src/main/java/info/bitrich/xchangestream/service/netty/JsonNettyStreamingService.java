@@ -3,10 +3,12 @@ package info.bitrich.xchangestream.service.netty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.time.Duration;
+import io.github.resilience4j.ratelimiter.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.time.Duration;
 
 public abstract class JsonNettyStreamingService extends NettyStreamingService<JsonNode> {
   private final Logger LOG = LoggerFactory.getLogger(this.getClass());
@@ -26,7 +28,18 @@ public abstract class JsonNettyStreamingService extends NettyStreamingService<Js
       Duration connectionTimeout,
       Duration retryDuration,
       int idleTimeoutSeconds) {
-    super(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds);
+    super(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds, null);
+  }
+
+
+  public JsonNettyStreamingService(
+      String apiUrl,
+      int maxFramePayloadLength,
+      Duration connectionTimeout,
+      Duration retryDuration,
+      int idleTimeoutSeconds,
+      RateLimiter subscriptionsRateLimiter) {
+    super(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds, subscriptionsRateLimiter);
   }
 
   public boolean processArrayMessageSeparately() {

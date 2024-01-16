@@ -1,7 +1,5 @@
 package info.bitrich.xchangestream.kraken;
 
-import static info.bitrich.xchangestream.kraken.dto.enums.KrakenEventType.subscribe;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,14 +15,6 @@ import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.extensions.WebSocketClientExtensionHandler;
-import java.io.IOException;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
-
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
@@ -35,11 +25,23 @@ import org.knowm.xchange.kraken.dto.account.KrakenWebsocketToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** @author makarid, pchertalev */
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+
+import static info.bitrich.xchangestream.kraken.dto.enums.KrakenEventType.subscribe;
+
+/**
+ * @author makarid, pchertalev
+ */
 public class KrakenStreamingService extends JsonNettyStreamingService {
   private static final Logger LOG = LoggerFactory.getLogger(KrakenStreamingService.class);
   private static final String EVENT = "event";
-  private static final String WEBSOCKET_REQUESTS_PER_SECOND = "Kraken_Websocket_Requests_Per_Second";
+  private static final Map<KrakenStreamingExchange, RateLimiter> rateLimiters = new ConcurrentHashMap<>();
   private final Map<Integer, String> channels = new ConcurrentHashMap<>();
   private final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
   private final boolean isPrivate;
@@ -55,7 +57,7 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
       boolean isPrivate,
       String uri,
       final Supplier<KrakenWebsocketToken> authData) {
-    super(uri, Integer.MAX_VALUE);
+    super(uri, Integer.MAX_VALUE, DEFAULT_CONNECTION_TIMEOUT, DEFAULT_RETRY_DURATION, DEFAULT_IDLE_TIMEOUT, initRateLimiter(exchange));
     this.isPrivate = isPrivate;
     this.authData = authData;
     rateLimiter = initRateLimiter(exchange);
@@ -70,23 +72,25 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
       Duration retryDuration,
       int idleTimeoutSeconds,
       final Supplier<KrakenWebsocketToken> authData) {
-    super(uri, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds);
+    super(uri, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds, initRateLimiter(exchange));
     this.isPrivate = isPrivate;
     this.authData = authData;
     rateLimiter = initRateLimiter(exchange);
   }
 
   private static RateLimiter initRateLimiter(KrakenStreamingExchange exchange) {
-    RateLimiter rateLimiter = null;
-    Integer requestsPerSecond = (Integer) exchange.getExchangeSpecification().getExchangeSpecificParametersItem(WEBSOCKET_REQUESTS_PER_SECOND);
-    if (requestsPerSecond != null) {
-      // N messages per second
-      rateLimiter = RateLimiter.of("websocket rate limiter", RateLimiterConfig.custom()
-              .limitForPeriod(requestsPerSecond)
-              .limitRefreshPeriod(Duration.ofSeconds(1))
-              .build());
-    }
-    return rateLimiter;
+    return rateLimiters.computeIfAbsent(exchange, ex -> {
+      RateLimiter rateLimiter1 = null;
+      Integer requestsPerSecond = (Integer) ex.getExchangeSpecification().getExchangeSpecificParametersItem(KrakenStreamingExchange.WEBSOCKET_REQUESTS_PER_SECOND);
+      if (requestsPerSecond != null) {
+        // N messages per second
+        rateLimiter1 = RateLimiter.of("websocket rate limiter", RateLimiterConfig.custom()
+            .limitForPeriod(requestsPerSecond)
+            .limitRefreshPeriod(Duration.ofSeconds(1))
+            .build());
+      }
+      return rateLimiter1;
+    });
   }
 
   @Override
@@ -102,8 +106,8 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
   public Observable<KrakenEvent> subscribeSystemChannel(KrakenEventType eventType) {
     String channelName = eventType.name();
     return Observable.<KrakenEvent>create(e -> systemChannels.computeIfAbsent(channelName, cid -> e))
-            .doOnDispose(() -> systemChannels.remove(channelName))
-            .share();
+        .doOnDispose(() -> systemChannels.remove(channelName))
+        .share();
   }
 
   @Override
@@ -280,10 +284,10 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
 
   @Override
   public void sendMessage(String message) {
-      if (rateLimiter != null)
-        RateLimiter.waitForPermission(rateLimiter);
+    if (rateLimiter != null)
+      RateLimiter.waitForPermission(rateLimiter);
 
-      super.sendMessage(message);
+    super.sendMessage(message);
   }
 
   @Override

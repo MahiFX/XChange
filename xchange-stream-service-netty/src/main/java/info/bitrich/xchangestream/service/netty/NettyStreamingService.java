@@ -3,6 +3,7 @@ package info.bitrich.xchangestream.service.netty;
 import info.bitrich.xchangestream.service.ConnectableService;
 import info.bitrich.xchangestream.service.exception.NotConnectedException;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel.State;
+import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -88,6 +89,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   private final Subject<Object> connectionSuccessEmitters = PublishSubject.create();
   private final Subject<Object> disconnectEmitters = PublishSubject.create();
   private final Subject<Object> subjectIdle = PublishSubject.create();
+  private final RateLimiter subscriptionRateLimiter;
 
   private final ConnectionStateModel connectionStateModel = new ConnectionStateModel();
 
@@ -112,7 +114,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
       int maxFramePayloadLength,
       Duration connectionTimeout,
       Duration retryDuration) {
-    this(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, DEFAULT_IDLE_TIMEOUT);
+    this(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, DEFAULT_IDLE_TIMEOUT, null);
   }
 
   public NettyStreamingService(
@@ -120,11 +122,13 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
       int maxFramePayloadLength,
       Duration connectionTimeout,
       Duration retryDuration,
-      int idleTimeoutSeconds) {
+      int idleTimeoutSeconds,
+      RateLimiter subscriptionsRateLimiter) {
     this.maxFramePayloadLength = maxFramePayloadLength;
     this.retryDuration = retryDuration;
     this.connectionTimeout = connectionTimeout;
     this.idleTimeoutSeconds = idleTimeoutSeconds;
+    this.subscriptionRateLimiter = subscriptionsRateLimiter == null ? RateLimiter.ofDefaults("Websocket subscriptions") : subscriptionsRateLimiter;
     try {
       this.uri = new URI(apiUrl);
     } catch (URISyntaxException e) {
@@ -406,25 +410,29 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
                   channelId,
                   cid -> {
                     Subscription newSubscription = new Subscription(e, channelName, args);
-                    try {
-                      sendMessage(getSubscribeMessage(channelName, args));
-                    } catch (Throwable throwable) { // if getSubscribeMessage throws this, it is because it
-                      // needs to report
-                      e.onError(throwable); // a problem creating the message
-                    }
+                    subscriptionRateLimiter.executeRunnable(() -> {
+                      try {
+                        sendMessage(getSubscribeMessage(channelName, args));
+                      } catch (Throwable throwable) { // if getSubscribeMessage throws this, it is because it
+                        // needs to report
+                        e.onError(throwable); // a problem creating the message
+                      }
+                    });
                     return newSubscription;
                   });
             })
         .doOnDispose(
             () -> {
               if (channels.remove(channelId) != null) {
-                try {
-                  sendMessage(getUnsubscribeMessage(channelId, args));
-                } catch (IOException e) {
-                  LOG.debug("Failed to unsubscribe channel: {} {}", channelId, e.toString());
-                } catch (Exception e) {
-                  LOG.warn("Failed to unsubscribe channel: {}", channelId, e);
-                }
+                subscriptionRateLimiter.executeRunnable(() -> {
+                  try {
+                    sendMessage(getUnsubscribeMessage(channelId, args));
+                  } catch (IOException e) {
+                    LOG.debug("Failed to unsubscribe channel: {} {}", channelId, e.toString());
+                  } catch (Exception e) {
+                    LOG.warn("Failed to unsubscribe channel: {}", channelId, e);
+                  }
+                });
               }
             })
         .share();
@@ -433,12 +441,15 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   public void resubscribeChannels() {
     LOG.info("Resubscribing to {} channels on {}: {}", channels.size(), uri.toString(), channels.keySet());
     for (Entry<String, Subscription> entry : channels.entrySet()) {
-      try {
-        Subscription subscription = entry.getValue();
-        sendMessage(getSubscribeMessage(subscription.channelName, subscription.args));
-      } catch (IOException e) {
-        LOG.error("Failed to reconnect channel: {}", entry.getKey());
-      }
+
+      Subscription subscription = entry.getValue();
+      subscriptionRateLimiter.executeRunnable(() -> {
+        try {
+          sendMessage(getSubscribeMessage(subscription.channelName, subscription.args));
+        } catch (IOException e) {
+          LOG.error("Failed to reconnect channel: {}", entry.getKey());
+        }
+      });
     }
   }
 
