@@ -81,7 +81,7 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
   private static RateLimiter initRateLimiter(KrakenStreamingExchange exchange) {
     return rateLimiters.computeIfAbsent(exchange, ex -> {
       RateLimiter rateLimiter1 = null;
-      Integer requestsPerSecond = (Integer) ex.getExchangeSpecification().getExchangeSpecificParametersItem(KrakenStreamingExchange.WEBSOCKET_REQUESTS_PER_SECOND);
+      Integer requestsPerSecond = getIntegerOption(ex);
       if (requestsPerSecond != null) {
         // N messages per second
         rateLimiter1 = RateLimiter.of("websocket rate limiter", RateLimiterConfig.custom()
@@ -91,6 +91,19 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
       }
       return rateLimiter1;
     });
+  }
+
+  private static Integer getIntegerOption(KrakenStreamingExchange ex) {
+    Object parametersItem = ex.getExchangeSpecification().getExchangeSpecificParametersItem(KrakenStreamingExchange.WEBSOCKET_REQUESTS_PER_SECOND);
+    if (parametersItem == null) {
+      return null;
+    }
+    if (parametersItem instanceof Integer) {
+      return (Integer) parametersItem;
+    } else {
+      return Integer.parseInt(parametersItem.toString());
+    }
+
   }
 
   @Override
@@ -138,9 +151,9 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
             KrakenSystemStatus systemStatus = mapper.treeToValue(message, KrakenSystemStatus.class);
             LOG.info("System status: {}", systemStatus);
             // send to subscribers if any
-            ObservableEmitter<KrakenEvent> emitter = systemChannels.get(krakenEvent.name());
-            if (emitter != null)
-              emitter.onNext(systemStatus);
+            ObservableEmitter<KrakenEvent> statusEmitter = systemChannels.get(krakenEvent.name());
+            if (statusEmitter != null)
+              statusEmitter.onNext(systemStatus);
             break;
           case subscriptionStatus:
             LOG.debug("Received subscriptionStatus message {}", message);
@@ -170,9 +183,9 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
                 }
             }
             // send to subscribers if any
-            emitter = systemChannels.get(krakenEvent.name());
-            if (emitter != null)
-              emitter.onNext(statusMessage);
+            ObservableEmitter<KrakenEvent> subscriptionEmitter = systemChannels.get(krakenEvent.name());
+            if (subscriptionEmitter != null)
+              subscriptionEmitter.onNext(statusMessage);
             break;
           case error:
             LOG.error(
@@ -191,7 +204,7 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
     }
 
     if (!message.isArray() || channelName == null) {
-      LOG.error("Unknown message: {}", message.toString());
+      LOG.error("Unknown message: {}", message);
       return;
     }
 
@@ -199,7 +212,7 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
   }
 
   @Override
-  protected String getChannelNameFromMessage(JsonNode message) throws IOException {
+  protected String getChannelNameFromMessage(JsonNode message) {
     String channelName = null;
     if (message.has("channelID")) {
       channelName = channels.get(message.get("channelID").asInt());
@@ -298,8 +311,6 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
     return new KrakenWebSocketClientHandler(handshaker, handler);
   }
 
-  private final WebSocketClientHandler.WebSocketMessageHandler channelInactiveHandler = null;
-
   /**
    * Custom client handler in order to execute an external, user-provided handler on channel events.
    * This is useful because it seems Kraken unexpectedly closes the web socket connection.
@@ -319,9 +330,6 @@ public class KrakenStreamingService extends JsonNettyStreamingService {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
       super.channelInactive(ctx);
-      if (channelInactiveHandler != null) {
-        channelInactiveHandler.onMessage("WebSocket Client disconnected!");
-      }
     }
   }
 
