@@ -147,7 +147,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       }
 
       boolean success = "success".equals(statusNode.asText());
-      String type = typeNode.asText();
+      String type = typeNode.asText(); // FIXME map of req -> response types
       if (type.startsWith("e_")) {
         type = type.replaceFirst("e_", "execute_");
       }

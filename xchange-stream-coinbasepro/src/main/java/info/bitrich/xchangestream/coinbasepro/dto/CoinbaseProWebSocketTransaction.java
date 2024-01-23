@@ -2,12 +2,6 @@ package info.bitrich.xchangestream.coinbasepro.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import info.bitrich.xchangestream.coinbasepro.CoinbaseProStreamingAdapters;
-import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.SortedMap;
-import java.util.TimeZone;
-import java.util.stream.Stream;
 import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProductStats;
 import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProProductTicker;
 import org.knowm.xchange.coinbasepro.dto.marketdata.CoinbaseProTrade;
@@ -17,7 +11,16 @@ import org.knowm.xchange.dto.Order.OrderType;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.trade.LimitOrder;
 
-/** Domain object mapping a CoinbasePro web socket message. */
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.SortedMap;
+import java.util.TimeZone;
+import java.util.stream.Stream;
+
+/**
+ * Domain object mapping a CoinbasePro web socket message.
+ */
 public class CoinbaseProWebSocketTransaction {
   private final String type;
   private final String orderId;
@@ -26,7 +29,9 @@ public class CoinbaseProWebSocketTransaction {
   private final BigDecimal remainingSize;
   private final BigDecimal price;
   private final BigDecimal bestBid;
+  private final BigDecimal bestBidSize;
   private final BigDecimal bestAsk;
+  private final BigDecimal bestAskSize;
   private final BigDecimal lastSize;
   private final BigDecimal volume24h;
   private final BigDecimal open24h;
@@ -58,7 +63,9 @@ public class CoinbaseProWebSocketTransaction {
       @JsonProperty("remaining_size") BigDecimal remainingSize,
       @JsonProperty("price") BigDecimal price,
       @JsonProperty("best_bid") BigDecimal bestBid,
+      @JsonProperty("best_bid_size") BigDecimal bestBidSize,
       @JsonProperty("best_ask") BigDecimal bestAsk,
+      @JsonProperty("best_ask_size") BigDecimal bestAskSize,
       @JsonProperty("last_size") BigDecimal lastSize,
       @JsonProperty("volume_24h") BigDecimal volume24h,
       @JsonProperty("open_24h") BigDecimal open24h,
@@ -92,7 +99,9 @@ public class CoinbaseProWebSocketTransaction {
     this.size = size;
     this.price = price;
     this.bestBid = bestBid;
+    this.bestBidSize = bestBidSize;
     this.bestAsk = bestAsk;
+    this.bestAskSize = bestAskSize;
     this.lastSize = lastSize;
     this.volume24h = volume24h;
     this.high24h = high24h;
@@ -188,7 +197,7 @@ public class CoinbaseProWebSocketTransaction {
       tickerTime = dateFormatGmt.format(new Date()); // First ticker event doesn't have time!
     }
     return new CoinbaseProProductTicker(
-        String.valueOf(tradeId), price, lastSize, bestBid, bestAsk, volume24h, tickerTime);
+        String.valueOf(tradeId), price, lastSize, bestBid, bestBidSize, bestAsk, bestAskSize, volume24h, tickerTime);
   }
 
   public CoinbaseProProductStats toCoinbaseProProductStats() {
@@ -307,7 +316,9 @@ public class CoinbaseProWebSocketTransaction {
     return makerOrderId;
   }
 
-  /** @deprecated Use {@link #getTakerOrderId()} */
+  /**
+   * @deprecated Use {@link #getTakerOrderId()}
+   */
   @Deprecated
   public String getTakenOrderId() {
     return takerOrderId;

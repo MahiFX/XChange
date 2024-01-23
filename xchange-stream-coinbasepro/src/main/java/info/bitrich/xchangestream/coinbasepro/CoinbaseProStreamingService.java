@@ -1,7 +1,5 @@
 package info.bitrich.xchangestream.coinbasepro;
 
-import static io.netty.util.internal.StringUtil.isNullOrEmpty;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,11 +7,19 @@ import info.bitrich.xchangestream.coinbasepro.dto.CoinbaseProOrderBookMode;
 import info.bitrich.xchangestream.coinbasepro.dto.CoinbaseProWebSocketSubscriptionMessage;
 import info.bitrich.xchangestream.coinbasepro.dto.CoinbaseProWebSocketTransaction;
 import info.bitrich.xchangestream.core.ProductSubscription;
-import info.bitrich.xchangestream.service.netty.*;
+import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
+import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
+import info.bitrich.xchangestream.service.netty.WebSocketClientCompressionAllowClientNoContextAndServerNoContextHandler;
+import info.bitrich.xchangestream.service.netty.WebSocketClientHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.extensions.WebSocketClientExtensionHandler;
 import io.reactivex.Observable;
+import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProWebsocketAuthData;
+import org.knowm.xchange.currency.CurrencyPair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
@@ -22,10 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import org.knowm.xchange.coinbasepro.dto.account.CoinbaseProWebsocketAuthData;
-import org.knowm.xchange.currency.CurrencyPair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static io.netty.util.internal.StringUtil.isNullOrEmpty;
 
 public class CoinbaseProStreamingService extends JsonNettyStreamingService {
   private static final Logger LOG = LoggerFactory.getLogger(CoinbaseProStreamingService.class);
@@ -33,8 +36,8 @@ public class CoinbaseProStreamingService extends JsonNettyStreamingService {
   private static final String UNSUBSCRIBE = "unsubscribe";
   private static final String SHARE_CHANNEL_NAME = "ALL";
   private static final String[] ALL_CHANNEL_NAMES = Stream.concat(
-          Stream.of("matches", "ticker"),
-          Arrays.stream(CoinbaseProOrderBookMode.values()).map(CoinbaseProOrderBookMode::getName)
+      Stream.of("matches", "ticker"),
+      Arrays.stream(CoinbaseProOrderBookMode.values()).map(CoinbaseProOrderBookMode::getName)
   ).toArray(String[]::new);
   private final Map<String, Observable<JsonNode>> subscriptions = new ConcurrentHashMap<>();
   private ProductSubscription product = null;
@@ -168,18 +171,21 @@ public class CoinbaseProStreamingService extends JsonNettyStreamingService {
   private static CoinbaseProWebSocketTransaction mapToTransaction(ObjectMapper mapper, JsonNode node) throws JsonProcessingException {
     String type = getText(node.get("type"));
     // use manual JSON to object conversion for the heaviest transaction types
-    if (type != null && (type.equals("l2update") || type.equals("snapshot"))) {
+    if (("l2update".equals(type) || "snapshot".equals(type))) {
       return new CoinbaseProWebSocketTransaction(type,
-              null, null, null, null, null, null, null, null, null, null, null, null, null,
-              getL2Array(node.get("bids")),
-              getL2Array(node.get("asks")),
-              getL2Array(node.get("changes")),
-              null,
-              getText(node.get("product_id")),
-              0,
-              getText(node.get("time")),
-              null, 0, null, null, null, null, null, null
+          null, null, null, null, null, null, null, null, null, null, null, null, null,
+          null, null,
+          getL2Array(node.get("bids")),
+          getL2Array(node.get("asks")),
+          getL2Array(node.get("changes")),
+          null,
+          getText(node.get("product_id")),
+          0,
+          getText(node.get("time")),
+          null, 0, null, null, null, null, null, null
       );
+    } else if ("error".equals(type)) {
+      LOG.error("Coinbase error - {}: {}", node.get("message").textValue(), node.get("reason").textValue());
     }
     return mapper.treeToValue(node, CoinbaseProWebSocketTransaction.class);
   }
