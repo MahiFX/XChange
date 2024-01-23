@@ -34,6 +34,7 @@ public class CoinbaseProManualExample {
     spec.setApiKey(apiKey);
     spec.setSecretKey(apiSecret);
     spec.setExchangeSpecificParametersItem("passphrase", apiPassphrase);
+    spec.setOverrideWebsocketApiUri("wss://ws-feed.exchange.coinbase.com");
     CoinbaseProStreamingExchange exchange =
         (CoinbaseProStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(spec);
 
