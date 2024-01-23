@@ -183,7 +183,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       CountDownLatch responseLatch = new CountDownLatch(1);
       Disposable subscription = stream.subscribe(resp -> {
         JsonNode requestType = resp.get("request_type");
-        if (requestType != null && requestType.textValue().startsWith("query_")) {
+        if (requestType != null && (requestType.textValue().startsWith("query_") || requestType.textValue().startsWith("q_"))) {
           try {
             JsonNode data = resp.get("data");
             JsonNode error = resp.get("error");
