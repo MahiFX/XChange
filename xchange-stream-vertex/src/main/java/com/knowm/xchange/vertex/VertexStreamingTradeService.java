@@ -134,7 +134,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     this.allMessageSubscription = exchange.subscribeToAllMessages().subscribe(resp -> {
       JsonNode typeNode = resp.get("request_type");
 
-      if (typeNode != null && typeNode.textValue().startsWith("query")) {
+      if (typeNode != null && (typeNode.textValue().startsWith("q_") || typeNode.textValue().startsWith("query_"))) {
         return; // ignore query responses that are handled in VertexStreamingExchange
       }
 
@@ -148,6 +148,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
       boolean success = "success".equals(statusNode.asText());
       String type = typeNode.asText();
+      if (type.startsWith("e_")) {
+        type = type.replaceFirst("e_", "execute_");
+      }
       String signature = signatureNode.asText();
 
       CompletableFuture<JsonNode> responseFuture = responses.remove(Pair.of(type, signature));
