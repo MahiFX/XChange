@@ -831,8 +831,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       }, (code, error) -> responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error))));
 
 
-      return responseLatch.get(10, TimeUnit.SECONDS);
-    } catch (InterruptedException | CancellationException ignored) {
+      return responseLatch.get(30, TimeUnit.SECONDS);
+    } catch (InterruptedException | CancellationException interrupted) {
+      logger.warn("Interrupted waiting for open orders response: " + interrupted.getMessage());
       return new OpenOrders(Collections.emptyList());
     } catch (TimeoutException e) {
       throw new IOException("Timeout waiting for open orders response");
