@@ -1,19 +1,8 @@
 package info.bitrich.xchangestream.service.netty;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
-import io.netty.handler.codec.http.websocketx.WebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException;
+import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.EventExecutor;
 import org.slf4j.Logger;
@@ -90,7 +79,7 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
       dealWithContinuation(ctx, (ContinuationWebSocketFrame) frame);
     } else if (frame instanceof PingWebSocketFrame) {
       LOG.debug("WebSocket Client received ping");
-      ch.writeAndFlush(new PongWebSocketFrame(frame.content().retain()));
+      ch.writeAndFlush(new PongWebSocketFrame(frame.content().retain()), ch.voidPromise());
     } else if (frame instanceof PongWebSocketFrame) {
       LOG.debug("WebSocket Client received pong");
     } else if (frame instanceof CloseWebSocketFrame) {

@@ -367,17 +367,16 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   public void sendMessage(String message) {
 
     if (webSocketChannel == null || !webSocketChannel.isOpen()) {
-      LOG.warn("WebSocket is not open! Call connect first.");
-      return;
+      throw new RuntimeException("WebSocket is not open! Call connect first.");
     }
 
     if (!webSocketChannel.isWritable()) {
-      LOG.warn("Cannot send data to WebSocket as it is not writable.");
-      return;
+      throw new RuntimeException("Cannot send data to WebSocket as it is not writable.");
     }
+
     if (message != null) {
       LOG.debug("Sending message: {}", message);
-      webSocketChannel.writeAndFlush(new TextWebSocketFrame(message));
+      webSocketChannel.writeAndFlush(new TextWebSocketFrame(message), webSocketChannel.voidPromise());
     }
   }
 
@@ -447,7 +446,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
         try {
           sendMessage(getSubscribeMessage(subscription.channelName, subscription.args));
         } catch (IOException e) {
-          LOG.error("Failed to reconnect channel: {}", entry.getKey());
+          throw new RuntimeException("Failed to reconnect channel: " + entry.getKey(), e);
         }
       });
     }
@@ -471,12 +470,16 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
 
   protected void handleError(T message, Throwable t) {
     String channel = getChannel(message);
-    if (!StringUtil.isNullOrEmpty(channel)) handleChannelError(channel, t);
-    else LOG.error("handleError cannot parse channel from message: {}", message);
+    if (!StringUtil.isNullOrEmpty(channel)) {
+      handleChannelError(channel, t);
+    } else {
+      LOG.error("handleError cannot parse channel from message: {}, passing to all channels", message);
+      channels.forEach((k, c) -> handleChannelError(k, t));
+    }
   }
 
   protected void handleIdle(ChannelHandlerContext ctx) {
-    ctx.writeAndFlush(new PingWebSocketFrame());
+    ctx.writeAndFlush(new PingWebSocketFrame(), webSocketChannel.voidPromise());
   }
 
   private void onIdle(ChannelHandlerContext ctx) {

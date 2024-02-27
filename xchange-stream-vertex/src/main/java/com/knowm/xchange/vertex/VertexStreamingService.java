@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
@@ -40,7 +41,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private Observable<JsonNode> allMessages;
 
   public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange) {
-    super(apiUrl, MAX_FRAME_KB);
+    super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15);
     this.apiUrl = apiUrl;
     this.exchangeSpecification = exchangeSpecification;
     this.exchange = exchange;
