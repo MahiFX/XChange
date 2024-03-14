@@ -92,6 +92,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final Map<String, Observable<JsonNode>> fillSubscriptions = new ConcurrentHashMap<>();
   private final Map<String, Observable<JsonNode>> positionSubscriptions = new ConcurrentHashMap<>();
   private final Cache<String, Order> orderCache = CacheBuilder.newBuilder().maximumSize(1000).build();
+  private final Map<Instrument, AtomicLong> indexCounters = new ConcurrentHashMap<>();
   private final Disposable allMessageSubscription;
   private final StreamingMarketDataService marketDataService;
   private final Scheduler liquidationScheduler = Schedulers.single();
@@ -326,7 +327,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         .map(Optional::get);
 
     if (Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(BLEND_LIQUIDATION_TRADES)))) {
-      AtomicLong indexCounter = new AtomicLong();
+      AtomicLong indexCounter = indexCounters.computeIfAbsent(instrument, (i) -> new AtomicLong());
 
       String subAccount = getSubAccountOrDefault();
 
