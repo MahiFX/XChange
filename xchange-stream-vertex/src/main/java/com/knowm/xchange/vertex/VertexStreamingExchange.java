@@ -1,6 +1,8 @@
 package com.knowm.xchange.vertex;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.MoreObjects;
 import com.knowm.xchange.vertex.api.VertexArchiveApi;
@@ -14,6 +16,7 @@ import info.bitrich.xchangestream.service.netty.ConnectionStateModel;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
@@ -42,6 +45,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String PLACE_ORDER_VALID_UNTIL_MS_PROP = "placeOrderValidUntilMs";
   public static final String GATEWAY_WEBSOCKET = "gatewayWebsocketUrl";
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
+  public static final String CUSTOM_SYMBOLS = "customSymbols";
+  private static final ObjectMapper json = new ObjectMapper();
 
   private VertexStreamingService subscriptionStream;
   private VertexStreamingMarketDataService streamingMarketDataService;
@@ -99,8 +104,21 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       throw new RuntimeException("Timeout waiting for connection");
     }
 
-
     Symbol[] symbols = restExchange.queryAPI().symbols().data.symbols.values().toArray(new Symbol[0]);
+
+    if (exchangeSpecification.getExchangeSpecificParametersItem(CUSTOM_SYMBOLS) != null) {
+      String customSymbolsJson = exchangeSpecification.getExchangeSpecificParametersItem(CUSTOM_SYMBOLS).toString();
+
+      try {
+        Symbol[] customSymbols = json.readerForArrayOf(Symbol.class).readValue(customSymbolsJson);
+        Set<String> customSymbolStrings = Arrays.stream(customSymbols).map(Symbol::getSymbol).collect(Collectors.toSet());
+        // replace symbols in the array with customSymbols
+        symbols = Arrays.stream(symbols).filter(s -> !customSymbolStrings.contains(s.getSymbol())).toArray(Symbol[]::new);
+        symbols = ArrayUtils.addAll(symbols, customSymbols);
+      } catch (JsonProcessingException e) {
+        logger.error("Failed to parse custom symbols: " + customSymbolsJson, e);
+      }
+    }
 
     ArrayList<Query> queries = new ArrayList<>();
     ArrayList<Query> priceQueries = new ArrayList<>();
@@ -131,13 +149,14 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     } else {
       throw new ExchangeException("API key must be provided via exchange specification");
     }
+    Symbol[] finalSymbols = symbols;
     queries.add(new Query("{\"type\":\"all_products\"}", productData -> {
       processProductIncrements(productData.withArray("spot_products"), spotProducts);
       processProductIncrements(productData.withArray("perp_products"), perpProducts);
 
       //TODO - pull this from API when available
       BigDecimal interestFee = BigDecimal.valueOf(0.2);
-      productInfo = new VertexProductInfo(spotProducts, symbols, takerFees, makerFees, takerSequencerFee.get(), interestFee);
+      productInfo = new VertexProductInfo(spotProducts, finalSymbols, takerFees, makerFees, takerSequencerFee.get(), interestFee);
 
       Query marketPricesQuery = new Query("{\"type\":\"market_prices\", \"product_ids\": " + productInfo.getProductsIds().stream().filter(id -> id != 0).collect(Collectors.toList()) + "}",
           priceData -> priceData.get("market_prices").forEach(price -> {

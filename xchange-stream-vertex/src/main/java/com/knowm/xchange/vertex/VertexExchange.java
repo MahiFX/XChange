@@ -55,8 +55,11 @@ public class VertexExchange extends BaseExchange {
     ExchangeSpecification gatewaySpec = new ExchangeSpecification(this.getClass());
     gatewaySpec.setSslUri(getGatewayRestUrl());
     this.queryApi = ExchangeRestProxyBuilder.forInterface(VertexQueryApi.class, gatewaySpec)
-        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60)))
-        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10)))
+        .clientConfigCustomizer(clientConfig -> {
+          clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60));
+          clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10));
+          clientConfig.setHostnameVerifier((s, sslSession) -> true);
+        })
         .build();
 
   }
