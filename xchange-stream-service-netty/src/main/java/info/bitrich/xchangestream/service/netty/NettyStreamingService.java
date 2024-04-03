@@ -367,11 +367,11 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   public void sendMessage(String message) {
 
     if (webSocketChannel == null || !webSocketChannel.isOpen()) {
-      throw new RuntimeException("WebSocket is not open! Call connect first.");
+      throw new RuntimeException("WebSocket is not open! Call connect first. Msg: " + message);
     }
 
     if (!webSocketChannel.isWritable()) {
-      throw new RuntimeException("Cannot send data to WebSocket as it is not writable.");
+      throw new RuntimeException("Cannot send data to WebSocket as it is not writable. Msg: " + message);
     }
 
     if (message != null) {
@@ -559,7 +559,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
     }
 
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
       if (!(evt instanceof IdleStateEvent)) {
         return;
       }
