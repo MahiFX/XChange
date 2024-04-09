@@ -182,7 +182,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     try {
       getOpenPositions().getOpenPositions().forEach(pos -> {
-        BigInteger balance = pos.getType() == OpenPosition.Type.LONG ? convertToInteger(pos.getSize()) : convertToInteger(pos.getSize()).negate();
+        BigInteger balance = pos.getType() == OpenPosition.Type.LONG ? decimalToX18(pos.getSize()) : decimalToX18(pos.getSize()).negate();
         balanceCache.put(Pair.of(pos.getInstrument(), false), balance);
         balanceCache.put(Pair.of(pos.getInstrument(), true), BigInteger.ZERO);
       });
@@ -295,7 +295,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     String subAccount = exchange.getSubAccountOrDefault();
 
-
     String channel = "position_change." + productId + "." + buildSender(exchangeSpecification.getApiKey(), subAccount);
     return positionSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel).filter(resp -> {
       boolean isLp = resp.get("is_lp").asBoolean();
@@ -304,6 +303,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       BigInteger prevBal = balanceCache.computeIfAbsent(balanceKey, p -> newBal);
       boolean balanceMatch = newBal.equals(prevBal);
       balanceCache.put(balanceKey, newBal);
+      if (!balanceMatch) {
+        logger.info("Balance change for {}{}: {} -> {}", instrument, isLp ? " LP" : "", x18ToDecimal(prevBal), x18ToDecimal(newBal));
+      } else {
+        logger.debug("No balance change for {}{}: {}", instrument, isLp ? " LP" : "", x18ToDecimal(newBal));
+      }
       return !balanceMatch;
     }));
   }
@@ -369,82 +373,86 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     Observable<UserTrade> liquidations = subscribeToPositionChange(instrument)
         .debounce(RETRY_DELAY_MILLI, TimeUnit.MILLISECONDS, liquidationScheduler).switchMap(c -> {
+          BigDecimal newBalance = readX18Decimal(c, "amount");
+          logger.info("Checking for {} liquidation events since index {}. New {} position: {}", instrument, indexCounter.get(), instrument, newBalance);
               // For each change, create an inner observable that retries until new balance is seen or max attempts is reached
               return Observable.just(c).flatMap(change -> {
-                synchronized (indexCounter) {
-                  long maxIdx = indexCounter.get();
-                  BigDecimal newBalance = readX18Decimal(c, "amount");
-                  logger.info("Checking for " + instrument + " liquidation events since index " + maxIdx + ". New " + instrument + " position: " + newBalance);
+                    synchronized (indexCounter) {
+                      long maxIdx = indexCounter.get();
+                      boolean seenExpectedBalance = false;
+                      List<UserTrade> liquidationTrades = new ArrayList<>();
+                      JsonNode events_resp = exchange.getRestClient().indexerRequest(eventQuery);
+                      Map<Long, JsonNode> txnMap = groupNewEventsByTxn(events_resp, maxIdx);
+                      if (!txnMap.isEmpty()) {
+                        ArrayNode events = events_resp.withArray("events");
+                        logger.debug("Found {} new liquidation events, in {} transactions", events.size(), txnMap.size());
+                        Iterator<JsonNode> iterator = events.iterator();
+                        // reverse the events iterator as they are returned most recent first
+                        List<JsonNode> eventsList = new ArrayList<>();
+                        while (iterator.hasNext()) {
+                          eventsList.add(iterator.next());
+                        }
+                        Collections.reverse(eventsList);
 
-                  boolean seenExpectedBalance = false;
-                  List<UserTrade> liquidationTrades = new ArrayList<>();
+                        Set<String> newTxns = new CopyOnWriteArraySet<>();
+                        for (JsonNode event : eventsList) {
+                          long idx = event.get("submission_idx").asLong();
+                          if (idx > maxIdx) {
+                            maxIdx = idx;
 
+                            JsonNode transaction = txnMap.get(idx);
+                            if (transaction == null) continue;
+                            JsonNode timestampNode = transaction.get("timestamp");
+                            Instant timestamp = EpochSecondsDeserializer.parse(timestampNode.textValue());
+                            boolean before = timestamp.isBefore(startTime);
+                            if (before) {
+                              continue;
+                            }
 
-                  JsonNode events_resp = exchange.getRestClient().indexerRequest(eventQuery);
-                  Map<Long, JsonNode> txnMap = groupEventsByTxn(events_resp);
-                  ArrayNode events = events_resp.withArray("events");
-                  logger.info("Found {} liquidation events, in {} transactions", events.size(), txnMap.size());
-                  Iterator<JsonNode> iterator = events.iterator();
-                  // reverse the events iterator as they are returned most recent first
-                  List<JsonNode> eventsList = new ArrayList<>();
-                  while (iterator.hasNext()) {
-                    eventsList.add(iterator.next());
-                  }
-                  Collections.reverse(eventsList);
+                            String instrumentFieldName = isSpot ? "spot" : "perp";
 
-                  Set<String> newTxns = new CopyOnWriteArraySet<>();
-                  for (JsonNode event : eventsList) {
-                    long idx = event.get("submission_idx").asLong();
-                    if (idx > maxIdx) {
-                      maxIdx = idx;
+                            JsonNode postBalanceNode = event.get("post_balance").get(instrumentFieldName).get("balance");
+                            BigDecimal postBalance = readX18Decimal(postBalanceNode, "amount");
+                            if (postBalance.equals(newBalance)) {
+                              seenExpectedBalance = true;
+                            }
+                            JsonNode preBalanceNode = event.get("pre_balance").get(instrumentFieldName).get("balance");
+                            BigDecimal preBalance = readX18Decimal(preBalanceNode, "amount");
 
-                      JsonNode transaction = txnMap.get(idx);
-                      if (transaction == null) continue;
-                      JsonNode timestampNode = transaction.get("timestamp");
-                      Instant timestamp = EpochSecondsDeserializer.parse(timestampNode.textValue());
-                      boolean before = timestamp.isBefore(startTime);
-                      if (before) {
-                        continue;
+                            BigDecimal tradeQuantity = postBalance.subtract(preBalance);
+                            // We receive events for liquidations of other pairs, even with the product_id filter
+                            if (tradeQuantity.compareTo(BigDecimal.ZERO) == 0) {
+                              continue;
+                            }
+
+                            String txnId = ORDER_ID_HASHER.hashString("liquidation:" + productId + ":" + idx, StandardCharsets.UTF_8).toString();
+                            if (newTxns.contains(txnId)) {
+                              continue;
+                            }
+                            newTxns.add(txnId);
+
+                            UserTrade build = buildLiquidationTrade(instrument, event, instrumentFieldName, transaction, ourSender, tradeQuantity, txnId, subAccount, timestamp);
+                            liquidationTrades.add(build);
+                          }
+                        }
+                        indexCounter.set(maxIdx);
                       }
 
-                      String instrumentFieldName = isSpot ? "spot" : "perp";
-
-                      JsonNode postBalanceNode = event.get("post_balance").get(instrumentFieldName).get("balance");
-                      BigDecimal postBalance = readX18Decimal(postBalanceNode, "amount");
-                      if (postBalance.equals(newBalance)) {
-                        seenExpectedBalance = true;
-                      }
-                      JsonNode preBalanceNode = event.get("pre_balance").get(instrumentFieldName).get("balance");
-                      BigDecimal preBalance = readX18Decimal(preBalanceNode, "amount");
-
-                      BigDecimal tradeQuantity = postBalance.subtract(preBalance);
-                      // We receive events for liquidations of other pairs, even with the product_id filter
-                      if (tradeQuantity.compareTo(BigDecimal.ZERO) == 0) {
-                        continue;
+                      Observable<UserTrade> tradeObservable = Observable.fromArray(liquidationTrades.toArray(new UserTrade[0]));
+                      if (!seenExpectedBalance) {
+                        logger.debug("New balance for {} not seen in liquidation events, retrying", instrument);
+                        return Observable.concat(tradeObservable, Observable.error(new RuntimeException("Expected balance not seen")));
+                      } else {
+                        logger.info("Expected balance for {} seen in liquidations events, publishing {} trades", instrument, liquidationTrades.size());
+                        return tradeObservable;
                       }
 
-                      String txnId = ORDER_ID_HASHER.hashString("liquidation:" + productId + ":" + idx, StandardCharsets.UTF_8).toString();
-                      if (newTxns.contains(txnId)) {
-                        continue;
-                      }
-                      newTxns.add(txnId);
 
-                      UserTrade build = buildLiquidationTrade(instrument, event, instrumentFieldName, transaction, ourSender, tradeQuantity, txnId, subAccount, timestamp);
-                      liquidationTrades.add(build);
                     }
-                  }
-                  indexCounter.set(maxIdx);
-
-                  if (!seenExpectedBalance) {
-                    logger.trace("Expected balance not seen, retrying");
-                    return Observable.error(new RuntimeException("Expected balance not seen"));
-                  }
-
-                  return Observable.fromArray(liquidationTrades.toArray(new UserTrade[0]));
-                }
-              }).retryWhen(errors -> errors
-                  .zipWith(Observable.range(1, RETRIES), (n, i) -> i)
-                  .flatMap(retry -> retry <= RETRIES ? Observable.timer(RETRY_DELAY_MILLI, TimeUnit.MILLISECONDS, liquidationScheduler) : Observable.error(new RuntimeException("Retry limit reached"))));
+                  }).retryWhen(errors -> errors
+                      .zipWith(Observable.range(1, RETRIES), (n, i) -> i)
+                      .flatMap(retry -> Observable.timer(RETRY_DELAY_MILLI, TimeUnit.MILLISECONDS, liquidationScheduler)))
+                  .doOnComplete(() -> logger.info("Retry limit reached for {} liquidation events, no liquidations found", instrument));
             }
         );
 
@@ -574,7 +582,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     InstrumentDefinition increments = exchange.getIncrements(productId);
     BigDecimal priceIncrement = increments.getPriceIncrement();
     price = roundToIncrement(price, priceIncrement);
-    BigInteger priceAsInt = convertToInteger(price);
+    BigInteger priceAsInt = decimalToX18(price);
 
     BigDecimal quantity = getQuantity(marketOrder);
 //    BigDecimal quantityIncrement = increments.getQuantityIncrement();
@@ -582,7 +590,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 //      throw new IllegalArgumentException("Quantity must be greater than increment");
 //    }
 //    quantity = roundToIncrement(quantity, quantityIncrement);
-    BigInteger quantityAsInt = convertToInteger(quantity);
+    BigInteger quantityAsInt = decimalToX18(quantity);
 
     String subAccount = exchange.getSubAccountOrDefault();
     String nonce = buildNonce(placeOrderValidUntilMs);
@@ -611,7 +619,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       sendWebsocketMessage(orderMessage);
       orderCache.put(signatureAndDigest.getDigest(), marketOrder);
     } catch (Throwable e) {
-      logger.error("Failed to place order : " + orderMessage, e);
+      logger.error("Failed to place order : {}", orderMessage, e);
       throw new ExchangeException(e);
 
     }
@@ -764,7 +772,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       return digests;
 
     } catch (Throwable e) {
-      logger.error("Failed to cancel order (" + id + "): " + cancelReq, e);
+      logger.error("Failed to cancel order ({}): {}", id, cancelReq, e);
       return Collections.emptyList();
 
     }
@@ -842,7 +850,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
       return responseLatch.get(30, TimeUnit.SECONDS);
     } catch (InterruptedException | CancellationException interrupted) {
-      logger.warn("Interrupted waiting for open orders response: " + interrupted.getMessage());
+      logger.warn("Interrupted waiting for open orders response: {}", interrupted.getMessage());
       return new OpenOrders(Collections.emptyList());
     } catch (TimeoutException e) {
       throw new IOException("Timeout waiting for open orders response");
@@ -883,10 +891,15 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
 
-  private static Map<Long, JsonNode> groupEventsByTxn(JsonNode events_resp) {
+  private static Map<Long, JsonNode> groupNewEventsByTxn(JsonNode events_resp, long maxIdx) {
     ArrayNode txns = events_resp.withArray("txs");
     Map<Long, JsonNode> txnMap = new HashMap<>();
-    txns.forEach(tx -> txnMap.put(Long.valueOf(tx.get("submission_idx").textValue()), tx));
+    txns.forEach(tx -> {
+      long submission_idx = tx.get("submission_idx").asLong();
+      if (submission_idx > maxIdx) {
+        txnMap.put(submission_idx, tx);
+      }
+    });
     return txnMap;
   }
 

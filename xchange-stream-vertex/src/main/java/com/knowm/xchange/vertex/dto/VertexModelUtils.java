@@ -8,6 +8,7 @@ import org.web3j.utils.Numeric;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
@@ -18,12 +19,12 @@ public class VertexModelUtils {
   //max value of a 128 byte integer
   public static final BigInteger MAX_128_INTEGER = new BigInteger("170141183460469231731687303715884105727");
 
-  public static BigDecimal convertToDecimal(BigInteger integer) {
+  public static BigDecimal x18ToDecimal(BigInteger integer) {
     if (integer == null) return null;
-    return new BigDecimal(integer).divide(NUMBER_CONVERSION_FACTOR);
+    return new BigDecimal(integer).divide(NUMBER_CONVERSION_FACTOR, 18, RoundingMode.HALF_UP);
   }
 
-  public static BigInteger convertToInteger(BigDecimal decimal) {
+  public static BigInteger decimalToX18(BigDecimal decimal) {
     if (decimal == null) return null;
     return decimal.multiply(NUMBER_CONVERSION_FACTOR).toBigInteger();
   }
@@ -60,7 +61,7 @@ public class VertexModelUtils {
     if (StringUtils.isEmpty(text)) {
       return BigDecimal.ZERO;
     }
-    return convertToDecimal(new BigInteger(text));
+    return x18ToDecimal(new BigInteger(text));
   }
 
   public static void readX18DecimalArray(JsonNode node, String fieldName, List<BigDecimal> outputList) {
@@ -68,7 +69,7 @@ public class VertexModelUtils {
     Iterator<JsonNode> elements = jsonNode.elements();
     while (elements.hasNext()) {
       JsonNode next = elements.next();
-      outputList.add(convertToDecimal(new BigInteger(next.asText())));
+      outputList.add(x18ToDecimal(new BigInteger(next.asText())));
     }
   }
 

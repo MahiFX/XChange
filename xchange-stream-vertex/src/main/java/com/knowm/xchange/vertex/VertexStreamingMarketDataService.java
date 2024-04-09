@@ -88,14 +88,14 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
                 if (VertexModelUtils.nonZero(vertexBestBidOfferMessage.getBid_qty())) {
                   builder
-                      .bid(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_price()))
-                      .bidSize(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getBid_qty()));
+                      .bid(VertexModelUtils.x18ToDecimal(vertexBestBidOfferMessage.getBid_price()))
+                      .bidSize(VertexModelUtils.x18ToDecimal(vertexBestBidOfferMessage.getBid_qty()));
                 }
 
                 if (VertexModelUtils.nonZero(vertexBestBidOfferMessage.getAsk_qty())) {
                   builder
-                      .ask(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_price()))
-                      .askSize(VertexModelUtils.convertToDecimal(vertexBestBidOfferMessage.getAsk_qty()));
+                      .ask(VertexModelUtils.x18ToDecimal(vertexBestBidOfferMessage.getAsk_price()))
+                      .askSize(VertexModelUtils.x18ToDecimal(vertexBestBidOfferMessage.getAsk_qty()));
                 }
 
                 Ticker ticker = builder.build();

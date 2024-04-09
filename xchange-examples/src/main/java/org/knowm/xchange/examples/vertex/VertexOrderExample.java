@@ -70,9 +70,15 @@ public class VertexOrderExample {
 
 
     CurrencyPair btc = new CurrencyPair("BTC-PERP", "USDC");
+    CurrencyPair eth = new CurrencyPair("ETH-PERP", "USDC");
 
     Disposable trades = tradeService.getUserTrades(btc, subAccount).subscribe(userTrade -> {
-      log.info("User trade: {}", userTrade);
+      log.info("BTC trade: {}", userTrade);
+    });
+
+
+    Disposable tradesEth = tradeService.getUserTrades(eth, subAccount).subscribe(userTrade -> {
+      log.info("ETH trade: {}", userTrade);
     });
 
     Disposable changes = tradeService.getOrderChanges(btc, subAccount).subscribe(order -> {
@@ -171,6 +177,6 @@ public class VertexOrderExample {
     log.info("Open orders after cancel: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
 
 
-    exchange.disconnect().blockingAwait();
+//    exchange.disconnect().blockingAwait();
   }
 }

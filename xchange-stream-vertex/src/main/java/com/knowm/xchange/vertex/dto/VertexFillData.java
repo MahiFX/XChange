@@ -3,13 +3,15 @@ package com.knowm.xchange.vertex.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.knowm.xchange.vertex.NanoSecondsDeserializer;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
-import java.math.BigInteger;
-import java.time.Instant;
 import lombok.Getter;
 import lombok.ToString;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.Trade;
+
+import java.math.BigInteger;
+import java.time.Instant;
+
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.x18ToDecimal;
 
 @Getter
 @ToString
@@ -54,13 +56,13 @@ public class VertexFillData {
   public Trade toTrade(CurrencyPair currencyPair) {
     Trade.Builder builder = new Trade.Builder()
         .instrument(currencyPair)
-        .price(convertToDecimal(price));
+        .price(x18ToDecimal(price));
     if (isTaker) {
       builder.takerOrderId(orderId);
     } else {
       builder.makerOrderId(orderId);
     }
-    builder.originalAmount(convertToDecimal(filledQty));
+    builder.originalAmount(x18ToDecimal(filledQty));
     return builder.build();
   }
 }

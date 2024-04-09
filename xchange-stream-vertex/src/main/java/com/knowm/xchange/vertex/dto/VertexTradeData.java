@@ -3,15 +3,17 @@ package com.knowm.xchange.vertex.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.knowm.xchange.vertex.NanoSecondsDeserializer;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.convertToDecimal;
-import java.math.BigInteger;
-import java.time.Instant;
-import java.util.Date;
 import lombok.Getter;
 import lombok.ToString;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.instrument.Instrument;
+
+import java.math.BigInteger;
+import java.time.Instant;
+import java.util.Date;
+
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.x18ToDecimal;
 
 @Getter
 @ToString
@@ -43,11 +45,11 @@ public class VertexTradeData {
     Trade.Builder builder = new Trade.Builder()
         .instrument(currencyPair)
         .timestamp(new Date(timestamp.toEpochMilli()))
-        .price(convertToDecimal(price))
-        .originalAmount(convertToDecimal(takerQty))
+        .price(x18ToDecimal(price))
+        .originalAmount(x18ToDecimal(takerQty))
         .type(isTakerBuyer ? Order.OrderType.ASK : Order.OrderType.BID); // trade side from maker point of view
 
-    builder.originalAmount(convertToDecimal(takerQty));
+    builder.originalAmount(x18ToDecimal(takerQty));
     return builder.build();
   }
 }

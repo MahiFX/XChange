@@ -184,8 +184,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       }
       productSet.add(productId);
       JsonNode bookInfo = spotProduct.get("book_info");
-      BigDecimal quantityIncrement = convertToDecimal(new BigInteger(bookInfo.get("size_increment").asText()));
-      BigDecimal priceIncrement = convertToDecimal(new BigInteger(bookInfo.get("price_increment_x18").asText()));
+      BigDecimal quantityIncrement = x18ToDecimal(new BigInteger(bookInfo.get("size_increment").asText()));
+      BigDecimal priceIncrement = x18ToDecimal(new BigInteger(bookInfo.get("price_increment_x18").asText()));
       increments.put(productId, new InstrumentDefinition(priceIncrement, quantityIncrement));
     }
   }

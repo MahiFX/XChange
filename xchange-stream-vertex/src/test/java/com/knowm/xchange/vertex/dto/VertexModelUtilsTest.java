@@ -10,9 +10,9 @@ public class VertexModelUtilsTest {
     @Test
     public void testNonZero() {
         Assert.assertFalse(VertexModelUtils.nonZero((BigDecimal) null));
-        Assert.assertFalse(VertexModelUtils.nonZero(VertexModelUtils.convertToDecimal(null)));
-        Assert.assertFalse(VertexModelUtils.nonZero(VertexModelUtils.convertToDecimal(new BigInteger("0"))));
-        Assert.assertTrue(VertexModelUtils.nonZero(VertexModelUtils.convertToDecimal(new BigInteger("1"))));
+      Assert.assertFalse(VertexModelUtils.nonZero(VertexModelUtils.x18ToDecimal(null)));
+      Assert.assertFalse(VertexModelUtils.nonZero(VertexModelUtils.x18ToDecimal(new BigInteger("0"))));
+      Assert.assertTrue(VertexModelUtils.nonZero(VertexModelUtils.x18ToDecimal(new BigInteger("1"))));
 
         Assert.assertFalse(VertexModelUtils.nonZero((BigInteger) null));
         Assert.assertFalse(VertexModelUtils.nonZero(new BigInteger("0")));

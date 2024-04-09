@@ -5,15 +5,6 @@ import io.reactivex.Observer;
 import io.reactivex.functions.Consumer;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentSkipListMap;
 import lombok.Getter;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.marketdata.OrderBook;
@@ -21,6 +12,12 @@ import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.instrument.Instrument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 @Getter
 public class VertexOrderBookStream extends Observable<OrderBook> implements Consumer<VertexMarketDataUpdateMessage> {
@@ -63,7 +60,7 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
         BigInteger price = order.getPrice();
         BigInteger quantity = order.getQuantity();
 
-        mapForInsert.put(price, getLimitOrder(type, instrument, timestamp, price, VertexModelUtils.convertToDecimal(quantity)));
+        mapForInsert.put(price, getLimitOrder(type, instrument, timestamp, price, VertexModelUtils.x18ToDecimal(quantity)));
       }
     }
   }
@@ -84,7 +81,7 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
           mapForInsert.remove(price);
         } else {
           LimitOrder exising = mapForInsert.get(price);
-          BigDecimal quantity = VertexModelUtils.convertToDecimal(quantityAsInt);
+          BigDecimal quantity = VertexModelUtils.x18ToDecimal(quantityAsInt);
           if (exising != null && exising.getOriginalAmount().equals(quantity)) {
             continue;
           }
@@ -119,7 +116,7 @@ public class VertexOrderBookStream extends Observable<OrderBook> implements Cons
   }
 
   private static LimitOrder getLimitOrder(Order.OrderType type, Instrument instrument, Instant timestamp, BigInteger priceAsInt, BigDecimal quantity) {
-    BigDecimal price = VertexModelUtils.convertToDecimal(priceAsInt);
+    BigDecimal price = VertexModelUtils.x18ToDecimal(priceAsInt);
 
     return new LimitOrder(type, quantity, instrument, null, new Date(timestamp.toEpochMilli()), price);
   }
