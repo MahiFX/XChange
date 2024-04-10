@@ -844,7 +844,14 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
           });
         });
         responseLatch.complete(new OpenOrders(orders));
-      }, (code, error) -> responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error))));
+      }, (code, error) -> {
+        if ("Too Many Requests".equalsIgnoreCase(error)) {
+          logger.warn("Failed to get open orders: {}", error);
+          responseLatch.complete(new OpenOrders(Collections.emptyList()));
+        } else {
+          responseLatch.completeExceptionally(new ExchangeException("Failed to get open orders: " + error));
+        }
+      }));
 
 
       return responseLatch.get(30, TimeUnit.SECONDS);
