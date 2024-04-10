@@ -57,7 +57,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -96,7 +95,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final Map<String, Observable<JsonNode>> fillSubscriptions = new ConcurrentHashMap<>();
   private final Map<String, Observable<JsonNode>> positionSubscriptions = new ConcurrentHashMap<>();
   private final Cache<String, Order> orderCache = CacheBuilder.newBuilder().maximumSize(1000).build();
-  private final Map<Instrument, AtomicLong> indexCounters = new ConcurrentHashMap<>();
+  private final Map<Instrument, AtomicReference<BigInteger>> indexCounters = new ConcurrentHashMap<>();
   private final Map<Pair<Instrument, Boolean>, BigInteger> balanceCache = new ConcurrentHashMap<>();
   private final Disposable allMessageSubscription;
   private final StreamingMarketDataService marketDataService;
@@ -298,7 +297,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     String channel = "position_change." + productId + "." + buildSender(exchangeSpecification.getApiKey(), subAccount);
     return positionSubscriptions.computeIfAbsent(channel, c -> subscriptionStream.subscribeChannel(channel).filter(resp -> {
       boolean isLp = resp.get("is_lp").asBoolean();
-      BigInteger newBal = BigInteger.valueOf(resp.get("amount").asLong());
+      BigInteger newBal = new BigInteger(resp.get("amount").asText());
       Pair<Instrument, Boolean> balanceKey = Pair.of(instrument, isLp);
       BigInteger prevBal = balanceCache.computeIfAbsent(balanceKey, p -> newBal);
       boolean balanceMatch = newBal.equals(prevBal);
@@ -361,7 +360,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private Observable<UserTrade> mergeInLiquidationTrades(Instrument instrument, long productId, Observable<UserTrade> tradeStream) {
-    AtomicLong indexCounter = indexCounters.computeIfAbsent(instrument, (i) -> new AtomicLong());
+    AtomicReference<BigInteger> indexCounter = indexCounters.computeIfAbsent(instrument, (i) -> new AtomicReference<BigInteger>(BigInteger.ZERO));
 
     String subAccount = getSubAccountOrDefault();
 
@@ -378,14 +377,14 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
               // For each change, create an inner observable that retries until new balance is seen or max attempts is reached
               return Observable.just(c).flatMap(change -> {
                     synchronized (indexCounter) {
-                      long maxIdx = indexCounter.get();
+                      BigInteger maxIdx = indexCounter.get();
                       boolean seenExpectedBalance = false;
                       List<UserTrade> liquidationTrades = new ArrayList<>();
                       JsonNode events_resp = exchange.getRestClient().indexerRequest(eventQuery);
-                      Map<Long, JsonNode> txnMap = groupNewEventsByTxn(events_resp, maxIdx);
-                      if (!txnMap.isEmpty()) {
+                      Map<BigInteger, JsonNode> txnLookup = newTransactionsIdLookup(events_resp, maxIdx);
+                      if (!txnLookup.isEmpty()) {
                         ArrayNode events = events_resp.withArray("events");
-                        logger.debug("Found {} new liquidation events, in {} transactions", events.size(), txnMap.size());
+                        logger.debug("Found {} new liquidation events, in {} transactions", events.size(), txnLookup.size());
                         Iterator<JsonNode> iterator = events.iterator();
                         // reverse the events iterator as they are returned most recent first
                         List<JsonNode> eventsList = new ArrayList<>();
@@ -396,11 +395,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
                         Set<String> newTxns = new CopyOnWriteArraySet<>();
                         for (JsonNode event : eventsList) {
-                          long idx = event.get("submission_idx").asLong();
-                          if (idx > maxIdx) {
+                          BigInteger idx = new BigInteger(event.get("submission_idx").asText());
+                          if (idx.compareTo(maxIdx) > 0) {
                             maxIdx = idx;
 
-                            JsonNode transaction = txnMap.get(idx);
+                            JsonNode transaction = txnLookup.get(idx);
                             if (transaction == null) continue;
                             JsonNode timestampNode = transaction.get("timestamp");
                             Instant timestamp = EpochSecondsDeserializer.parse(timestampNode.textValue());
@@ -891,12 +890,12 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
 
-  private static Map<Long, JsonNode> groupNewEventsByTxn(JsonNode events_resp, long maxIdx) {
+  private static Map<BigInteger, JsonNode> newTransactionsIdLookup(JsonNode events_resp, BigInteger maxIdx) {
     ArrayNode txns = events_resp.withArray("txs");
-    Map<Long, JsonNode> txnMap = new HashMap<>();
+    Map<BigInteger, JsonNode> txnMap = new HashMap<>();
     txns.forEach(tx -> {
-      long submission_idx = tx.get("submission_idx").asLong();
-      if (submission_idx > maxIdx) {
+      BigInteger submission_idx = new BigInteger(tx.get("submission_idx").asText());
+      if (submission_idx.compareTo(maxIdx) > 0) {
         txnMap.put(submission_idx, tx);
       }
     });
