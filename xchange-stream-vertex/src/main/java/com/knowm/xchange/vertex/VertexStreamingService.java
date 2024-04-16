@@ -5,6 +5,8 @@ import com.knowm.xchange.vertex.signing.MessageSigner;
 import com.knowm.xchange.vertex.signing.SignatureAndDigest;
 import com.knowm.xchange.vertex.signing.schemas.StreamAuthentication;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
@@ -31,6 +33,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   //Channel to use to subscribe to all response
   public static final String ALL_MESSAGES = "all_messages";
   private static final int MAX_FRAME_KB = 1024 * 256;
+  public static final RateLimiter TEN_PER_SECOND = RateLimiter.of("vertex", RateLimiterConfig
+      .custom().limitForPeriod(10).limitRefreshPeriod(Duration.ofSeconds(1)).build());
+
+  public static final RateLimiter HUNDRED_PER_SECOND = RateLimiter.of("vertex", RateLimiterConfig
+      .custom().limitForPeriod(100).limitRefreshPeriod(Duration.ofSeconds(1)).build());
 
   private final AtomicLong reqCounter = new AtomicLong(1);
   private final String apiUrl;
@@ -40,8 +47,8 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private boolean wasAuthenticated;
   private Observable<JsonNode> allMessages;
 
-  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange) {
-    super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15);
+  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange, RateLimiter rateLimit) {
+    super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15, rateLimit);
     this.apiUrl = apiUrl;
     this.exchangeSpecification = exchangeSpecification;
     this.exchange = exchange;
