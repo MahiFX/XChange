@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
-import static com.knowm.xchange.vertex.VertexStreamingService.HUNDRED_PER_SECOND;
+import static com.knowm.xchange.vertex.VertexStreamingService.UNLIMITED;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
@@ -261,7 +261,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   }
 
   private VertexStreamingService getGatewayStream() {
-    VertexStreamingService streamingService = new VertexStreamingService(getGatewayWsUrl(), exchangeSpecification, this, HUNDRED_PER_SECOND);
+    VertexStreamingService streamingService = new VertexStreamingService(getGatewayWsUrl(), exchangeSpecification, this, UNLIMITED);
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
