@@ -61,9 +61,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -116,8 +114,8 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
   private final Function<CurrencyPair, BinanceOrderbook> binanceOrderBookProvider;
   private final Runnable onApiCall;
 
-  private final AtomicBoolean fallenBack = new AtomicBoolean();
-  private final AtomicReference<Runnable> fallbackOnApiCall = new AtomicReference<>(() -> {});
+  private final RateLimiter initSnapshotRateLimit = RateLimiter.create(0.333);
+  private final Set<Instrument> logThrottled = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   public BinanceStreamingMarketDataService(
           BinanceStreamingService service,
@@ -317,6 +315,8 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
    * handle these before the first messages arrive.
    */
   public void openSubscriptions(ProductSubscription productSubscription, KlineSubscription klineSubscription) {
+    logThrottled.clear();
+
     klineSubscription.getKlines().forEach((this::initKlineSubscription));
     if (tickerRealtimeSubscriptionParameter) {
       productSubscription.getTicker().forEach(this::initBookTickerSubscription);
@@ -465,13 +465,25 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
     void initSnapshotIfInvalid(Instrument instrument) {
       if (snapshotLastUpdateId.get() != 0) return;
       try {
-        LOG.info("Fetching initial orderbook snapshot for {} ", instrument);
+        if (!initSnapshotRateLimit.tryAcquire()) {
+          if (logThrottled.add(instrument)) LOG.info("Throttling initial orderbook snapshot request for {}...", instrument);
+          snapshotLastUpdateId.set(0);
+          lastUpdateId.set(0);
+          orderBook = null;
+
+          // Avoid blocking the WS stream due to throttles - try again on the next tick when not throttled
+          return;
+        }
+
+        logThrottled.remove(instrument);
+        LOG.info("Fetching initial orderbook snapshot for {}...", instrument);
         onApiCall.run();
-        fallbackOnApiCall.get().run();
         BinanceOrderbook book = fetchBinanceOrderBook(instrument);
         snapshotLastUpdateId.set(book.lastUpdateId);
         lastUpdateId.set(book.lastUpdateId);
         orderBook = BinanceMarketDataService.convertOrderBook(book, instrument);
+        LOG.info("Received initial orderbook snapshot for {}", instrument);
+
       } catch (Exception e) {
         LOG.error("Failed to fetch initial order book for " + instrument, e);
         snapshotLastUpdateId.set(0);
@@ -937,22 +949,9 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
       return binanceOrderBookProvider.apply((CurrencyPair) instrument);
     } catch (BinanceException e) {
       if (BinanceErrorAdapter.adapt(e) instanceof RateLimitExceededException) {
-        if (fallenBack.compareAndSet(false, true)) {
-          LOG.error(
-              "API Rate limit was hit when fetching Binance order book snapshot. Provide a \n"
-                  + "rate limiter. Apache Commons and Google Guava provide the TimedSemaphore\n"
-                  + "and RateLimiter classes which are effective for this purpose. Example:\n"
-                  + "\n"
-                  + "  exchangeSpecification.setExchangeSpecificParametersItem(\n"
-                  + "      info.bitrich.xchangestream.util.Events.BEFORE_API_CALL_HANDLER,\n"
-                  + "      () -> rateLimiter.acquire())\n"
-                  + "\n"
-                  + "Pausing for 15sec and falling back to one call per three seconds, but you\n"
-                  + "will get more optimal performance by handling your own rate limiting.");
-          RateLimiter rateLimiter = RateLimiter.create(0.333);
-          fallbackOnApiCall.set(rateLimiter::acquire);
-          Thread.sleep(15000);
-        }
+        // Should be throttled higher up
+        LOG.error("API Rate limit was hit when fetching Binance order book snapshot - sleeping 3s: " + e);
+        Thread.sleep(3000);
       }
       throw e;
     }
