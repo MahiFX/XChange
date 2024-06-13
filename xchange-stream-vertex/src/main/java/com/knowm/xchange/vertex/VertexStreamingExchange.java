@@ -45,6 +45,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String DEFAULT_SUB_ACCOUNT = "default";
   public static final String PLACE_ORDER_VALID_UNTIL_MS_PROP = "placeOrderValidUntilMs";
   public static final String GATEWAY_WEBSOCKET = "gatewayWebsocketUrl";
+  public static final String QUERY_WEBSOCKET = "queryWebsocketUrl";
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
   public static final String CUSTOM_SYMBOLS = "customSymbols";
   private static final ObjectMapper json = new ObjectMapper();
@@ -61,7 +62,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   private List<String> bookContracts;
 
-  private VertexStreamingService requestResponseStream;
+  private VertexStreamingService orderStream;
+  private VertexStreamingService queryStream;
   private VertexProductInfo productInfo;
 
   private final Map<Long, TopOfBookPrice> marketPrices = new ConcurrentHashMap<>();
@@ -70,7 +72,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   private final Set<Long> spotProducts = new TreeSet<>();
   private final Set<Long> perpProducts = new TreeSet<>();
 
-  private Observable<JsonNode> allMessages;
+  private Observable<JsonNode> allQueryMessages;
+  private Observable<JsonNode> allOrderMessages;
   private VertexExchange restExchange;
 
 
@@ -101,7 +104,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   @Override
   public void remoteInit() throws ExchangeException {
 
-    if (!requestResponseStream.isSocketOpen() && !requestResponseStream.connect().blockingAwait(10, TimeUnit.SECONDS)) {
+    if (!orderStream.isSocketOpen() && !connect().blockingAwait(10, TimeUnit.SECONDS)) {
       throw new RuntimeException("Timeout waiting for connection");
     }
 
@@ -197,7 +200,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   public synchronized void submitQueries(Query... queries) {
 
-    Observable<JsonNode> stream = subscribeToAllMessages();
+    Observable<JsonNode> stream = subscribeToAllQueryMessages();
 
     for (Query query : queries) {
       CountDownLatch responseLatch = new CountDownLatch(1);
@@ -232,7 +235,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
       try {
         logger.info("Sending query " + query.getQueryMsg());
-        requestResponseStream.sendMessage(query.getQueryMsg());
+        queryStream.sendMessage(query.getQueryMsg());
         if (!responseLatch.await(20, TimeUnit.SECONDS)) {
           query.getErrorHandler().accept(-1, "Timed out after 20 seconds waiting for response for " + query.getQueryMsg());
         }
@@ -244,36 +247,54 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     }
   }
 
-  public Observable<JsonNode> subscribeToAllMessages() {
-    if (allMessages == null) {
-      allMessages = requestResponseStream.subscribeChannel(ALL_MESSAGES);
+  public Observable<JsonNode> subscribeToAllQueryMessages() {
+    if (allQueryMessages == null) {
+      allQueryMessages = queryStream.subscribeChannel(ALL_MESSAGES);
     }
-    return allMessages;
+    return allQueryMessages;
+  }
+
+
+  public Observable<JsonNode> subscribeToAllOrderMessages() {
+    if (allOrderMessages == null) {
+      allOrderMessages = orderStream.subscribeChannel(ALL_MESSAGES);
+    }
+    return allOrderMessages;
   }
 
   @Override
   protected void initServices() {
-
     this.subscriptionStream = getSubscriptionStream();
-    this.requestResponseStream = getGatewayStream();
+    this.orderStream = getOrderStream();
+    this.queryStream = getQueryStream();
 
 
   }
 
-  private VertexStreamingService getGatewayStream() {
-    VertexStreamingService streamingService = new VertexStreamingService(getGatewayWsUrl(), exchangeSpecification, this, UNLIMITED);
+  private VertexStreamingService getOrderStream() {
+    VertexStreamingService streamingService = new VertexStreamingService(getOrderWsUrl(), exchangeSpecification, this, UNLIMITED, "[orders]");
+    applyStreamingSpecification(getExchangeSpecification(), streamingService);
+    return streamingService;
+  }
+
+  private VertexStreamingService getQueryStream() {
+    VertexStreamingService streamingService = new VertexStreamingService(getQueryWsUrl(), exchangeSpecification, this, UNLIMITED, "[queries]");
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
 
   private VertexStreamingService getSubscriptionStream() {
-    VertexStreamingService streamingService = new VertexStreamingService(getSubscriptionWsUrl(), exchangeSpecification, this, VertexStreamingService.TEN_PER_SECOND);
+    VertexStreamingService streamingService = new VertexStreamingService(getSubscriptionWsUrl(), exchangeSpecification, this, VertexStreamingService.TEN_PER_SECOND, "[subscriptions]");
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
 
-  private String getGatewayWsUrl() {
+  private String getOrderWsUrl() {
     return VertexExchange.overrideOrDefault(GATEWAY_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/ws", exchangeSpecification);
+  }
+
+  private String getQueryWsUrl() {
+    return VertexExchange.overrideOrDefault(QUERY_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/ws", exchangeSpecification);
   }
 
   private String getSubscriptionWsUrl() {
@@ -292,7 +313,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   @Override
   public VertexStreamingTradeService getStreamingTradeService() {
     if (this.streamingTradeService == null) {
-      this.streamingTradeService = new VertexStreamingTradeService(requestResponseStream, subscriptionStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService());
+      this.streamingTradeService = new VertexStreamingTradeService(orderStream, subscriptionStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService());
     }
     return streamingTradeService;
   }
@@ -324,20 +345,27 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   @Override
   public Completable connect(ProductSubscription... args) {
-    if (requestResponseStream.isSocketOpen()) {
-      return subscriptionStream.connect();
+    List<VertexStreamingService> services = new ArrayList<>();
+    if (!orderStream.isSocketOpen()) {
+      services.add(orderStream);
     }
-    return Completable.concatArray(subscriptionStream.connect(), requestResponseStream.connect());
+    if (!subscriptionStream.isSocketOpen()) {
+      services.add(subscriptionStream);
+    }
+    if (!queryStream.isSocketOpen()) {
+      services.add(queryStream);
+    }
+    return Completable.mergeArray(services.stream().map(VertexStreamingService::connect).toArray(Completable[]::new));
   }
 
   @Override
   public Completable disconnect() {
-    return Completable.concatArray(subscriptionStream.disconnect(), requestResponseStream.disconnect());
+    return Completable.concatArray(subscriptionStream.disconnect(), orderStream.disconnect(), queryStream.disconnect());
   }
 
   @Override
   public boolean isAlive() {
-    return subscriptionStream.isSocketOpen() && requestResponseStream.isSocketOpen();
+    return subscriptionStream.isSocketOpen() && orderStream.isSocketOpen() && queryStream.isSocketOpen();
   }
 
   @Override

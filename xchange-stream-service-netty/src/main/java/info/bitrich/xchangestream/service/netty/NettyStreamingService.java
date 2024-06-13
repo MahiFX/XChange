@@ -33,6 +33,7 @@ import io.reactivex.ObservableEmitter;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
+import org.knowm.xchange.PrefixedLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 public abstract class NettyStreamingService<T> extends ConnectableService {
-  private final Logger LOG = LoggerFactory.getLogger(this.getClass());
+  protected final Logger LOG;
 
   protected static final Duration DEFAULT_CONNECTION_TIMEOUT = Duration.ofSeconds(10);
   protected static final Duration DEFAULT_RETRY_DURATION = Duration.ofSeconds(15);
@@ -124,6 +125,19 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
       Duration retryDuration,
       int idleTimeoutSeconds,
       RateLimiter subscriptionsRateLimiter) {
+    this(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds, subscriptionsRateLimiter, null);
+  }
+
+  public NettyStreamingService(
+      String apiUrl,
+      int maxFramePayloadLength,
+      Duration connectionTimeout,
+      Duration retryDuration,
+      int idleTimeoutSeconds,
+      RateLimiter subscriptionsRateLimiter,
+      String name) {
+    Logger logger = LoggerFactory.getLogger(getClass());
+    this.LOG = name == null ? logger : new PrefixedLogger(name, logger);
     this.maxFramePayloadLength = maxFramePayloadLength;
     this.retryDuration = retryDuration;
     this.connectionTimeout = connectionTimeout;

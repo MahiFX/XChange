@@ -11,8 +11,6 @@ import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import org.knowm.xchange.ExchangeSpecification;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 import java.time.Duration;
@@ -27,8 +25,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
 
 public class VertexStreamingService extends JsonNettyStreamingService {
-
-  private static final Logger logger = LoggerFactory.getLogger(VertexStreamingService.class);
 
   //Channel to use to subscribe to all response
   public static final String ALL_MESSAGES = "all_messages";
@@ -47,12 +43,13 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private boolean wasAuthenticated;
   private Observable<JsonNode> allMessages;
 
-  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange, RateLimiter rateLimit) {
-    super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15, rateLimit);
+  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange, RateLimiter rateLimit, String name) {
+    super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15, rateLimit, name);
     this.apiUrl = apiUrl;
     this.exchangeSpecification = exchangeSpecification;
     this.exchange = exchange;
   }
+
 
   @Override
   public String getSubscriptionUniqueId(String channelName, Object... args) {
@@ -173,12 +170,12 @@ public class VertexStreamingService extends JsonNettyStreamingService {
         BigInteger.valueOf(expiry.toEpochMilli()));
     SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(streamAuth);
 
-    logger.info("Authenticating stream");
+    LOG.info("Authenticating stream");
 
     CompletableFuture<JsonNode> responseLatch = new CompletableFuture<>();
     long requestId = reqCounter.incrementAndGet();
     Disposable responseSub = allMessages.subscribe(value -> {
-      logger.debug("Authentication response: {}", value);
+      LOG.debug("Authentication response: {}", value);
       if (value.get("id").asLong() == requestId) {
         responseLatch.complete(value);
       } else if (value.get("error") != null) {
@@ -205,7 +202,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
         }
       }
     } catch (InterruptedException e) {
-      logger.warn("Interrupted while waiting for authentication response");
+      LOG.warn("Interrupted while waiting for authentication response");
       return;
 
     } catch (TimeoutException | ExecutionException e) {
@@ -230,10 +227,10 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   @Override
   public Completable disconnect() {
     if (isSocketOpen()) {
-      logger.info("Disconnecting " + apiUrl);
+      LOG.info("Disconnecting {}", apiUrl);
       return super.disconnect();
     } else {
-      logger.info("Already disconnected " + apiUrl);
+      LOG.info("Already disconnected {}", apiUrl);
       return Completable.complete();
     }
   }

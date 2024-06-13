@@ -4,14 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.ratelimiter.RateLimiter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
 
 public abstract class JsonNettyStreamingService extends NettyStreamingService<JsonNode> {
-  private final Logger LOG = LoggerFactory.getLogger(this.getClass());
   protected final ObjectMapper objectMapper = StreamingObjectMapperHelper.getObjectMapper();
 
   public JsonNettyStreamingService(String apiUrl) {
@@ -40,6 +37,16 @@ public abstract class JsonNettyStreamingService extends NettyStreamingService<Js
       int idleTimeoutSeconds,
       RateLimiter subscriptionsRateLimiter) {
     super(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds, subscriptionsRateLimiter);
+  }
+
+  public JsonNettyStreamingService(String apiUrl,
+                                   int maxFramePayloadLength,
+                                   Duration connectionTimeout,
+                                   Duration retryDuration,
+                                   int idleTimeoutSeconds,
+                                   RateLimiter subscriptionsRateLimiter,
+                                   String name) {
+    super(apiUrl, maxFramePayloadLength, connectionTimeout, retryDuration, idleTimeoutSeconds, subscriptionsRateLimiter, name);
   }
 
   public boolean processArrayMessageSeparately() {

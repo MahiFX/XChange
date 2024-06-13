@@ -19,6 +19,13 @@
             <version>${project.parent.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.knowm.xchange</groupId>
+            <artifactId>xchange-core</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+
         <!-- Netty version compatible with service-wamp -->
         <dependency>
             <groupId>io.netty</groupId>

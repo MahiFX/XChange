@@ -77,7 +77,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
   private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
-  private final VertexStreamingService requestResponseStream;
+  private final VertexStreamingService orderStream;
   private final VertexStreamingService subscriptionStream;
   private final ExchangeSpecification exchangeSpecification;
   private final ObjectMapper mapper;
@@ -101,8 +101,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final StreamingMarketDataService marketDataService;
   private final Scheduler liquidationScheduler = Schedulers.io();
 
-  public VertexStreamingTradeService(VertexStreamingService requestResponseStream, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService) {
-    this.requestResponseStream = requestResponseStream;
+  public VertexStreamingTradeService(VertexStreamingService orderStream, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService) {
+    this.orderStream = orderStream;
     this.subscriptionStream = subscriptionStream;
     this.exchangeSpecification = exchangeSpecification;
     this.productInfo = productInfo;
@@ -136,13 +136,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         t -> logger.error("Connection state observer error", t)
     );
 
-    this.allMessageSubscription = exchange.subscribeToAllMessages().subscribe(resp -> {
+    this.allMessageSubscription = exchange.subscribeToAllOrderMessages().subscribe(resp -> {
       JsonNode typeNode = resp.get("request_type");
-
-      if (typeNode != null && (typeNode.textValue().startsWith("q_") || typeNode.textValue().startsWith("query_"))) {
-        return; // ignore query responses that are handled in VertexStreamingExchange
-      }
-
       JsonNode statusNode = resp.get("status");
       JsonNode signatureNode = resp.get("signature");
 
@@ -194,8 +189,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   public void disconnect() {
     allMessageSubscription.dispose();
     tickerSubscriptions.values().stream().filter(Disposable::isDisposed).forEach(Disposable::dispose);
-    if (requestResponseStream.isSocketOpen()) {
-      if (!requestResponseStream.disconnect().blockingAwait(10, TimeUnit.SECONDS)) {
+    if (exchange.isAlive()) {
+      if (!exchange.disconnect().blockingAwait(10, TimeUnit.SECONDS)) {
         logger.warn("Timeout waiting for disconnect");
       }
     }
@@ -570,7 +565,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private String placeOrder(Order marketOrder, BigDecimal price) {
-    if (!subscriptionStream.isSocketOpen()) {
+    if (!exchange.isAlive()) {
       throw new ExchangeException("Can't place order, event stream is disconnected");
     }
     Instrument instrument = marketOrder.getInstrument();
@@ -615,7 +610,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     logger.info("Send order {} -> {} (valid for {}ms)", marketOrder, signatureAndDigest, placeOrderValidUntilMs);
 
     try {
-      sendWebsocketMessage(orderMessage);
+      sendOrderRequest(orderMessage);
       orderCache.put(signatureAndDigest.getDigest(), marketOrder);
     } catch (Throwable e) {
       logger.error("Failed to place order : {}", orderMessage, e);
@@ -626,7 +621,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     return signatureAndDigest.getDigest();
   }
 
-  private JsonNode sendWebsocketMessage(VertexRequest messageObj) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
+  private JsonNode sendOrderRequest(VertexRequest messageObj) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
     String requestType = messageObj.getRequestType();
     String signature = messageObj.getSignature();
 
@@ -636,7 +631,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
     CompletableFuture<JsonNode> responseFuture = getResponseFuture(requestType, signature);
 
-    requestResponseStream.sendMessage(message);
+    orderStream.sendMessage(message);
 
     try {
       return responseFuture.get(5000, TimeUnit.MILLISECONDS);
@@ -764,7 +759,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
 
     try {
-      JsonNode resp = sendWebsocketMessage(cancelReq);
+      JsonNode resp = sendOrderRequest(cancelReq);
       ArrayNode array = resp.get("data").withArray("cancelled_orders");
       List<String> digests = new ArrayList<>();
       array.forEach(order -> digests.add(order.get("digest").asText()));
