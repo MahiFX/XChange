@@ -39,7 +39,15 @@ public class VertexMarketDataExample {
 
         StreamingExchange exchange = StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
+        if (exchange.isAlive()) {
+            throw new RuntimeException("Exchange is already alive, should not be connected yet.");
+        }
+
         exchange.connect().blockingAwait();
+
+        if (!exchange.isAlive()) {
+            throw new RuntimeException("Exchange should be alive after connect.");
+        }
 
         CurrencyPair btcUsdc = new CurrencyPair(Currency.BTC, Currency.USDC);
         CurrencyPair ethUsdc = new CurrencyPair(Currency.ETH, Currency.USDC);
@@ -56,6 +64,10 @@ public class VertexMarketDataExample {
 
         disconnectBtc15.dispose();
 
+        if (!exchange.isAlive()) {
+            throw new RuntimeException("Exchange should be alive after connect.");
+        }
+
         logger.info("\n\n Disconnecting ETH-USDC \n\n");
 
         disconnectEth.dispose();
@@ -64,9 +76,17 @@ public class VertexMarketDataExample {
 
         disconnectBtcTOB.dispose();
 
+        if (!exchange.isAlive()) {
+            throw new RuntimeException("Exchange should be alive after connect.");
+        }
+
         ticker.dispose();
 
         exchange.disconnect().blockingAwait();
+
+        if (exchange.isAlive()) {
+            throw new RuntimeException("Exchange should be disconnected");
+        }
 
 
     }

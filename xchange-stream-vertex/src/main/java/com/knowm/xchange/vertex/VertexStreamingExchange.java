@@ -104,7 +104,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   @Override
   public void remoteInit() throws ExchangeException {
 
-    if (!orderStream.isSocketOpen() && !connect().blockingAwait(10, TimeUnit.SECONDS)) {
+    if (!queryStream.isSocketOpen() && !queryStream.connect().blockingAwait(10, TimeUnit.SECONDS)) {
       throw new RuntimeException("Timeout waiting for connection");
     }
 
