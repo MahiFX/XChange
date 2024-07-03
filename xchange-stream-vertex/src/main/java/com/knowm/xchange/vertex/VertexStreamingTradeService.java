@@ -565,9 +565,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private String placeOrder(Order marketOrder, BigDecimal price) {
-    if (!exchange.isAlive()) {
-      throw new ExchangeException("Can't place order, event stream is disconnected");
-    }
+    checkConnection();
     Instrument instrument = marketOrder.getInstrument();
     long productId = productInfo.lookupProductId(instrument);
 
@@ -619,6 +617,13 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     }
 
     return signatureAndDigest.getDigest();
+  }
+
+  private void checkConnection() {
+    if (!(subscriptionStream.isSocketOpen() && orderStream.isSocketOpen())) {
+      throw new ExchangeException("Can't place order, both the event stream (" + (subscriptionStream.isSocketOpen() ? "open" : "closed") + ") and order req stream (" +
+          (orderStream.isSocketOpen() ? "open" : "closed") + ") must be open");
+    }
   }
 
   private JsonNode sendOrderRequest(VertexRequest messageObj) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
@@ -701,9 +706,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private List<String> doCancel(CancelOrderParams params) {
-    if (!subscriptionStream.isSocketOpen()) {
-      throw new ExchangeException("Can't place order, event stream is disconnected");
-    }
+    checkConnection();
     String id = getOrderId(params);
     Instrument instrument = getInstrument(params);
 

@@ -177,6 +177,6 @@ public class VertexOrderExample {
     log.info("Open orders after cancel: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
 
 
-//    exchange.disconnect().blockingAwait();
+    exchange.disconnect().blockingAwait();
   }
 }
