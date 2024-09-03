@@ -32,17 +32,17 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <version.java>1.8</version.java>
-        <version.assertj>3.23.1</version.assertj>
-        <version.commons.lang3>3.12.0</version.commons.lang3>
-        <version.fasterxml>2.14.1</version.fasterxml>
+        <version.assertj>3.25.3</version.assertj>
+        <version.commons.lang3>3.14.0</version.commons.lang3>
+        <version.fasterxml>2.14.3</version.fasterxml>
         <version.github.mmazi>2.1.0</version.github.mmazi>
         <version.resilience4j>1.7.0</version.resilience4j>
         <version.junit>4.13.2</version.junit>
-        <version.lombok>1.18.22</version.lombok>
-        <version.knowm.xchart>3.8.2</version.knowm.xchart>
+        <version.lombok>1.18.32</version.lombok>
+        <version.knowm.xchart>3.8.8</version.knowm.xchart>
         <version.qos.logback>1.4.5</version.qos.logback>
         <version.reflections>0.10.2</version.reflections>
-        <version.slf4j>2.0.6</version.slf4j>
+        <version.slf4j>2.0.13</version.slf4j>
         <version.crypto>5.0.0</version.crypto>
         <version.java-jwt>3.19.2</version.java-jwt>
 
