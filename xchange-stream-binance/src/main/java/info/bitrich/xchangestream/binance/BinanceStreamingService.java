@@ -36,7 +36,7 @@ public class BinanceStreamingService extends JsonNettyStreamingService {
       new ConcurrentHashMap<>();
 
   public BinanceStreamingService(String baseUri, ProductSubscription productSubscription, KlineSubscription klineSubscription) {
-    super(baseUri, Integer.MAX_VALUE);
+    super(baseUri, Integer.MAX_VALUE, Duration.ofSeconds(10), Duration.ofSeconds(1), -1);
     this.productSubscription = productSubscription;
     this.klineSubscription = klineSubscription;
   }
