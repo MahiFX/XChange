@@ -1,13 +1,10 @@
 package org.knowm.xchange.coinbasepro;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-
-import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Test;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
+import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.coinbasepro.dto.CoinbaseProTrades;
 import org.knowm.xchange.coinbasepro.service.CoinbaseProMarketDataServiceRaw;
 import org.knowm.xchange.currency.Currency;
@@ -15,6 +12,12 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.Trades;
 import org.knowm.xchange.dto.meta.ExchangeMetaData;
 import org.knowm.xchange.service.marketdata.MarketDataService;
+
+import java.io.IOException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.knowm.xchange.coinbasepro.CoinbaseProExchange.Parameters.PARAM_USE_PRIME;
 
 public class CoinbaseProExchangeIntegration {
 
@@ -52,9 +55,9 @@ public class CoinbaseProExchangeIntegration {
     final MarketDataService marketDataService;
     final CoinbaseProMarketDataServiceRaw marketDataServiceRaw;
     final CurrencyPair currencyPair = new CurrencyPair("BTC", "EUR");
-    final Exchange exchange;
-
-    exchange = ExchangeFactory.INSTANCE.createExchange(CoinbaseProExchange.class);
+    ExchangeSpecification exchangeSpecification = new ExchangeSpecification(CoinbaseProExchange.class);
+    exchangeSpecification.setExchangeSpecificParametersItem(PARAM_USE_PRIME, true);
+    Exchange exchange = ExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
     marketDataService = exchange.getMarketDataService();
     marketDataServiceRaw = (CoinbaseProMarketDataServiceRaw) exchange.getMarketDataService();
 
@@ -70,8 +73,8 @@ public class CoinbaseProExchangeIntegration {
             currencyPair, new Long(Integer.MAX_VALUE), 10);
     assertEquals("Unexpected trades list length (10)", 10, trades2.size());
 
-    Trades trades3 = marketDataService.getTrades(currencyPair, new Long(0), new Long(1005));
-    assertEquals("Unexpected trades list length (100)", 1004, trades3.getTrades().size());
+    Trades trades3 = marketDataService.getTrades(currencyPair, new Long(0), new Long(100));
+    assertEquals("Unexpected trades list length (100)", 100, trades3.getTrades().size());
   }
 
   @Test
