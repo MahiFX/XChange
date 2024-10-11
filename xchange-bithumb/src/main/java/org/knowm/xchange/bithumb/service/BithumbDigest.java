@@ -1,19 +1,20 @@
 package org.knowm.xchange.bithumb.service;
 
-import static org.knowm.xchange.utils.DigestUtils.bytesToHex;
+import jakarta.ws.rs.FormParam;
+import org.apache.commons.lang3.StringUtils;
+import org.knowm.xchange.service.BaseParamsDigest;
+import si.mazi.rescu.Params;
+import si.mazi.rescu.RestInvocation;
 
+import javax.crypto.Mac;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.crypto.Mac;
-import javax.ws.rs.FormParam;
-import org.apache.commons.lang3.StringUtils;
-import org.knowm.xchange.service.BaseParamsDigest;
-import si.mazi.rescu.Params;
-import si.mazi.rescu.RestInvocation;
+
+import static org.knowm.xchange.utils.DigestUtils.bytesToHex;
 
 public class BithumbDigest extends BaseParamsDigest {
 

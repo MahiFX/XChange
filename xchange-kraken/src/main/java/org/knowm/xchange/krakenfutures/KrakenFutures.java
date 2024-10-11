@@ -1,9 +1,13 @@
 package org.knowm.xchange.krakenfutures;
 
-import org.knowm.xchange.kraken.dto.marketdata.results.*;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.kraken.dto.marketdata.results.KrakenOrderBookResult;
+import org.knowm.xchange.kraken.dto.marketdata.results.KrakenTickerResult;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 
 /** @author Benedikt Bünz */

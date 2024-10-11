@@ -1,21 +1,14 @@
 package org.knowm.xchange.ripple;
 
-import java.io.IOException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.ripple.dto.RippleException;
 import org.knowm.xchange.ripple.dto.account.RippleAccountBalances;
 import org.knowm.xchange.ripple.dto.account.RippleAccountSettings;
 import org.knowm.xchange.ripple.dto.marketdata.RippleOrderBook;
-import org.knowm.xchange.ripple.dto.trade.RippleAccountOrders;
-import org.knowm.xchange.ripple.dto.trade.RippleNotifications;
-import org.knowm.xchange.ripple.dto.trade.RippleOrderTransaction;
-import org.knowm.xchange.ripple.dto.trade.RipplePaymentTransaction;
-import org.knowm.xchange.ripple.dto.trade.RippleTransactionFee;
+import org.knowm.xchange.ripple.dto.trade.*;
+
+import java.io.IOException;
 
 /**
  * Returns public information that is stored in the ledger - secret not needed. See

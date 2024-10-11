@@ -2,13 +2,17 @@ package com.knowm.xchange.vertex;
 
 import com.knowm.xchange.vertex.api.VertexArchiveApi;
 import com.knowm.xchange.vertex.api.VertexQueryApi;
+import jakarta.ws.rs.HeaderParam;
 import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.client.ClientConfigCustomizer;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+
+import static com.knowm.xchange.vertex.VertexStreamingExchange.CUSTOM_HOST;
 
 public class VertexExchange extends BaseExchange {
 
@@ -44,22 +48,29 @@ public class VertexExchange extends BaseExchange {
   @Override
   protected void initServices() {
 
+    String customHost = overrideOrDefault(CUSTOM_HOST, null, exchangeSpecification);
+    ClientConfigCustomizer clientConfigCustomizer = clientConfig -> {
+      clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60));
+      clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10));
+      clientConfig.setHostnameVerifier((s, sslSession) -> true);
+      clientConfig.addDefaultParam(HeaderParam.class, "Accept-Encoding", "gzip");
+      if (customHost != null) {
+        clientConfig.addDefaultParam(HeaderParam.class, "Host", customHost);
+      }
+    };
+
     ExchangeSpecification archiveSpec = new ExchangeSpecification(this.getClass());
     archiveSpec.setSslUri(getArchiveRestUrl());
     this.archiveApi = ExchangeRestProxyBuilder.forInterface(VertexArchiveApi.class, archiveSpec)
-        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60)))
-        .clientConfigCustomizer(clientConfig -> clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10)))
+        .clientConfigCustomizer(clientConfigCustomizer)
         .build();
 
 
     ExchangeSpecification gatewaySpec = new ExchangeSpecification(this.getClass());
     gatewaySpec.setSslUri(getGatewayRestUrl());
-    this.queryApi = ExchangeRestProxyBuilder.forInterface(VertexQueryApi.class, gatewaySpec)
-        .clientConfigCustomizer(clientConfig -> {
-          clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60));
-          clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10));
-          clientConfig.setHostnameVerifier((s, sslSession) -> true);
-        })
+    ExchangeRestProxyBuilder<VertexQueryApi> restBuilder = ExchangeRestProxyBuilder.forInterface(VertexQueryApi.class, gatewaySpec)
+        .clientConfigCustomizer(clientConfigCustomizer);
+    this.queryApi = restBuilder
         .build();
 
   }

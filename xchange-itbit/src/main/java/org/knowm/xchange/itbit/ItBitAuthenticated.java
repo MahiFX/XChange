@@ -1,31 +1,20 @@
 package org.knowm.xchange.itbit;
 
-import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.itbit.dto.ItBitException;
 import org.knowm.xchange.itbit.dto.ItBitFundingHistoryResponse;
-import org.knowm.xchange.itbit.dto.account.ItBitAccountInfoReturn;
-import org.knowm.xchange.itbit.dto.account.ItBitDepositRequest;
-import org.knowm.xchange.itbit.dto.account.ItBitDepositResponse;
-import org.knowm.xchange.itbit.dto.account.ItBitWithdrawalRequest;
-import org.knowm.xchange.itbit.dto.account.ItBitWithdrawalResponse;
+import org.knowm.xchange.itbit.dto.account.*;
 import org.knowm.xchange.itbit.dto.marketdata.ItBitTicker;
 import org.knowm.xchange.itbit.dto.trade.ItBitOrder;
 import org.knowm.xchange.itbit.dto.trade.ItBitPlaceOrderRequest;
 import org.knowm.xchange.itbit.dto.trade.ItBitTradeHistory;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
+import java.util.Date;
+import java.util.List;
 
 @Path("v1")
 @Produces(MediaType.APPLICATION_JSON)

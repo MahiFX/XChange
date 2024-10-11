@@ -1,16 +1,17 @@
 package org.knowm.xchange.krakenfutures.service;
 
+import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.QueryParam;
+import org.knowm.xchange.service.BaseParamsDigest;
+import si.mazi.rescu.RestInvocation;
+
+import javax.crypto.Mac;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-import javax.crypto.Mac;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.QueryParam;
-import org.knowm.xchange.service.BaseParamsDigest;
-import si.mazi.rescu.RestInvocation;
 
 /** @author Jean-Christophe Laruelle */
 public class KrakenFuturesDigest extends BaseParamsDigest {

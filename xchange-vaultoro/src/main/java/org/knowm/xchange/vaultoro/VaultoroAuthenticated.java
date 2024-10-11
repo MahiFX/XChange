@@ -1,21 +1,16 @@
 package org.knowm.xchange.vaultoro;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.vaultoro.dto.account.VaultoroBalancesResponse;
 import org.knowm.xchange.vaultoro.dto.trade.VaultoroCancelOrderResponse;
 import org.knowm.xchange.vaultoro.dto.trade.VaultoroNewOrderResponse;
 import org.knowm.xchange.vaultoro.dto.trade.VaultoroOrdersResponse;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
+import java.math.BigDecimal;
 
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)

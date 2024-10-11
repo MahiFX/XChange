@@ -1,5 +1,7 @@
 package org.knowm.xchange.bybit.service;
 
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.QueryParam;
 import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 import org.knowm.xchange.service.BaseParamsDigest;
 import si.mazi.rescu.Params;
@@ -7,8 +9,6 @@ import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.RestInvocation;
 
 import javax.crypto.Mac;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.QueryParam;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;

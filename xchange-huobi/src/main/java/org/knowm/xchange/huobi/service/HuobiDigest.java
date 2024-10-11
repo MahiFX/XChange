@@ -1,5 +1,12 @@
 package org.knowm.xchange.huobi.service;
 
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.QueryParam;
+import org.knowm.xchange.service.BaseParamsDigest;
+import si.mazi.rescu.Params;
+import si.mazi.rescu.RestInvocation;
+
+import javax.crypto.Mac;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -10,12 +17,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.crypto.Mac;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.QueryParam;
-import org.knowm.xchange.service.BaseParamsDigest;
-import si.mazi.rescu.Params;
-import si.mazi.rescu.RestInvocation;
 
 public class HuobiDigest extends BaseParamsDigest {
 

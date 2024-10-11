@@ -1,13 +1,14 @@
 package org.knowm.xchange.coinegg.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.lang.annotation.Annotation;
-import java.util.HashMap;
-import javax.ws.rs.FormParam;
+import jakarta.ws.rs.FormParam;
 import org.junit.Test;
 import si.mazi.rescu.RestInvocation;
 import si.mazi.rescu.RestMethodMetadata;
+
+import java.lang.annotation.Annotation;
+import java.util.HashMap;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CoinEggDigestTest {
 

@@ -1,40 +1,18 @@
 package org.knowm.xchange.coinbase;
 
-import java.io.IOException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.coinbase.dto.CoinbaseBaseResponse;
 import org.knowm.xchange.coinbase.dto.CoinbaseException;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseAccountChanges;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseAddress;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseAddressCallback;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseAddresses;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseContacts;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseRecurringPayment;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseRecurringPayments;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseTransaction;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseTransactions;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseUser;
-import org.knowm.xchange.coinbase.dto.account.CoinbaseUsers;
+import org.knowm.xchange.coinbase.dto.account.*;
 import org.knowm.xchange.coinbase.dto.marketdata.CoinbaseMoney;
-import org.knowm.xchange.coinbase.dto.merchant.CoinbaseButton;
-import org.knowm.xchange.coinbase.dto.merchant.CoinbaseOrder;
-import org.knowm.xchange.coinbase.dto.merchant.CoinbaseOrders;
-import org.knowm.xchange.coinbase.dto.merchant.CoinbaseSubscription;
-import org.knowm.xchange.coinbase.dto.merchant.CoinbaseSubscriptions;
+import org.knowm.xchange.coinbase.dto.merchant.*;
 import org.knowm.xchange.coinbase.dto.trade.CoinbaseTransfer;
 import org.knowm.xchange.coinbase.dto.trade.CoinbaseTransfers;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
 
 /** @author jamespedwards42 */
 @Path("api/v1")

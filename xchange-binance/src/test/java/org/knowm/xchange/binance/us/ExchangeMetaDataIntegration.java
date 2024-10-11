@@ -1,12 +1,12 @@
 package org.knowm.xchange.binance.us;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.meta.ExchangeMetaData;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ExchangeMetaDataIntegration extends BinanceUsExchangeIntegration {
 
@@ -21,10 +21,10 @@ public class ExchangeMetaDataIntegration extends BinanceUsExchangeIntegration {
   @Test
   public void testEthBtcPairMetaData() {
     InstrumentMetaData pairMetaData = metaData.getInstruments().get(CurrencyPair.ETH_BTC);
-    assertThat(pairMetaData.getPriceScale()).isEqualByComparingTo(6);
-    assertThat(pairMetaData.getMinimumAmount()).isEqualByComparingTo("0.001");
+    assertThat(pairMetaData.getPriceScale()).isEqualByComparingTo(5);
+    assertThat(pairMetaData.getMinimumAmount()).isEqualByComparingTo("0.0001");
     assertThat(pairMetaData.getMaximumAmount().longValueExact()).isEqualTo(100000);
-    assertThat(pairMetaData.getAmountStepSize()).isEqualByComparingTo("0.001");
+    assertThat(pairMetaData.getAmountStepSize()).isEqualByComparingTo("0.0001");
   }
 
   @Test
@@ -32,8 +32,8 @@ public class ExchangeMetaDataIntegration extends BinanceUsExchangeIntegration {
     InstrumentMetaData pairMetaData =
         metaData.getInstruments().get(new CurrencyPair("LTC/BTC"));
     assertThat(pairMetaData.getPriceScale()).isEqualByComparingTo(6);
-    assertThat(pairMetaData.getMinimumAmount()).isEqualByComparingTo("0.01");
+    assertThat(pairMetaData.getMinimumAmount()).isEqualByComparingTo("0.001");
     assertThat(pairMetaData.getMaximumAmount().longValueExact()).isEqualTo(100000);
-    assertThat(pairMetaData.getAmountStepSize()).isEqualByComparingTo("0.01");
+    assertThat(pairMetaData.getAmountStepSize()).isEqualByComparingTo("0.001");
   }
 }

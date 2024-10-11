@@ -7,9 +7,11 @@ import com.knowm.xchange.vertex.signing.schemas.StreamAuthentication;
 import info.bitrich.xchangestream.service.netty.JsonNettyStreamingService;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import org.apache.commons.lang3.StringUtils;
 import org.knowm.xchange.ExchangeSpecification;
 
 import java.math.BigInteger;
@@ -22,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.knowm.xchange.vertex.VertexExchange.overrideOrDefault;
+import static com.knowm.xchange.vertex.VertexStreamingExchange.CUSTOM_HOST;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
 
 public class VertexStreamingService extends JsonNettyStreamingService {
@@ -50,6 +54,16 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     this.exchange = exchange;
   }
 
+  @Override
+  protected DefaultHttpHeaders getCustomHeaders() {
+    String customHost = overrideOrDefault(CUSTOM_HOST, null, exchangeSpecification);
+    if (StringUtils.isNotEmpty(customHost)) {
+      DefaultHttpHeaders headers = super.getCustomHeaders();
+      headers.add("Host", customHost);
+      return headers;
+    }
+    return super.getCustomHeaders();
+  }
 
   @Override
   public String getSubscriptionUniqueId(String channelName, Object... args) {

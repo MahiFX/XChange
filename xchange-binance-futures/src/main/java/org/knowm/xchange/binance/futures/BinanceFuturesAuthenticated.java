@@ -1,28 +1,17 @@
 package org.knowm.xchange.binance.futures;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.binance.dto.BinanceException;
 import org.knowm.xchange.binance.dto.meta.BinanceTime;
 import org.knowm.xchange.binance.dto.meta.exchangeinfo.BinanceExchangeInfo;
 import org.knowm.xchange.binance.dto.trade.OrderSide;
 import org.knowm.xchange.binance.dto.trade.TimeInForce;
-import org.knowm.xchange.binance.futures.dto.BinanceFuturesOrder;
-import org.knowm.xchange.binance.futures.dto.BinancePosition;
-import org.knowm.xchange.binance.futures.dto.OrderType;
-import org.knowm.xchange.binance.futures.dto.PositionSide;
-import org.knowm.xchange.binance.futures.dto.WorkingType;
+import org.knowm.xchange.binance.futures.dto.*;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
 
 import javax.annotation.Nonnull;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;

@@ -1,28 +1,15 @@
 package org.knowm.xchange.quoine;
 
-import java.io.IOException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.quoine.dto.account.BitcoinAccount;
 import org.knowm.xchange.quoine.dto.account.FiatAccount;
 import org.knowm.xchange.quoine.dto.account.QuoineAccountBalance;
 import org.knowm.xchange.quoine.dto.account.QuoineTradingAccountInfo;
-import org.knowm.xchange.quoine.dto.trade.QuoineExecutionsResponse;
-import org.knowm.xchange.quoine.dto.trade.QuoineNewOrderRequestWrapper;
-import org.knowm.xchange.quoine.dto.trade.QuoineOrderDetailsResponse;
-import org.knowm.xchange.quoine.dto.trade.QuoineOrderResponse;
-import org.knowm.xchange.quoine.dto.trade.QuoineOrdersList;
-import org.knowm.xchange.quoine.dto.trade.QuoineTradesResponse;
-import org.knowm.xchange.quoine.dto.trade.QuoineTransactionsResponse;
+import org.knowm.xchange.quoine.dto.trade.*;
 import si.mazi.rescu.ParamsDigest;
+
+import java.io.IOException;
 
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)

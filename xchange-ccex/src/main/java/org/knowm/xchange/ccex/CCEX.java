@@ -1,12 +1,10 @@
 package org.knowm.xchange.ccex;
 
-import java.io.IOException;
-import java.util.Objects;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.ccex.dto.marketdata.CCEXGetorderbook;
 import org.knowm.xchange.ccex.dto.marketdata.CCEXMarkets;
 import org.knowm.xchange.ccex.dto.marketdata.CCEXTrades;
@@ -14,6 +12,9 @@ import org.knowm.xchange.ccex.dto.ticker.CCEXPairs;
 import org.knowm.xchange.ccex.dto.ticker.CCEXTickerResponse;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.utils.jackson.CurrencyPairDeserializer;
+
+import java.io.IOException;
+import java.util.Objects;
 
 @Path("t")
 @Produces(MediaType.APPLICATION_JSON)

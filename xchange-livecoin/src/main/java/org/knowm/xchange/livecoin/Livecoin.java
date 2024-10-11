@@ -1,32 +1,21 @@
 package org.knowm.xchange.livecoin;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.livecoin.dto.LivecoinException;
 import org.knowm.xchange.livecoin.dto.LivecoinPaginatedResponse;
 import org.knowm.xchange.livecoin.dto.LivecoinResponseWithDataMap;
 import org.knowm.xchange.livecoin.dto.account.LivecoinBalance;
 import org.knowm.xchange.livecoin.dto.account.LivecoinPaymentOutResponse;
 import org.knowm.xchange.livecoin.dto.account.LivecoinWalletAddressResponse;
-import org.knowm.xchange.livecoin.dto.marketdata.LivecoinAllOrderBooks;
-import org.knowm.xchange.livecoin.dto.marketdata.LivecoinOrderBook;
-import org.knowm.xchange.livecoin.dto.marketdata.LivecoinRestrictions;
-import org.knowm.xchange.livecoin.dto.marketdata.LivecoinTicker;
-import org.knowm.xchange.livecoin.dto.marketdata.LivecoinTrade;
-import org.knowm.xchange.livecoin.dto.marketdata.LivecoinUserOrder;
+import org.knowm.xchange.livecoin.dto.marketdata.*;
 import org.knowm.xchange.livecoin.dto.trade.LivecoinCancelResponse;
 import org.knowm.xchange.livecoin.dto.trade.LivecoinOrderResponse;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)

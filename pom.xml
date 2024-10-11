@@ -35,7 +35,7 @@
         <version.assertj>3.25.3</version.assertj>
         <version.commons.lang3>3.14.0</version.commons.lang3>
         <version.fasterxml>2.15.4</version.fasterxml>
-        <version.github.mmazi>2.1.0</version.github.mmazi>
+        <version.github.mmazi>3.0</version.github.mmazi>
         <version.resilience4j>1.7.0</version.resilience4j>
         <version.junit>4.13.2</version.junit>
         <version.lombok>1.18.32</version.lombok>
@@ -108,7 +108,6 @@
         <module>xchange-bitmex</module>
         <module>xchange-bitso</module>
         <module>xchange-bitstamp</module>
-        <module>xchange-bittrex</module>
         <module>xchange-bity</module>
         <module>xchange-bitz</module>
         <module>xchange-bl3p</module>
@@ -121,7 +120,6 @@
         <module>xchange-ccex</module>
         <module>xchange-cexio</module>
         <module>xchange-coinbase</module>
-        <module>xchange-coinbasepro</module>
         <module>xchange-coincheck</module>
         <module>xchange-coindeal</module>
         <module>xchange-coindirect</module>
@@ -141,7 +139,6 @@
         <module>xchange-dydx</module>
         <module>xchange-exmo</module>
         <module>xchange-examples</module>
-        <module>xchange-ftx</module>
         <module>xchange-gateio</module>
         <module>xchange-globitex</module>
         <module>xchange-gemini</module>
@@ -180,8 +177,6 @@
         <module>xchange-yobit</module>
         <module>xchange-zaif</module>
         <module>xchange-enigma</module>
-
-
         <module>xchange-stream-bankera</module>
         <module>xchange-stream-binance</module>
         <module>xchange-stream-binance-futures</module>
@@ -196,7 +191,6 @@
         <module>xchange-stream-coinmate</module>
         <module>xchange-stream-core</module>
         <module>xchange-stream-dydx</module>
-        <module>xchange-stream-ftx</module>
         <module>xchange-stream-gateio</module>
         <module>xchange-stream-gemini</module>
         <module>xchange-stream-gemini-v2</module>

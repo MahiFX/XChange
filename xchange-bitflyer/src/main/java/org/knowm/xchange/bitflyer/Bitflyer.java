@@ -1,27 +1,9 @@
 package org.knowm.xchange.bitflyer;
 
-import java.io.IOException;
-import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bitflyer.dto.BitflyerException;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerAddress;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerBalance;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerBankAccount;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerCoinHistory;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerDepositOrWithdrawal;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerMarginAccount;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerMarginStatus;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerMarginTransaction;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerMarket;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerWithdrawRequest;
-import org.knowm.xchange.bitflyer.dto.account.BitflyerWithdrawResponse;
+import org.knowm.xchange.bitflyer.dto.account.*;
 import org.knowm.xchange.bitflyer.dto.marketdata.BitflyerOrderbook;
 import org.knowm.xchange.bitflyer.dto.marketdata.BitflyerTicker;
 import org.knowm.xchange.bitflyer.dto.trade.BitflyerChildOrder;
@@ -34,6 +16,9 @@ import org.knowm.xchange.bitflyer.dto.trade.results.BitflyerQueryChildOrderResul
 import org.knowm.xchange.bitflyer.dto.trade.results.BitflyerTradingCommission;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
+import java.util.List;
 
 @Path("/v1")
 @Produces(MediaType.APPLICATION_JSON)

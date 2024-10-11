@@ -1,10 +1,11 @@
 package org.knowm.xchange.btcmarkets.service;
 
-import java.util.Base64;
-import javax.crypto.Mac;
-import javax.ws.rs.HeaderParam;
+import jakarta.ws.rs.HeaderParam;
 import org.knowm.xchange.service.BaseParamsDigest;
 import si.mazi.rescu.RestInvocation;
+
+import javax.crypto.Mac;
+import java.util.Base64;
 
 public class BTCMarketsDigest extends BaseParamsDigest {
   /** True for V2 endpoints, false for V1 */

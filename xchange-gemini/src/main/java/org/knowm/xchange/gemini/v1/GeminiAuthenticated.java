@@ -1,34 +1,13 @@
 package org.knowm.xchange.gemini.v1;
 
-import java.io.IOException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.gemini.v1.dto.GeminiException;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiBalancesRequest;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiBalancesResponse;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiDepositAddressRequest;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiDepositAddressResponse;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiTrailingVolumeRequest;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiTrailingVolumeResponse;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiTransfersRequest;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiTransfersResponse;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiWithdrawalRequest;
-import org.knowm.xchange.gemini.v1.dto.account.GeminiWithdrawalResponse;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiCancelAllOrdersRequest;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiCancelAllOrdersResponse;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiCancelOrderRequest;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiNewOrderRequest;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiNonceOnlyRequest;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiOrderStatusRequest;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiOrderStatusResponse;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiPastTradesRequest;
-import org.knowm.xchange.gemini.v1.dto.trade.GeminiTradeResponse;
+import org.knowm.xchange.gemini.v1.dto.account.*;
+import org.knowm.xchange.gemini.v1.dto.trade.*;
 import si.mazi.rescu.ParamsDigest;
+
+import java.io.IOException;
 
 @Path("v1")
 @Produces(MediaType.APPLICATION_JSON)

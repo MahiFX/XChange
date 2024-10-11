@@ -1,19 +1,16 @@
 package org.knowm.xchange.coinegg;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.coinegg.dto.accounts.CoinEggBalance;
 import org.knowm.xchange.coinegg.dto.trade.CoinEggTradeAdd;
 import org.knowm.xchange.coinegg.dto.trade.CoinEggTradeCancel;
 import org.knowm.xchange.coinegg.dto.trade.CoinEggTradeList;
 import org.knowm.xchange.coinegg.dto.trade.CoinEggTradeView;
 import si.mazi.rescu.ParamsDigest;
+
+import java.io.IOException;
+import java.math.BigDecimal;
 
 @Path("api/v1")
 @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

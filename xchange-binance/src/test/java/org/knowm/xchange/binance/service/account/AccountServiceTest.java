@@ -1,15 +1,7 @@
 package org.knowm.xchange.binance.service.account;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowable;
-
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import java.io.IOException;
-import java.math.BigDecimal;
 import org.junit.Rule;
 import org.junit.Test;
 import org.knowm.xchange.ExchangeFactory;
@@ -19,9 +11,17 @@ import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.exceptions.ExchangeSecurityException;
 import org.knowm.xchange.service.account.AccountService;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
+
 public class AccountServiceTest {
 
-  @Rule public final WireMockRule wireMockRule = new WireMockRule();
+  @Rule
+  public final WireMockRule wireMockRule = new WireMockRule(WireMockConfiguration.wireMockConfig().dynamicPort());
 
   @Test(timeout = 2000)
   public void withdrawSuccess() throws Exception {

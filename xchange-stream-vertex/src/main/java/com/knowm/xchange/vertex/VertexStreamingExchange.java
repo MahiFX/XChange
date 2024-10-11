@@ -48,6 +48,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String QUERY_WEBSOCKET = "queryWebsocketUrl";
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
   public static final String CUSTOM_SYMBOLS = "customSymbols";
+  public static final String CUSTOM_HOST = "customHost";
   private static final ObjectMapper json = new ObjectMapper();
 
   private VertexStreamingService subscriptionStream;

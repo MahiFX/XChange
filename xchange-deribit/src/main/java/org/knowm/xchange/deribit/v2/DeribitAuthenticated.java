@@ -1,29 +1,18 @@
 package org.knowm.xchange.deribit.v2;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.List;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.deribit.v2.dto.DeribitException;
 import org.knowm.xchange.deribit.v2.dto.DeribitResponse;
 import org.knowm.xchange.deribit.v2.dto.Kind;
 import org.knowm.xchange.deribit.v2.dto.account.AccountSummary;
 import org.knowm.xchange.deribit.v2.dto.account.Position;
-import org.knowm.xchange.deribit.v2.dto.trade.AdvancedOptions;
-import org.knowm.xchange.deribit.v2.dto.trade.Order;
-import org.knowm.xchange.deribit.v2.dto.trade.OrderPlacement;
-import org.knowm.xchange.deribit.v2.dto.trade.OrderType;
-import org.knowm.xchange.deribit.v2.dto.trade.SettlementType;
-import org.knowm.xchange.deribit.v2.dto.trade.TimeInForce;
-import org.knowm.xchange.deribit.v2.dto.trade.Trigger;
-import org.knowm.xchange.deribit.v2.dto.trade.UserSettlements;
-import org.knowm.xchange.deribit.v2.dto.trade.UserTrades;
+import org.knowm.xchange.deribit.v2.dto.trade.*;
 import si.mazi.rescu.ParamsDigest;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
 
 @Path("/api/v2/private")
 @Produces(MediaType.APPLICATION_JSON)

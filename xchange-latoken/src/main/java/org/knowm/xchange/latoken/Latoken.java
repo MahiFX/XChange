@@ -1,13 +1,7 @@
 package org.knowm.xchange.latoken;
 
-import java.io.IOException;
-import java.util.List;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.latoken.dto.LatokenException;
 import org.knowm.xchange.latoken.dto.exchangeinfo.LatokenCurrency;
 import org.knowm.xchange.latoken.dto.exchangeinfo.LatokenPair;
@@ -16,6 +10,9 @@ import org.knowm.xchange.latoken.dto.exchangeinfo.LatokenTime;
 import org.knowm.xchange.latoken.dto.marketdata.LatokenOrderbook;
 import org.knowm.xchange.latoken.dto.marketdata.LatokenTicker;
 import org.knowm.xchange.latoken.dto.marketdata.LatokenTrades;
+
+import java.io.IOException;
+import java.util.List;
 
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)

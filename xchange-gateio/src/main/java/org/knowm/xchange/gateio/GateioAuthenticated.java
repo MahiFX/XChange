@@ -1,15 +1,7 @@
 package org.knowm.xchange.gateio;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Map;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.gateio.dto.GateioBaseResponse;
 import org.knowm.xchange.gateio.dto.account.GateioDepositAddress;
 import org.knowm.xchange.gateio.dto.account.GateioDepositsWithdrawals;
@@ -20,6 +12,10 @@ import org.knowm.xchange.gateio.dto.trade.GateioOrderStatus;
 import org.knowm.xchange.gateio.dto.trade.GateioPlaceOrderReturn;
 import org.knowm.xchange.gateio.dto.trade.GateioTradeHistoryReturn;
 import si.mazi.rescu.ParamsDigest;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Map;
 
 @Path("api2/1")
 @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

@@ -1,20 +1,19 @@
 package org.knowm.xchange.krakenfutures.service;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.stream.Collectors;
-
+import jakarta.ws.rs.NotSupportedException;
 import org.knowm.xchange.Exchange;
-import org.knowm.xchange.krakenfutures.KrakenFuturesAdapters;
-import org.knowm.xchange.krakenfutures.dto.trade.KrakenFuturesCancelAllOrders;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.account.OpenPositions;
 import org.knowm.xchange.dto.trade.*;
+import org.knowm.xchange.krakenfutures.KrakenFuturesAdapters;
+import org.knowm.xchange.krakenfutures.dto.trade.KrakenFuturesCancelAllOrders;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.*;
 import org.knowm.xchange.service.trade.params.orders.OpenOrdersParams;
 
-import javax.ws.rs.NotSupportedException;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 /** @author Jean-Christophe Laruelle */
 public class KrakenFuturesTradeService extends KrakenFuturesTradeServiceRaw

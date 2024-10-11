@@ -1,23 +1,14 @@
 /** Copyright 2019 Mek Global Limited. */
 package org.knowm.xchange.kucoin.service;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.kucoin.dto.response.*;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.kucoin.dto.response.AllTickersResponse;
-import org.knowm.xchange.kucoin.dto.response.CurrenciesResponse;
-import org.knowm.xchange.kucoin.dto.response.CurrencyResponseV2;
-import org.knowm.xchange.kucoin.dto.response.KucoinResponse;
-import org.knowm.xchange.kucoin.dto.response.SymbolResponse;
-import org.knowm.xchange.kucoin.dto.response.SymbolTickResponse;
-import org.knowm.xchange.kucoin.dto.response.TickerResponse;
 
 /** Based on code by chenshiwei on 2019/1/11. */
 @Path("api")

@@ -1,5 +1,10 @@
 package org.knowm.xchange.okcoin;
 
+import jakarta.ws.rs.FormParam;
+import si.mazi.rescu.Params;
+import si.mazi.rescu.ParamsDigest;
+import si.mazi.rescu.RestInvocation;
+
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -7,10 +12,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.ws.rs.FormParam;
-import si.mazi.rescu.Params;
-import si.mazi.rescu.ParamsDigest;
-import si.mazi.rescu.RestInvocation;
 
 public class OkCoinDigest implements ParamsDigest {
 

@@ -1,19 +1,16 @@
 package org.knowm.xchange.poloniex;
 
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.poloniex.dto.PoloniexException;
+import org.knowm.xchange.poloniex.dto.marketdata.*;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.poloniex.dto.PoloniexException;
-import org.knowm.xchange.poloniex.dto.marketdata.PoloniexChartData;
-import org.knowm.xchange.poloniex.dto.marketdata.PoloniexCurrencyInfo;
-import org.knowm.xchange.poloniex.dto.marketdata.PoloniexDepth;
-import org.knowm.xchange.poloniex.dto.marketdata.PoloniexMarketData;
-import org.knowm.xchange.poloniex.dto.marketdata.PoloniexPublicTrade;
 
 @Path("public")
 @Produces(MediaType.APPLICATION_JSON)

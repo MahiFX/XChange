@@ -9,7 +9,7 @@ import org.knowm.xchange.coinbasepro.CoinbaseProExchange;
 
 public class BaseWiremockTest {
 
-  @Rule public WireMockRule wireMockRule = new WireMockRule();
+  @Rule public WireMockRule wireMockRule = new WireMockRule(WireMockConfiguration.wireMockConfig().dynamicPort());
   public static final String WIREMOCK_FILES_PATH = "__files";
 
   public Exchange createExchange() {

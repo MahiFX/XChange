@@ -1,11 +1,12 @@
 package org.knowm.xchange.bibox.service;
 
-import java.io.UnsupportedEncodingException;
-import javax.ws.rs.FormParam;
+import jakarta.ws.rs.FormParam;
 import org.knowm.xchange.bibox.BiboxAuthenticated;
 import org.knowm.xchange.service.BaseParamsDigest;
 import org.knowm.xchange.utils.DigestUtils;
 import si.mazi.rescu.RestInvocation;
+
+import java.io.UnsupportedEncodingException;
 
 public class BiboxDigest extends BaseParamsDigest {
 

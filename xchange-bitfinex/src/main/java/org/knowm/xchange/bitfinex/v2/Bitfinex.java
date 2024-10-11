@@ -1,25 +1,13 @@
 package org.knowm.xchange.bitfinex.v2;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.bitfinex.v2.dto.BitfinexExceptionV2;
+import org.knowm.xchange.bitfinex.v2.dto.marketdata.*;
+
 import java.io.IOException;
 import java.util.List;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.bitfinex.v2.dto.BitfinexExceptionV2;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexCandle;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexFundingOrder;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexFundingRawOrder;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexPublicFundingTrade;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexPublicTrade;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexStats;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexTradingOrder;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BitfinexTradingRawOrder;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.BookPrecision;
-import org.knowm.xchange.bitfinex.v2.dto.marketdata.Status;
 
 @Path("v2")
 @Produces(MediaType.APPLICATION_JSON)

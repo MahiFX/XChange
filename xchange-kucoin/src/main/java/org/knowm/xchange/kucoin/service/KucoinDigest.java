@@ -1,13 +1,14 @@
 package org.knowm.xchange.kucoin.service;
 
 import com.google.common.base.Strings;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import javax.crypto.Mac;
-import javax.ws.rs.HeaderParam;
+import jakarta.ws.rs.HeaderParam;
 import org.knowm.xchange.exceptions.ExchangeException;
 import org.knowm.xchange.service.BaseParamsDigest;
 import si.mazi.rescu.RestInvocation;
+
+import javax.crypto.Mac;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 /** Almost identical to Coinbase Pro (even down to the text in the API documentation). */
 public class KucoinDigest extends BaseParamsDigest {

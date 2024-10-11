@@ -253,7 +253,13 @@ public class KrakenFuturesAdapters {
   public static FundingRate adaptFundingRate(KrakenFuturesTicker krakenFuturesTicker) {
     LocalDateTime now = LocalDateTime.now();
     // KrakenFutures REST API getTicker returns absoluteValue for fundingRate. Needs to divided by markPrice in order to be the same value that kraken UI displays
-    BigDecimal relative1hFundingRate = krakenFuturesTicker.getAbsoluteFundingRate().divide(krakenFuturesTicker.getMarkPrice(), 8, RoundingMode.HALF_EVEN);
+    BigDecimal markPrice = krakenFuturesTicker.getMarkPrice();
+    BigDecimal relative1hFundingRate;
+    if (markPrice.compareTo(BigDecimal.ZERO) == 0) {
+      relative1hFundingRate = BigDecimal.ZERO;
+    } else {
+      relative1hFundingRate = krakenFuturesTicker.getAbsoluteFundingRate().divide(markPrice, 8, RoundingMode.HALF_EVEN);
+    }
     return new FundingRate.Builder()
         .fundingRate1h(relative1hFundingRate)
         .fundingRate8h(relative1hFundingRate.multiply(BigDecimal.valueOf(8)))

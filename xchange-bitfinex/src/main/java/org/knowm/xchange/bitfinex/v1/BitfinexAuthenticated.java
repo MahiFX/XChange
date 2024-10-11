@@ -1,53 +1,13 @@
 package org.knowm.xchange.bitfinex.v1;
 
-import java.io.IOException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bitfinex.v1.dto.BitfinexExceptionV1;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexAccountFeesResponse;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexBalanceHistoryRequest;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexBalanceHistoryResponse;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexBalancesRequest;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexBalancesResponse;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexDepositAddressRequest;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexDepositAddressResponse;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexDepositWithdrawalHistoryRequest;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexDepositWithdrawalHistoryResponse;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexMarginInfosRequest;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexMarginInfosResponse;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexTradingFeeResponse;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexTradingFeesRequest;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexWithdrawalRequest;
-import org.knowm.xchange.bitfinex.v1.dto.account.BitfinexWithdrawalResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexAccountInfosResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexActiveCreditsRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexActivePositionsResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelAllOrdersRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelOfferRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelOrderMultiRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelOrderMultiResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCancelOrderRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexCreditResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexFundingTradeResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOfferRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOrderMultiRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOrderMultiResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNewOrderRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexNonceOnlyRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOfferStatusRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOfferStatusResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOrderStatusRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOrderStatusResponse;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexOrdersHistoryRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexPastFundingTradesRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexPastTradesRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexReplaceOrderRequest;
-import org.knowm.xchange.bitfinex.v1.dto.trade.BitfinexTradeResponse;
+import org.knowm.xchange.bitfinex.v1.dto.account.*;
+import org.knowm.xchange.bitfinex.v1.dto.trade.*;
 import si.mazi.rescu.ParamsDigest;
+
+import java.io.IOException;
 
 @Path("v1")
 @Produces(MediaType.APPLICATION_JSON)

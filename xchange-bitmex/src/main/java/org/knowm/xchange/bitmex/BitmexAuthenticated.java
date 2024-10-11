@@ -1,36 +1,18 @@
 package org.knowm.xchange.bitmex;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.bitmex.dto.account.*;
+import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
+import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrderList;
+import org.knowm.xchange.bitmex.dto.trade.*;
+import si.mazi.rescu.ParamsDigest;
+import si.mazi.rescu.SynchronizedValueFactory;
+
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Date;
-import javax.annotation.Nullable;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.bitmex.dto.account.BitmexAccount;
-import org.knowm.xchange.bitmex.dto.account.BitmexMarginAccount;
-import org.knowm.xchange.bitmex.dto.account.BitmexMarginAccountList;
-import org.knowm.xchange.bitmex.dto.account.BitmexWallet;
-import org.knowm.xchange.bitmex.dto.account.BitmexWalletTransaction;
-import org.knowm.xchange.bitmex.dto.account.BitmexWalletTransactionList;
-import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
-import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrderList;
-import org.knowm.xchange.bitmex.dto.trade.BitmexCancelAll;
-import org.knowm.xchange.bitmex.dto.trade.BitmexPosition;
-import org.knowm.xchange.bitmex.dto.trade.BitmexPositionList;
-import org.knowm.xchange.bitmex.dto.trade.BitmexPrivateExecution;
-import org.knowm.xchange.bitmex.dto.trade.PlaceOrderCommand;
-import org.knowm.xchange.bitmex.dto.trade.ReplaceOrderCommand;
-import si.mazi.rescu.ParamsDigest;
-import si.mazi.rescu.SynchronizedValueFactory;
 
 @Path("api/v1")
 @Produces(MediaType.APPLICATION_JSON)

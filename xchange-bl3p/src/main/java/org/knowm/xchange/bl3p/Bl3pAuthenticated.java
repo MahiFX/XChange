@@ -1,14 +1,7 @@
 package org.knowm.xchange.bl3p;
 
-import java.io.IOException;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bl3p.dto.Bl3pUserTransactions;
 import org.knowm.xchange.bl3p.dto.account.Bl3pAccountInfo;
 import org.knowm.xchange.bl3p.dto.account.Bl3pNewDepositAddress;
@@ -19,6 +12,8 @@ import org.knowm.xchange.bl3p.dto.trade.Bl3pNewOrder;
 import org.knowm.xchange.bl3p.dto.trade.Bl3pOpenOrders;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
 
 /**
  * Defines methods which need authentication

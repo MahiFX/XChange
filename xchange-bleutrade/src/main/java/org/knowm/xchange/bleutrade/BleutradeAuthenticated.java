@@ -1,15 +1,7 @@
 package org.knowm.xchange.bleutrade;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bleutrade.dto.account.BleutradeBalanceReturn;
 import org.knowm.xchange.bleutrade.dto.account.BleutradeBalancesReturn;
 import org.knowm.xchange.bleutrade.dto.account.BleutradeDepositAddressReturn;
@@ -23,6 +15,11 @@ import org.knowm.xchange.bleutrade.service.DepositRecord;
 import org.knowm.xchange.bleutrade.service.WithdrawRecord;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 @Path("v2")
 @Produces(MediaType.APPLICATION_JSON)

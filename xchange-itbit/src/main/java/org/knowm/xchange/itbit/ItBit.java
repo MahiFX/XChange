@@ -1,15 +1,12 @@
 package org.knowm.xchange.itbit;
 
-import java.io.IOException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.itbit.dto.ItBitException;
 import org.knowm.xchange.itbit.dto.marketdata.ItBitDepth;
 import org.knowm.xchange.itbit.dto.marketdata.ItBitTrades;
+
+import java.io.IOException;
 
 @Path("/v1")
 @Produces(MediaType.APPLICATION_JSON)

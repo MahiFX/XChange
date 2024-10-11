@@ -1,12 +1,12 @@
 package org.knowm.xchange.blockchain;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.blockchain.dto.BlockchainException;
 import org.knowm.xchange.blockchain.dto.account.*;
 import org.knowm.xchange.blockchain.dto.trade.BlockchainOrder;
 import org.knowm.xchange.blockchain.params.BlockchainWithdrawalParams;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;

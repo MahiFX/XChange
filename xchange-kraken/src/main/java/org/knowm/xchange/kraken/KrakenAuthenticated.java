@@ -1,37 +1,15 @@
 package org.knowm.xchange.kraken;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.kraken.dto.account.results.*;
+import org.knowm.xchange.kraken.dto.trade.results.*;
+import si.mazi.rescu.ParamsDigest;
+import si.mazi.rescu.SynchronizedValueFactory;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Map;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.kraken.dto.account.results.DepositStatusResult;
-import org.knowm.xchange.kraken.dto.account.results.KrakenBalanceResult;
-import org.knowm.xchange.kraken.dto.account.results.KrakenDepositAddressResult;
-import org.knowm.xchange.kraken.dto.account.results.KrakenDepositMethodsResults;
-import org.knowm.xchange.kraken.dto.account.results.KrakenLedgerResult;
-import org.knowm.xchange.kraken.dto.account.results.KrakenQueryLedgerResult;
-import org.knowm.xchange.kraken.dto.account.results.KrakenTradeBalanceInfoResult;
-import org.knowm.xchange.kraken.dto.account.results.KrakenTradeVolumeResult;
-import org.knowm.xchange.kraken.dto.account.results.KrakenWebsocketTokenResult;
-import org.knowm.xchange.kraken.dto.account.results.WithdrawInfoResult;
-import org.knowm.xchange.kraken.dto.account.results.WithdrawResult;
-import org.knowm.xchange.kraken.dto.account.results.WithdrawStatusResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenCancelOrderResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenClosedOrdersResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenOpenOrdersResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenOpenPositionsResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenOrderResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenQueryOrderResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenQueryTradeResult;
-import org.knowm.xchange.kraken.dto.trade.results.KrakenTradeHistoryResult;
-import si.mazi.rescu.ParamsDigest;
-import si.mazi.rescu.SynchronizedValueFactory;
 
 @Path("0")
 @Produces(MediaType.APPLICATION_JSON)

@@ -1,19 +1,10 @@
 package org.knowm.xchange.cexio;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.cexio.dto.marketdata.*;
+
 import java.io.IOException;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.cexio.dto.marketdata.CexIOCurrencyLimits;
-import org.knowm.xchange.cexio.dto.marketdata.CexIODepth;
-import org.knowm.xchange.cexio.dto.marketdata.CexIOTicker;
-import org.knowm.xchange.cexio.dto.marketdata.CexIOTickersResponse;
-import org.knowm.xchange.cexio.dto.marketdata.CexIOTrade;
 
 /** @author brox */
 @Path("api")

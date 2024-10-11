@@ -1,15 +1,12 @@
 package org.knowm.xchange.bitz;
 
-import java.math.BigDecimal;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bitz.dto.trade.result.BitZOpenOrderResult;
 import org.knowm.xchange.bitz.dto.trade.result.BitZTradeAddResult;
 import org.knowm.xchange.bitz.dto.trade.result.BitZTradeCancelResult;
+
+import java.math.BigDecimal;
 
 @Path("api_v1")
 @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

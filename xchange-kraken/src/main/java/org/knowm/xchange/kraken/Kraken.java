@@ -1,20 +1,10 @@
 package org.knowm.xchange.kraken;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.kraken.dto.marketdata.results.*;
+
 import java.io.IOException;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenAssetPairsResult;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenAssetsResult;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenDepthResult;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenOHLCResult;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenPublicTradesResult;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenServerTimeResult;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenSpreadsResult;
-import org.knowm.xchange.kraken.dto.marketdata.results.KrakenTickerResult;
 
 /** @author Benedikt Bünz */
 @Path("0")

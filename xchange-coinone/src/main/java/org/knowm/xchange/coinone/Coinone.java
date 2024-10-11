@@ -1,13 +1,14 @@
 package org.knowm.xchange.coinone;
 
-import java.io.IOException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.QueryParam;
 import org.knowm.xchange.coinone.dto.CoinoneException;
 import org.knowm.xchange.coinone.dto.marketdata.CoinoneOrderBook;
 import org.knowm.xchange.coinone.dto.marketdata.CoinoneTicker;
 import org.knowm.xchange.coinone.dto.marketdata.CoinoneTrades;
+
+import java.io.IOException;
 
 public interface Coinone {
 

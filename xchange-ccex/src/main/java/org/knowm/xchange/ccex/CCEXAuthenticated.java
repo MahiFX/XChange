@@ -1,12 +1,7 @@
 package org.knowm.xchange.ccex;
 
-import java.io.IOException;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.ccex.dto.account.CCEXBalanceResponse;
 import org.knowm.xchange.ccex.dto.account.CCEXBalancesResponse;
 import org.knowm.xchange.ccex.dto.trade.CCEXBuySellLimitResponse;
@@ -15,6 +10,8 @@ import org.knowm.xchange.ccex.dto.trade.CCEXGetopenordersResponse;
 import org.knowm.xchange.ccex.dto.trade.CCEXGetorderhistoryResponse;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
 
 @Path("t")
 @Produces(MediaType.APPLICATION_JSON)

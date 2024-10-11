@@ -4,13 +4,14 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.ws.rs.QueryParam;
+import si.mazi.rescu.ParamsDigest;
+import si.mazi.rescu.RestInvocation;
+
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
-import javax.ws.rs.QueryParam;
-import si.mazi.rescu.ParamsDigest;
-import si.mazi.rescu.RestInvocation;
 
 public class UpbitJWTDigest implements ParamsDigest {
   private String accessKey;

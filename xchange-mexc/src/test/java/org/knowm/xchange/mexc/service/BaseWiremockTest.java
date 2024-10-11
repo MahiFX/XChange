@@ -1,5 +1,6 @@
 package org.knowm.xchange.mexc.service;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.junit.Rule;
 import org.knowm.xchange.Exchange;
@@ -12,7 +13,7 @@ import java.io.IOException;
 public class BaseWiremockTest {
 
     @Rule
-    public WireMockRule wireMockRule = new WireMockRule();
+    public WireMockRule wireMockRule = new WireMockRule(WireMockConfiguration.wireMockConfig().dynamicPort());
 
     public Exchange createExchange() throws IOException {
         Exchange exchange =

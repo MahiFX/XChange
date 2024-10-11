@@ -1,19 +1,12 @@
 package org.knowm.xchange.gemini.v1;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.gemini.v1.dto.GeminiException;
+import org.knowm.xchange.gemini.v1.dto.marketdata.*;
+
 import java.io.IOException;
 import java.util.Set;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.gemini.v1.dto.GeminiException;
-import org.knowm.xchange.gemini.v1.dto.marketdata.GeminiDepth;
-import org.knowm.xchange.gemini.v1.dto.marketdata.GeminiLend;
-import org.knowm.xchange.gemini.v1.dto.marketdata.GeminiLendDepth;
-import org.knowm.xchange.gemini.v1.dto.marketdata.GeminiTicker;
-import org.knowm.xchange.gemini.v1.dto.marketdata.GeminiTrade;
 
 @Path("v1")
 @Produces(MediaType.APPLICATION_JSON)

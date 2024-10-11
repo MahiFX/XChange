@@ -1,10 +1,11 @@
 package org.knowm.xchange.bitstamp.service;
 
-import java.math.BigInteger;
-import javax.crypto.Mac;
-import javax.ws.rs.HeaderParam;
+import jakarta.ws.rs.HeaderParam;
 import org.knowm.xchange.service.BaseParamsDigest;
 import si.mazi.rescu.RestInvocation;
+
+import javax.crypto.Mac;
+import java.math.BigInteger;
 
 /** @author Benedikt Bünz */
 public class BitstampDigestV2 extends BaseParamsDigest {

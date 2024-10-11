@@ -1,10 +1,5 @@
 package org.knowm.xchange.bleutrade.service;
 
-import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.lang.annotation.Annotation;
-import java.util.HashMap;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -13,6 +8,12 @@ import si.mazi.rescu.RequestWriterResolver;
 import si.mazi.rescu.RestInvocation;
 import si.mazi.rescu.RestMethodMetadata;
 import si.mazi.rescu.serialization.ToStringRequestWriter;
+
+import java.lang.annotation.Annotation;
+import java.util.HashMap;
+
+import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(MockitoJUnitRunner.class)
 public class BleutradeDigestTest {

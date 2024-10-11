@@ -58,6 +58,7 @@ public class VertexOrderExample {
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_SYMBOLS, "[{\"symbol\":\"WBTC\", \"product_id\":3}]");
+    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_HOST, "gateway.sei-test.vertexprotocol.com");
     exchangeSpecification.setUserName(subAccount); //subaccount name
 
     VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);

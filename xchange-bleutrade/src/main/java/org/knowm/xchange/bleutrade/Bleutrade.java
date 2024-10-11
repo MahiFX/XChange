@@ -1,16 +1,13 @@
 package org.knowm.xchange.bleutrade;
 
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import org.knowm.xchange.bleutrade.dto.marketdata.*;
+
 import java.io.IOException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import org.knowm.xchange.bleutrade.dto.marketdata.BleutradeCurrenciesReturn;
-import org.knowm.xchange.bleutrade.dto.marketdata.BleutradeMarketHistoryReturn;
-import org.knowm.xchange.bleutrade.dto.marketdata.BleutradeMarketsReturn;
-import org.knowm.xchange.bleutrade.dto.marketdata.BleutradeOrderBookReturn;
-import org.knowm.xchange.bleutrade.dto.marketdata.BleutradeTickerReturn;
 
 @Path("v2")
 @Produces(MediaType.APPLICATION_JSON)

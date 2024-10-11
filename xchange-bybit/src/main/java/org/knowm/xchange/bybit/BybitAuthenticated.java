@@ -1,5 +1,7 @@
 package org.knowm.xchange.bybit;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bybit.dto.BybitResult;
 import org.knowm.xchange.bybit.dto.account.BybitBalances;
 import org.knowm.xchange.bybit.dto.trade.BybitOrderDetails;
@@ -8,8 +10,6 @@ import org.knowm.xchange.bybit.service.BybitException;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 
 @Path("/spot/v1")

@@ -1,14 +1,7 @@
 package org.knowm.xchange.bitstamp;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bitstamp.dto.BitstampException;
 import org.knowm.xchange.bitstamp.dto.marketdata.BitstampOrderBook;
 import org.knowm.xchange.bitstamp.dto.marketdata.BitstampPairInfo;
@@ -17,6 +10,10 @@ import org.knowm.xchange.bitstamp.dto.marketdata.BitstampTransaction;
 import org.knowm.xchange.bitstamp.service.BitstampMarketDataServiceRaw;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.utils.jackson.CurrencyPairDeserializer;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 
 /** @author Matija Mazi See https://www.bitstamp.net/api/ for up-to-date docs. */
 @Path("api/v2")

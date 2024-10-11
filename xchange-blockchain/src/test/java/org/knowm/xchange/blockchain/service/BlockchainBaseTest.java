@@ -1,5 +1,6 @@
 package org.knowm.xchange.blockchain.service;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.junit.ClassRule;
 import org.knowm.xchange.ExchangeFactory;
@@ -7,14 +8,13 @@ import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.blockchain.BlockchainExchange;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.knowm.xchange.blockchain.service.utils.BlockchainConstants.APPLICATION;
 import static org.knowm.xchange.blockchain.service.utils.BlockchainConstants.CONTENT_TYPE;
 
 public class BlockchainBaseTest {
 
     @ClassRule
-    public static WireMockRule wireMockRule = new WireMockRule();
+    public static WireMockRule wireMockRule = new WireMockRule(WireMockConfiguration.wireMockConfig().dynamicPort());
 
     protected static BlockchainExchange createExchange() {
         BlockchainExchange exchange =

@@ -1,23 +1,16 @@
 package org.knowm.xchange.coindirect;
 
-import java.io.IOException;
-import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.coindirect.dto.CoindirectException;
 import org.knowm.xchange.coindirect.dto.account.CoindirectAccountChannel;
 import org.knowm.xchange.coindirect.dto.account.CoindirectWallet;
 import org.knowm.xchange.coindirect.dto.trade.CoindirectOrder;
 import org.knowm.xchange.coindirect.dto.trade.CoindirectOrderRequest;
 import si.mazi.rescu.ParamsDigest;
+
+import java.io.IOException;
+import java.util.List;
 
 @Path("")
 @Produces(MediaType.APPLICATION_JSON)

@@ -1,30 +1,19 @@
 package org.knowm.xchange.bitfinex.v2;
 
-import java.io.IOException;
-import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import org.knowm.xchange.bitfinex.v2.dto.BitfinexExceptionV2;
 import org.knowm.xchange.bitfinex.v2.dto.EmptyRequest;
-import org.knowm.xchange.bitfinex.v2.dto.account.LedgerEntry;
-import org.knowm.xchange.bitfinex.v2.dto.account.LedgerRequest;
-import org.knowm.xchange.bitfinex.v2.dto.account.Movement;
-import org.knowm.xchange.bitfinex.v2.dto.account.TransferBetweenWalletsRequest;
-import org.knowm.xchange.bitfinex.v2.dto.account.TransferBetweenWalletsResponse;
-import org.knowm.xchange.bitfinex.v2.dto.account.UpdateCollateralDerivativePositionRequest;
-import org.knowm.xchange.bitfinex.v2.dto.account.Wallet;
+import org.knowm.xchange.bitfinex.v2.dto.account.*;
 import org.knowm.xchange.bitfinex.v2.dto.trade.ActiveOrder;
 import org.knowm.xchange.bitfinex.v2.dto.trade.OrderTrade;
 import org.knowm.xchange.bitfinex.v2.dto.trade.Position;
 import org.knowm.xchange.bitfinex.v2.dto.trade.Trade;
 import si.mazi.rescu.ParamsDigest;
 import si.mazi.rescu.SynchronizedValueFactory;
+
+import java.io.IOException;
+import java.util.List;
 
 @Path("v2")
 @Produces(MediaType.APPLICATION_JSON)

@@ -1,12 +1,13 @@
 package org.knowm.xchange.bitz.service;
 
+import jakarta.ws.rs.FormParam;
+import si.mazi.rescu.ParamsDigest;
+import si.mazi.rescu.RestInvocation;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.ws.rs.FormParam;
-import si.mazi.rescu.ParamsDigest;
-import si.mazi.rescu.RestInvocation;
 
 public class BitZDigest implements ParamsDigest {
 
