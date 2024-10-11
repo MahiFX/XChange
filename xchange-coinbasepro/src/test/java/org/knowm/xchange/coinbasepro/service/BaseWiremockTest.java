@@ -1,5 +1,6 @@
 package org.knowm.xchange.coinbasepro.service;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.junit.Rule;
 import org.knowm.xchange.Exchange;
@@ -9,7 +10,8 @@ import org.knowm.xchange.coinbasepro.CoinbaseProExchange;
 
 public class BaseWiremockTest {
 
-  @Rule public WireMockRule wireMockRule = new WireMockRule(WireMockConfiguration.wireMockConfig().dynamicPort());
+  @Rule
+  public WireMockRule wireMockRule = new WireMockRule(WireMockConfiguration.wireMockConfig().dynamicPort());
   public static final String WIREMOCK_FILES_PATH = "__files";
 
   public Exchange createExchange() {
