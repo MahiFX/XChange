@@ -80,7 +80,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   private final Duration retryDuration;
   private final Duration connectionTimeout;
   private final int idleTimeoutSeconds;
-  private Supplier<? extends EventLoopGroup> eventLoopGroupFactory = () -> new NioEventLoopGroup(2);
+  private Supplier<? extends EventLoopGroup> eventLoopGroupFactory = () -> new NioEventLoopGroup(8);
   private volatile EventLoopGroup eventLoopGroup;
   private Class<? extends SocketChannel> socketChannelClass = NioSocketChannel.class;
   protected final Map<String, Subscription> channels = new ConcurrentHashMap<>();

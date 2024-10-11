@@ -58,7 +58,7 @@ public class VertexOrderExample {
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_SYMBOLS, "[{\"symbol\":\"WBTC\", \"product_id\":3}]");
-    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_HOST, "gateway.sei-test.vertexprotocol.com");
+//    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_HOST, "gateway.sei-test.vertexprotocol.com");
     exchangeSpecification.setUserName(subAccount); //subaccount name
 
     VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
@@ -123,7 +123,7 @@ public class VertexOrderExample {
     sell.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_FOK);
     tradeService.placeMarketOrder(sell);
 
-    LimitOrder resting = new LimitOrder(Order.OrderType.BID, orderSize, btc, null, null, BigDecimal.valueOf(20000));
+    LimitOrder resting = new LimitOrder(Order.OrderType.BID, orderSize, btc, null, null, BigDecimal.valueOf(50000));
     String orderId = tradeService.placeLimitOrder(resting);
 
     //Test re-connect
@@ -153,7 +153,7 @@ public class VertexOrderExample {
 
     Thread.sleep(2000);
 
-    LimitOrder resting2 = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(20000));
+    LimitOrder resting2 = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(50000));
     String orderId2 = tradeService.placeLimitOrder(resting);
 
 
@@ -164,7 +164,7 @@ public class VertexOrderExample {
     log.info("Open orders after cancel: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
 
 
-    LimitOrder resting3 = new LimitOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(40000));
+    LimitOrder resting3 = new LimitOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(80000));
     String orderId3 = tradeService.placeLimitOrder(resting);
 
 
