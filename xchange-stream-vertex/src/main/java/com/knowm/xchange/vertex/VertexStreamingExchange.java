@@ -116,6 +116,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
       try {
         Symbol[] customSymbols = json.readerForArrayOf(Symbol.class).readValue(customSymbolsJson);
+        logger.info("Custom symbols: {}", Arrays.toString(customSymbols));
         Set<String> customSymbolStrings = Arrays.stream(customSymbols).map(Symbol::getSymbol).collect(Collectors.toSet());
         // replace symbols in the array with customSymbols
         symbols = Arrays.stream(symbols).filter(s -> !customSymbolStrings.contains(s.getSymbol())).toArray(Symbol[]::new);
@@ -154,7 +155,10 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     } else {
       throw new ExchangeException("API key must be provided via exchange specification");
     }
+    Arrays.sort(symbols, Comparator.comparing(Symbol::getProduct_id));
     Symbol[] finalSymbols = symbols;
+    logger.info("Available symbols: {}", Arrays.toString(symbols));
+
     queries.add(new Query("{\"type\":\"all_products\"}", productData -> {
       processProductIncrements(productData.withArray("spot_products"), spotProducts);
       processProductIncrements(productData.withArray("perp_products"), perpProducts);

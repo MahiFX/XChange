@@ -39,6 +39,8 @@ public class VertexOrderExample {
 
   public static void main(String[] args) throws IOException, InterruptedException {
 
+    System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
+
     ExchangeSpecification exchangeSpecification = StreamingExchangeFactory.INSTANCE
         .createExchangeWithoutSpecification(VertexStreamingExchange.class)
         .getDefaultExchangeSpecification();
@@ -57,8 +59,8 @@ public class VertexOrderExample {
     exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
-    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_SYMBOLS, "[{\"symbol\":\"WBTC\", \"product_id\":3}]");
-//    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_HOST, "gateway.sei-test.vertexprotocol.com");
+    //exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_SYMBOLS, "[{\"symbol\":\"wSEI\", \"product_id\":115}]");
+//    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_HOST, "gateway.sei-prod.vertexprotocol.com");
     exchangeSpecification.setUserName(subAccount); //subaccount name
 
     VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);

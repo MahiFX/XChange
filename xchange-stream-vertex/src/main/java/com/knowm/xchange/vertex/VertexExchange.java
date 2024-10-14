@@ -55,6 +55,9 @@ public class VertexExchange extends BaseExchange {
       clientConfig.setHostnameVerifier((s, sslSession) -> true);
       clientConfig.addDefaultParam(HeaderParam.class, "Accept-Encoding", "gzip");
       if (customHost != null) {
+        if (!Boolean.getBoolean("sun.net.http.allowRestrictedHeaders")) {
+          throw new IllegalStateException("sun.net.http.allowRestrictedHeaders must be set to true to override the Host header");
+        }
         clientConfig.addDefaultParam(HeaderParam.class, "Host", customHost);
       }
     };
