@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -47,11 +48,12 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String GATEWAY_WEBSOCKET = "gatewayWebsocketUrl";
   public static final String QUERY_WEBSOCKET = "queryWebsocketUrl";
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
+  public static final String SECONDARY_SUBSCRIPTIONS_WEBSOCKET = "secondarySubscriptionWebsocketUrls";
   public static final String CUSTOM_SYMBOLS = "customSymbols";
   public static final String CUSTOM_HOST = "customHost";
   private static final ObjectMapper json = new ObjectMapper();
 
-  private VertexStreamingService subscriptionStream;
+  private List<VertexStreamingService> subscriptionStreams = new ArrayList<>();
   private VertexStreamingMarketDataService streamingMarketDataService;
   private VertexStreamingTradeService streamingTradeService;
 
@@ -269,7 +271,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   @Override
   protected void initServices() {
-    this.subscriptionStream = getSubscriptionStream();
+    this.subscriptionStreams = getSubscriptionStreams();
     this.orderStream = getOrderStream();
     this.queryStream = getQueryStream();
 
@@ -288,10 +290,15 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     return streamingService;
   }
 
-  private VertexStreamingService getSubscriptionStream() {
-    VertexStreamingService streamingService = new VertexStreamingService(getSubscriptionWsUrl(), exchangeSpecification, this, VertexStreamingService.TEN_PER_SECOND, "[subscriptions]");
-    applyStreamingSpecification(getExchangeSpecification(), streamingService);
-    return streamingService;
+  private List<VertexStreamingService> getSubscriptionStreams() {
+    List<String> subscriptionWsUrls = getSubscriptionWsUrls();
+    AtomicInteger counter = new AtomicInteger(0);
+    return subscriptionWsUrls.stream().map(url -> {
+      String name = "[subscriptions" + counter.incrementAndGet() + "]";
+      VertexStreamingService streamingService = new VertexStreamingService(url, exchangeSpecification, this, UNLIMITED, name);
+      applyStreamingSpecification(getExchangeSpecification(), streamingService);
+      return streamingService;
+    }).collect(Collectors.toList());
   }
 
   private String getOrderWsUrl() {
@@ -302,15 +309,28 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     return VertexExchange.overrideOrDefault(QUERY_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/ws", exchangeSpecification);
   }
 
-  private String getSubscriptionWsUrl() {
-    return VertexExchange.overrideOrDefault(SUBSCRIPTIONS_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/subscribe", exchangeSpecification);
+  private List<String> getSubscriptionWsUrls() {
+    String primary = VertexExchange.overrideOrDefault(SUBSCRIPTIONS_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/subscribe", exchangeSpecification);
+    String secondaries = VertexExchange.getParam(SECONDARY_SUBSCRIPTIONS_WEBSOCKET, exchangeSpecification);
+    if (StringUtils.isNotEmpty(secondaries)) {
+      String[] secondaryStrings = secondaries.split(",");
+      // primary is always first
+      List<String> result = new ArrayList<>();
+      result.add(primary);
+      List<String> list = Arrays.asList(secondaryStrings);
+      // filter out duplicate primary
+      list.remove(primary);
+      result.addAll(list);
+      return result;
+    }
+    return List.of(primary);
   }
 
 
   @Override
   public StreamingMarketDataService getStreamingMarketDataService() {
     if (this.streamingMarketDataService == null) {
-      this.streamingMarketDataService = new VertexStreamingMarketDataService(subscriptionStream, productInfo, this);
+      this.streamingMarketDataService = new VertexStreamingMarketDataService(subscriptionStreams, productInfo, this);
     }
     return streamingMarketDataService;
   }
@@ -318,7 +338,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   @Override
   public VertexStreamingTradeService getStreamingTradeService() {
     if (this.streamingTradeService == null) {
-      this.streamingTradeService = new VertexStreamingTradeService(orderStream, subscriptionStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService());
+      VertexStreamingService primaryStream = subscriptionStreams.get(0);
+      this.streamingTradeService = new VertexStreamingTradeService(orderStream, primaryStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService());
     }
     return streamingTradeService;
   }
@@ -335,17 +356,20 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   @Override
   public Observable<ConnectionStateModel.State> connectionStateObservable() {
-    return subscriptionStream.subscribeConnectionState();
+    // Join all connection states into one
+    return Observable.merge(subscriptionStreams.stream().map(VertexStreamingService::subscribeConnectionState).collect(Collectors.toList()));
   }
 
   @Override
   public Observable<Throwable> reconnectFailure() {
-    return subscriptionStream.subscribeReconnectFailure();
+    // Join all reconnect failures into one
+    return Observable.merge(subscriptionStreams.stream().map(VertexStreamingService::subscribeReconnectFailure).collect(Collectors.toList()));
   }
 
   @Override
   public Observable<Object> connectionSuccess() {
-    return subscriptionStream.subscribeConnectionSuccess();
+    // Join all connection successes into one
+    return subscriptionStreams.stream().map(VertexStreamingService::subscribeConnectionSuccess).reduce(Observable::merge).orElse(Observable.empty());
   }
 
   @Override
@@ -354,9 +378,12 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     if (!orderStream.isSocketOpen()) {
       services.add(orderStream);
     }
-    if (!subscriptionStream.isSocketOpen()) {
-      services.add(subscriptionStream);
-    }
+    // connect all subscription streams
+    subscriptionStreams.forEach(subscriptionStream -> {
+      if (!subscriptionStream.isSocketOpen()) {
+        services.add(subscriptionStream);
+      }
+    });
     if (!queryStream.isSocketOpen()) {
       services.add(queryStream);
     }
@@ -365,17 +392,20 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   @Override
   public Completable disconnect() {
-    return Completable.concatArray(subscriptionStream.disconnect(), orderStream.disconnect(), queryStream.disconnect());
+    // Disconnect all streams
+    Completable[] array = subscriptionStreams.stream().map(VertexStreamingService::disconnect).toArray(Completable[]::new);
+    return Completable.mergeArray(ArrayUtils.addAll(array, orderStream.disconnect(), queryStream.disconnect()));
   }
 
   @Override
   public boolean isAlive() {
-    return subscriptionStream.isSocketOpen() && orderStream.isSocketOpen() && queryStream.isSocketOpen();
+    // Check that all streams are open
+    return subscriptionStreams.stream().allMatch(VertexStreamingService::isSocketOpen) && orderStream.isSocketOpen() && queryStream.isSocketOpen();
   }
 
   @Override
   public void useCompressedMessages(boolean compressedMessages) {
-    subscriptionStream.useCompressedMessages(compressedMessages);
+    subscriptionStreams.forEach(subscriptionStream -> subscriptionStream.useCompressedMessages(compressedMessages));
   }
 
   public TopOfBookPrice getMarketPrice(Long productId) {

@@ -36,6 +36,7 @@ public class VertexMarketDataExample {
         exchangeSpecification.setSecretKey(privateKey);
 
         exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
+        exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.SECONDARY_SUBSCRIPTIONS_WEBSOCKET, "wss://gateway.sei-test.vertexprotocol.com/ws");
 
         StreamingExchange exchange = StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 

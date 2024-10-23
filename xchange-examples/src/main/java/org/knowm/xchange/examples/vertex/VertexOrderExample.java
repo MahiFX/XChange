@@ -59,6 +59,7 @@ public class VertexOrderExample {
     exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
+    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.SECONDARY_SUBSCRIPTIONS_WEBSOCKET, "wss://gateway.sei-test.vertexprotocol.com/ws");
     //exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_SYMBOLS, "[{\"symbol\":\"wSEI\", \"product_id\":115}]");
 //    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_HOST, "gateway.sei-prod.vertexprotocol.com");
     exchangeSpecification.setUserName(subAccount); //subaccount name

@@ -93,7 +93,7 @@ public class VertexExchange extends BaseExchange {
 
   }
 
-  private static String getParam(String param, ExchangeSpecification exchangeSpecification1) {
+  public static String getParam(String param, ExchangeSpecification exchangeSpecification1) {
     Object exchangeSpecificParametersItem1 = exchangeSpecification1.getExchangeSpecificParametersItem(param);
     if (exchangeSpecificParametersItem1 != null) {
       String override = String.valueOf(exchangeSpecificParametersItem1);

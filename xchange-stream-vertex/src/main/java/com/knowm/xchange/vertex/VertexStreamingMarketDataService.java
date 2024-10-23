@@ -42,7 +42,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
   public static final TypeReference<List<PriceAndQuantity>> PRICE_LIST_TYPE_REF = new TypeReference<>() {
   };
 
-  private final VertexStreamingService subscriptionStream;
+  private final List<VertexStreamingService> subscriptionStream;
 
   private final Map<Instrument, StreamHolder> orderBooksStreams = new ConcurrentHashMap<>();
   private final Map<Instrument, Observable<Ticker>> tickerStreams = new ConcurrentHashMap<>();
@@ -56,7 +56,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
   private final JavaType PRICE_LIST_TYPE;
 
 
-  public VertexStreamingMarketDataService(VertexStreamingService subscriptionStream, VertexProductInfo productInfo, VertexStreamingExchange vertexStreamingExchange) {
+  public VertexStreamingMarketDataService(List<VertexStreamingService> subscriptionStream, VertexProductInfo productInfo, VertexStreamingExchange vertexStreamingExchange) {
     this.subscriptionStream = subscriptionStream;
     this.productInfo = productInfo;
     this.exchange = vertexStreamingExchange;
@@ -77,7 +77,8 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
           long productId = productInfo.lookupProductId(newInstrument);
           String channelName = "best_bid_offer." + productId;
 
-          return subscriptionStream.subscribeChannel(channelName)
+          VertexStreamingService primaryStream = subscriptionStream.get(0);
+          return primaryStream.subscribeChannel(channelName)
               .map(jsonNode -> {
                 VertexBestBidOfferMessage vertexBestBidOfferMessage = mapper.treeToValue(jsonNode, VertexBestBidOfferMessage.class);
 
@@ -136,7 +137,8 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
           Subject<VertexMarketDataUpdateMessage> snapshots = PublishSubject.<VertexMarketDataUpdateMessage>create().toSerialized();
 
-          Observable<VertexMarketDataUpdateMessage> clearOnDisconnect = subscriptionStream.subscribeDisconnect()
+          VertexStreamingService primaryStream = subscriptionStream.get(0);
+          Observable<VertexMarketDataUpdateMessage> clearOnDisconnect = primaryStream.subscribeDisconnect()
               .map(o -> {
                 logger.info("Clearing order books for {} due to disconnect", newInstrument);
                 return VertexMarketDataUpdateMessage.EMPTY;
@@ -145,7 +147,7 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
           AtomicReference<Instant> lastIncrementTimestamp = new AtomicReference<>(null);
 
-          Observable<VertexMarketDataUpdateMessage> marketDataUpdates = subscriptionStream.subscribeChannel(channelName)
+          Observable<VertexMarketDataUpdateMessage> marketDataUpdates = primaryStream.subscribeChannel(channelName)
               .map(json -> {
                 VertexMarketDataUpdateMessage marketDataUpdate = mapper.treeToValue(json, VertexMarketDataUpdateMessage.class);
                 return Objects.requireNonNullElse(marketDataUpdate, VertexMarketDataUpdateMessage.EMPTY);
@@ -247,7 +249,6 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
 
   @Override
   public Observable<Trade> getTrades(CurrencyPair instrument, Object... args) {
-    //noinspection UnnecessaryLocalVariable
     Instrument inst = instrument;
     return getTrades(inst, args);
   }
@@ -260,14 +261,15 @@ public class VertexStreamingMarketDataService implements StreamingMarketDataServ
         newInstrument -> {
 
           String channelName = "trade." + productInfo.lookupProductId(instrument);
-
           logger.info("Subscribing to trade channel: " + channelName);
-
-          return subscriptionStream.subscribeChannel(channelName)
-              .map(json -> mapper.treeToValue(json, VertexTradeData.class).toTrade(instrument));
-
-
-        }).share();
+          // merge Observable<Trade> from all subscription streams
+          return Observable.merge(subscriptionStream.stream()
+                  .map(stream -> stream.subscribeChannel(channelName)
+                      .map(json -> mapper.treeToValue(json, VertexTradeData.class).toTrade(instrument))
+                      .doOnDispose(() -> logger.info("Unsubscribing from trade channel: " + channelName))
+                  ).collect(Collectors.toList()))
+              .share();
+        });
   }
 
 
