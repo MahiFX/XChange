@@ -18,6 +18,7 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.exceptions.ExchangeException;
@@ -34,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import static com.knowm.xchange.vertex.VertexExchange.overrideOrDefault;
 import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
 import static com.knowm.xchange.vertex.VertexStreamingService.UNLIMITED;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
@@ -49,6 +51,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String QUERY_WEBSOCKET = "queryWebsocketUrl";
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
   public static final String SECONDARY_SUBSCRIPTIONS_WEBSOCKET = "secondarySubscriptionWebsocketUrls";
+  public static final String SECONDARY_CUSTOM_HOSTS = "secondaryCustomHosts";
   public static final String CUSTOM_SYMBOLS = "customSymbols";
   public static final String CUSTOM_HOST = "customHost";
   private static final ObjectMapper json = new ObjectMapper();
@@ -279,48 +282,82 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   }
 
   private VertexStreamingService getOrderStream() {
-    VertexStreamingService streamingService = new VertexStreamingService(getOrderWsUrl(), exchangeSpecification, this, UNLIMITED, "[orders]");
+    String customHost = overrideOrDefault(CUSTOM_HOST, null, this.exchangeSpecification);
+    VertexStreamingService streamingService = new VertexStreamingService(getOrderWsUrl(), exchangeSpecification, this, UNLIMITED, "[orders]", customHost);
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
 
   private VertexStreamingService getQueryStream() {
-    VertexStreamingService streamingService = new VertexStreamingService(getQueryWsUrl(), exchangeSpecification, this, UNLIMITED, "[queries]");
+    String customHost = overrideOrDefault(CUSTOM_HOST, null, this.exchangeSpecification);
+    VertexStreamingService streamingService = new VertexStreamingService(getQueryWsUrl(), exchangeSpecification, this, UNLIMITED, "[queries]", customHost);
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
 
   private List<VertexStreamingService> getSubscriptionStreams() {
     List<String> subscriptionWsUrls = getSubscriptionWsUrls();
+    List<String> customHosts = getCustomHosts();
+    if (subscriptionWsUrls.size() != customHosts.size()) {
+      throw new IllegalArgumentException("Number of subscription urls and custom hosts must match");
+    }
+    // group url and host into list of pairs
+    List<Pair<String, String>> urlHostPairs = new ArrayList<>();
+    for (int i = 0; i < subscriptionWsUrls.size(); i++) {
+      String subscriptionWsUrl = subscriptionWsUrls.get(i);
+      String customHost = customHosts.get(i);
+
+      Pair<String, String> stringStringPair = Pair.of(subscriptionWsUrl, customHost);
+      urlHostPairs.add(stringStringPair);
+    }
     AtomicInteger counter = new AtomicInteger(0);
-    return subscriptionWsUrls.stream().map(url -> {
+    return urlHostPairs.stream().map(urlAndHost -> {
       String name = "[subscriptions" + counter.incrementAndGet() + "]";
-      VertexStreamingService streamingService = new VertexStreamingService(url, exchangeSpecification, this, UNLIMITED, name);
+      String customHost = urlAndHost.getRight();
+      if (StringUtils.isNotEmpty(customHost)) {
+        name = name + "[" + customHost + "]";
+      }
+      VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, UNLIMITED, name, customHost);
       applyStreamingSpecification(getExchangeSpecification(), streamingService);
       return streamingService;
     }).collect(Collectors.toList());
   }
 
+  private List<String> getCustomHosts() {
+    String primary = VertexExchange.getParam(CUSTOM_HOST, exchangeSpecification);
+    String secondaries = VertexExchange.getParam(SECONDARY_CUSTOM_HOSTS, exchangeSpecification);
+    if (StringUtils.isNotEmpty(secondaries)) {
+      String[] secondaryStrings = secondaries.split(",");
+      // primary is always first
+      List<String> result = new ArrayList<>();
+      result.add(primary);
+      result.addAll(Arrays.asList(secondaryStrings));
+      return result;
+    }
+    if (primary != null) {
+      return List.of(primary);
+    }
+    return List.of();
+
+  }
+
   private String getOrderWsUrl() {
-    return VertexExchange.overrideOrDefault(GATEWAY_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/ws", exchangeSpecification);
+    return overrideOrDefault(GATEWAY_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/ws", exchangeSpecification);
   }
 
   private String getQueryWsUrl() {
-    return VertexExchange.overrideOrDefault(QUERY_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/ws", exchangeSpecification);
+    return overrideOrDefault(QUERY_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/ws", exchangeSpecification);
   }
 
   private List<String> getSubscriptionWsUrls() {
-    String primary = VertexExchange.overrideOrDefault(SUBSCRIPTIONS_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/subscribe", exchangeSpecification);
+    String primary = overrideOrDefault(SUBSCRIPTIONS_WEBSOCKET, "wss://" + VertexExchange.getGatewayHost(useTestnet) + "/v1/subscribe", exchangeSpecification);
     String secondaries = VertexExchange.getParam(SECONDARY_SUBSCRIPTIONS_WEBSOCKET, exchangeSpecification);
     if (StringUtils.isNotEmpty(secondaries)) {
       String[] secondaryStrings = secondaries.split(",");
       // primary is always first
       List<String> result = new ArrayList<>();
       result.add(primary);
-      List<String> list = Arrays.asList(secondaryStrings);
-      // filter out duplicate primary
-      list.remove(primary);
-      result.addAll(list);
+      result.addAll(Arrays.asList(secondaryStrings));
       return result;
     }
     return List.of(primary);

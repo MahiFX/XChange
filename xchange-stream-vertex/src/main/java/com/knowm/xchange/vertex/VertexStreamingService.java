@@ -24,8 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.knowm.xchange.vertex.VertexExchange.overrideOrDefault;
-import static com.knowm.xchange.vertex.VertexStreamingExchange.CUSTOM_HOST;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
 
 public class VertexStreamingService extends JsonNettyStreamingService {
@@ -43,20 +41,21 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private final String apiUrl;
   private final ExchangeSpecification exchangeSpecification;
   private final VertexStreamingExchange exchange;
+  private final String customHost;
   private boolean authenticated;
   private boolean wasAuthenticated;
   private Observable<JsonNode> allMessages;
 
-  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange, RateLimiter rateLimit, String name) {
+  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange, RateLimiter rateLimit, String name, String customHost) {
     super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15, rateLimit, name);
     this.apiUrl = apiUrl;
     this.exchangeSpecification = exchangeSpecification;
     this.exchange = exchange;
+    this.customHost = customHost;
   }
 
   @Override
   protected DefaultHttpHeaders getCustomHeaders() {
-    String customHost = overrideOrDefault(CUSTOM_HOST, null, exchangeSpecification);
     if (StringUtils.isNotEmpty(customHost)) {
       DefaultHttpHeaders headers = super.getCustomHeaders();
       headers.add("Host", customHost);
