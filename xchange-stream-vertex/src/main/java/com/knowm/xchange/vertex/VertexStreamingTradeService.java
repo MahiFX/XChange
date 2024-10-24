@@ -458,7 +458,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     BigDecimal lhsFee = filled.multiply(bpsFee);
 
     //Fixed sequencer fee is only charged on first fill per order
-    BigDecimal usdcFee = lhsFee.multiply(price).setScale(2, RoundingMode.HALF_UP);
+    BigDecimal usdcFee = lhsFee.multiply(price);
     if (isTaker && isFirstFill) {
       usdcFee = usdcFee.add(exchange.getTakerFee());
     }
