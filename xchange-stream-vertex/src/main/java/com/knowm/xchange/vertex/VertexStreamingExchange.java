@@ -51,7 +51,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String QUERY_WEBSOCKET = "queryWebsocketUrl";
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
   public static final String SECONDARY_SUBSCRIPTIONS_WEBSOCKET = "secondarySubscriptionWebsocketUrls";
-  public static final String SECONDARY_CUSTOM_HOSTS = "secondaryCustomHosts";
   public static final String CUSTOM_SYMBOLS = "customSymbols";
   public static final String CUSTOM_HOST = "customHost";
   private static final ObjectMapper json = new ObjectMapper();
@@ -297,18 +296,17 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   private List<VertexStreamingService> getSubscriptionStreams() {
     List<String> subscriptionWsUrls = getSubscriptionWsUrls();
-    List<String> customHosts = getCustomHosts();
-    if (subscriptionWsUrls.size() != customHosts.size()) {
-      throw new IllegalArgumentException("Number of subscription urls and custom hosts must match");
-    }
     // group url and host into list of pairs
     List<Pair<String, String>> urlHostPairs = new ArrayList<>();
-    for (int i = 0; i < subscriptionWsUrls.size(); i++) {
-      String subscriptionWsUrl = subscriptionWsUrls.get(i);
-      String customHost = customHosts.get(i);
-
-      Pair<String, String> stringStringPair = Pair.of(subscriptionWsUrl, customHost);
-      urlHostPairs.add(stringStringPair);
+    for (String subscriptionWsUrl : subscriptionWsUrls) {
+      String customHost = null;
+      if (subscriptionWsUrl.contains("|")) {
+        String[] split = subscriptionWsUrl.split("\\|");
+        subscriptionWsUrl = split[0];
+        customHost = split[1];
+      }
+      Pair<String, String> urlAndHost = Pair.of(subscriptionWsUrl, customHost);
+      urlHostPairs.add(urlAndHost);
     }
     AtomicInteger counter = new AtomicInteger(0);
     return urlHostPairs.stream().map(urlAndHost -> {
@@ -321,24 +319,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       applyStreamingSpecification(getExchangeSpecification(), streamingService);
       return streamingService;
     }).collect(Collectors.toList());
-  }
-
-  private List<String> getCustomHosts() {
-    String primary = VertexExchange.getParam(CUSTOM_HOST, exchangeSpecification);
-    String secondaries = VertexExchange.getParam(SECONDARY_CUSTOM_HOSTS, exchangeSpecification);
-    if (StringUtils.isNotEmpty(secondaries)) {
-      String[] secondaryStrings = secondaries.split(",");
-      // primary is always first
-      List<String> result = new ArrayList<>();
-      result.add(primary);
-      result.addAll(Arrays.asList(secondaryStrings));
-      return result;
-    }
-    if (primary != null) {
-      return List.of(primary);
-    }
-    return List.of();
-
   }
 
   private String getOrderWsUrl() {
