@@ -112,8 +112,9 @@ public class VertexOrderExample {
     OpenPositions openPositions = tradeService.getOpenPositions();
     assert openPositions.getOpenPositions().size() == 0;
 
-
+    double btcPrice = 70000;
     BigDecimal orderSize = BigDecimal.valueOf(0.03);
+
     MarketOrder buy = new MarketOrder(Order.OrderType.BID, orderSize, btc);
     buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);
     tradeService.placeMarketOrder(buy);
@@ -126,7 +127,7 @@ public class VertexOrderExample {
     sell.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_FOK);
     tradeService.placeMarketOrder(sell);
 
-    LimitOrder resting = new LimitOrder(Order.OrderType.BID, orderSize, btc, null, null, BigDecimal.valueOf(50000));
+    LimitOrder resting = new LimitOrder(Order.OrderType.BID, orderSize, btc, null, null, BigDecimal.valueOf(btcPrice * 0.95));
     String orderId = tradeService.placeLimitOrder(resting);
 
     //Test re-connect
@@ -154,9 +155,10 @@ public class VertexOrderExample {
     buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);
     tradeService.placeMarketOrder(buy);
 
+
     Thread.sleep(2000);
 
-    LimitOrder resting2 = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(50000));
+    LimitOrder resting2 = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(btcPrice * 0.95));
     String orderId2 = tradeService.placeLimitOrder(resting);
 
 
@@ -167,7 +169,7 @@ public class VertexOrderExample {
     log.info("Open orders after cancel: {}", tradeService.getOpenOrders(new DefaultOpenOrdersParamInstrument(btc)));
 
 
-    LimitOrder resting3 = new LimitOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(80000));
+    LimitOrder resting3 = new LimitOrder(Order.OrderType.ASK, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(btcPrice * 1.05));
     String orderId3 = tradeService.placeLimitOrder(resting);
 
 
