@@ -4,6 +4,7 @@ import com.knowm.xchange.vertex.api.VertexArchiveApi;
 import com.knowm.xchange.vertex.api.VertexQueryApi;
 import jakarta.ws.rs.HeaderParam;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.client.ClientConfigCustomizer;
@@ -11,8 +12,6 @@ import org.knowm.xchange.client.ExchangeRestProxyBuilder;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
-import static com.knowm.xchange.vertex.VertexStreamingExchange.CUSTOM_HOST;
 
 public class VertexExchange extends BaseExchange {
 
@@ -33,6 +32,16 @@ public class VertexExchange extends BaseExchange {
     return useTestnet ? "gateway.sepolia-test.vertexprotocol.com" : "gateway.prod.vertexprotocol.com";
   }
 
+  public static Pair<String, String> parseUrlAndCustomHost(String subscriptionWsUrl) {
+    String customHost = null;
+    if (subscriptionWsUrl.contains("|")) {
+      String[] split = subscriptionWsUrl.split("\\|");
+      subscriptionWsUrl = split[0];
+      customHost = split[1];
+    }
+    return Pair.of(subscriptionWsUrl, customHost);
+  }
+
 
   public void applySpecification(ExchangeSpecification exchangeSpecification) {
     this.useTestnet = Boolean.TRUE.equals(Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX))));
@@ -48,12 +57,23 @@ public class VertexExchange extends BaseExchange {
   @Override
   protected void initServices() {
 
-    String customHost = overrideOrDefault(CUSTOM_HOST, null, exchangeSpecification);
+    String archiveRestUrl = getArchiveRestUrl();
+    this.archiveApi = buildApi(archiveRestUrl, VertexArchiveApi.class);
+    this.queryApi = buildApi(getGatewayRestUrl(), VertexQueryApi.class);
+
+  }
+
+  private <T> T buildApi(String url, Class<T> apiSpec) {
+    ExchangeSpecification exchangeSpec = new ExchangeSpecification(this.getClass());
+
+    Pair<String, String> urlAndCustomHost = parseUrlAndCustomHost(url);
+    exchangeSpec.setSslUri(urlAndCustomHost.getLeft());
     ClientConfigCustomizer clientConfigCustomizer = clientConfig -> {
       clientConfig.setHttpReadTimeout((int) TimeUnit.SECONDS.toMillis(60));
       clientConfig.setHttpConnTimeout((int) TimeUnit.SECONDS.toMillis(10));
       clientConfig.setHostnameVerifier((s, sslSession) -> true);
       clientConfig.addDefaultParam(HeaderParam.class, "Accept-Encoding", "gzip");
+      String customHost = urlAndCustomHost.getRight();
       if (customHost != null) {
         if (!Boolean.getBoolean("sun.net.http.allowRestrictedHeaders")) {
           throw new IllegalStateException("sun.net.http.allowRestrictedHeaders must be set to true to override the Host header");
@@ -62,20 +82,9 @@ public class VertexExchange extends BaseExchange {
       }
     };
 
-    ExchangeSpecification archiveSpec = new ExchangeSpecification(this.getClass());
-    archiveSpec.setSslUri(getArchiveRestUrl());
-    this.archiveApi = ExchangeRestProxyBuilder.forInterface(VertexArchiveApi.class, archiveSpec)
+    return ExchangeRestProxyBuilder.forInterface(apiSpec, exchangeSpec)
         .clientConfigCustomizer(clientConfigCustomizer)
         .build();
-
-
-    ExchangeSpecification gatewaySpec = new ExchangeSpecification(this.getClass());
-    gatewaySpec.setSslUri(getGatewayRestUrl());
-    ExchangeRestProxyBuilder<VertexQueryApi> restBuilder = ExchangeRestProxyBuilder.forInterface(VertexQueryApi.class, gatewaySpec)
-        .clientConfigCustomizer(clientConfigCustomizer);
-    this.queryApi = restBuilder
-        .build();
-
   }
 
 

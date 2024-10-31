@@ -52,7 +52,6 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
   public static final String SECONDARY_SUBSCRIPTIONS_WEBSOCKET = "secondarySubscriptionWebsocketUrls";
   public static final String CUSTOM_SYMBOLS = "customSymbols";
-  public static final String CUSTOM_HOST = "customHost";
   private static final ObjectMapper json = new ObjectMapper();
 
   private List<VertexStreamingService> subscriptionStreams = new ArrayList<>();
@@ -281,15 +280,16 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   }
 
   private VertexStreamingService getOrderStream() {
-    String customHost = overrideOrDefault(CUSTOM_HOST, null, this.exchangeSpecification);
-    VertexStreamingService streamingService = new VertexStreamingService(getOrderWsUrl(), exchangeSpecification, this, UNLIMITED, "[orders]", customHost);
+    Pair<String, String> urlAndHost = VertexExchange.parseUrlAndCustomHost(getOrderWsUrl());
+    VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, UNLIMITED, "[orders]", urlAndHost.getRight());
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
 
   private VertexStreamingService getQueryStream() {
-    String customHost = overrideOrDefault(CUSTOM_HOST, null, this.exchangeSpecification);
-    VertexStreamingService streamingService = new VertexStreamingService(getQueryWsUrl(), exchangeSpecification, this, UNLIMITED, "[queries]", customHost);
+
+    Pair<String, String> urlAndHost = VertexExchange.parseUrlAndCustomHost(getQueryWsUrl());
+    VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, UNLIMITED, "[queries]", urlAndHost.getRight());
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
@@ -299,13 +299,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     // group url and host into list of pairs
     List<Pair<String, String>> urlHostPairs = new ArrayList<>();
     for (String subscriptionWsUrl : subscriptionWsUrls) {
-      String customHost = null;
-      if (subscriptionWsUrl.contains("|")) {
-        String[] split = subscriptionWsUrl.split("\\|");
-        subscriptionWsUrl = split[0];
-        customHost = split[1];
-      }
-      Pair<String, String> urlAndHost = Pair.of(subscriptionWsUrl, customHost);
+      Pair<String, String> urlAndHost = VertexExchange.parseUrlAndCustomHost(subscriptionWsUrl);
       urlHostPairs.add(urlAndHost);
     }
     AtomicInteger counter = new AtomicInteger(0);
