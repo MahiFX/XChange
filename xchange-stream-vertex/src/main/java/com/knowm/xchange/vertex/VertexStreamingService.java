@@ -179,7 +179,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     CompletableFuture<JsonNode> responseLatch = new CompletableFuture<>();
     long requestId = reqCounter.incrementAndGet();
     Disposable responseSub = allMessages.subscribe(value -> {
-      LOG.debug("Authentication response: {}", value);
+      LOG.info("Authentication response: {}", value);
       if (value.get("id").asLong() == requestId) {
         responseLatch.complete(value);
       } else if (value.get("error") != null) {
@@ -198,7 +198,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
           "  \"signature\": \"" + signatureAndDigest.getSignature() + "\"\n" +
           "}");
 
-      JsonNode response = responseLatch.get(10, TimeUnit.SECONDS);
+      JsonNode response = responseLatch.get(20, TimeUnit.SECONDS);
       JsonNode error = response.get("error");
       if (error != null) {
         if (!error.textValue().contains("already authenticated")) {
