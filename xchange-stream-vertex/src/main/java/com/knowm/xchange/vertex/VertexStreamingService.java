@@ -18,6 +18,7 @@ import java.math.BigInteger;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -45,9 +46,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private boolean authenticated;
   private boolean wasAuthenticated;
   private Observable<JsonNode> allMessages;
+  private final Map<Long, String> subscriptionIdToChannel = new java.util.concurrent.ConcurrentHashMap<>();
+  private Disposable allMessageSub;
 
-  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange, RateLimiter rateLimit, String name, String customHost) {
-    super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15, rateLimit, name);
+  public VertexStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification, VertexStreamingExchange exchange, RateLimiter subscriptionsRateLimiter, String name, String customHost) {
+    super(apiUrl, MAX_FRAME_KB, Duration.ofSeconds(5), Duration.ofSeconds(1), 15, subscriptionsRateLimiter, name);
     this.apiUrl = apiUrl;
     this.exchangeSpecification = exchangeSpecification;
     this.exchange = exchange;
@@ -101,22 +104,10 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     }
     String[] typeAndProduct = channelName.split("\\.");
     long reqId = reqCounter.incrementAndGet();
-//    AtomicReference<Disposable> responseSub = new AtomicReference<>();
-//
-//    responseSub.set(allMessages.subscribe((message) -> {
-//      logger.debug("Subscription response: {}", message);
-//      if (message.get("id").asLong() == reqId) {
-//        if (message.get("error") != null) {
-//          logger.error("Error subscribing to channel " + channelName + ": " + message.get("error"));
-//        } else {
-//          logger.info("Subscribed to channel " + channelName + " successfully");
-//        }
-//        responseSub.get().dispose();
-//      }
-//    }));
-
     String subAccount = exchange.getSubAccountOrDefault();
     String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+
+    subscriptionIdToChannel.put(reqId, channelName);
 
     return "{\n" +
         "  \"method\": \"subscribe\",\n" +
@@ -231,14 +222,38 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     authenticated = false;
     allMessages = subscribeChannel(ALL_MESSAGES).share();
 
+
     if (wasAuthenticated) {
       authenticate();
     }
+
+    allMessageSub = allMessages.subscribe((message) -> {
+      JsonNode idNode = message.get("id");
+      if (idNode == null) return;
+      String channelName = subscriptionIdToChannel.remove(idNode.asLong());
+      if (channelName == null) {
+        return;
+      }
+      LOG.debug("Subscription response: {}", message);
+      if (message.get("error") != null) {
+        LOG.error("Error subscribing to channel {}: {}", channelName, message.get("error"));
+      } else {
+        LOG.info("Subscribed to channel {} successfully", channelName);
+      }
+    });
     super.resubscribeChannels();
+
+  }
+
+  public Observable<JsonNode> allMessages() {
+    return allMessages;
   }
 
   @Override
   public Completable disconnect() {
+    if (allMessageSub != null) {
+      allMessageSub.dispose();
+    }
     if (isSocketOpen()) {
       LOG.info("Disconnecting {}", apiUrl);
       return super.disconnect();

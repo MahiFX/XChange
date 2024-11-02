@@ -36,8 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.VertexExchange.overrideOrDefault;
-import static com.knowm.xchange.vertex.VertexStreamingService.ALL_MESSAGES;
-import static com.knowm.xchange.vertex.VertexStreamingService.UNLIMITED;
+import static com.knowm.xchange.vertex.VertexStreamingService.TEN_PER_SECOND;
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
@@ -76,10 +75,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   private final Set<Long> spotProducts = new TreeSet<>();
   private final Set<Long> perpProducts = new TreeSet<>();
 
-  private Observable<JsonNode> allQueryMessages;
-  private Observable<JsonNode> allOrderMessages;
   private VertexExchange restExchange;
-
 
   @Override
   public ExchangeSpecification getDefaultExchangeSpecification() {
@@ -256,18 +252,11 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   }
 
   public Observable<JsonNode> subscribeToAllQueryMessages() {
-    if (allQueryMessages == null) {
-      allQueryMessages = queryStream.subscribeChannel(ALL_MESSAGES);
-    }
-    return allQueryMessages;
+    return queryStream.allMessages();
   }
 
-
   public Observable<JsonNode> subscribeToAllOrderMessages() {
-    if (allOrderMessages == null) {
-      allOrderMessages = orderStream.subscribeChannel(ALL_MESSAGES);
-    }
-    return allOrderMessages;
+    return orderStream.allMessages();
   }
 
   @Override
@@ -281,7 +270,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   private VertexStreamingService getOrderStream() {
     Pair<String, String> urlAndHost = VertexExchange.parseUrlAndCustomHost(getOrderWsUrl());
-    VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, UNLIMITED, "[orders]", urlAndHost.getRight());
+    VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, TEN_PER_SECOND, "[orders]", urlAndHost.getRight());
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
@@ -289,7 +278,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   private VertexStreamingService getQueryStream() {
 
     Pair<String, String> urlAndHost = VertexExchange.parseUrlAndCustomHost(getQueryWsUrl());
-    VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, UNLIMITED, "[queries]", urlAndHost.getRight());
+    VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, TEN_PER_SECOND, "[queries]", urlAndHost.getRight());
     applyStreamingSpecification(getExchangeSpecification(), streamingService);
     return streamingService;
   }
@@ -309,7 +298,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       if (StringUtils.isNotEmpty(customHost)) {
         name = name + "[" + customHost + "]";
       }
-      VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, UNLIMITED, name, customHost);
+      VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, TEN_PER_SECOND, name, customHost);
       applyStreamingSpecification(getExchangeSpecification(), streamingService);
       return streamingService;
     }).collect(Collectors.toList());
