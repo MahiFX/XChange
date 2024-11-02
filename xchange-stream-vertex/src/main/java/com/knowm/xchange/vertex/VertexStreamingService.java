@@ -180,7 +180,8 @@ public class VertexStreamingService extends JsonNettyStreamingService {
     long requestId = reqCounter.incrementAndGet();
     Disposable responseSub = allMessages.subscribe(value -> {
       LOG.info("Authentication response: {}", value);
-      if (value.get("id").asLong() == requestId) {
+      JsonNode idNode = value.get("id");
+      if (idNode != null && idNode.asLong() == requestId) {
         responseLatch.complete(value);
       } else if (value.get("error") != null) {
         responseLatch.complete(value);
