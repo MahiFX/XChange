@@ -295,9 +295,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       boolean isLp = resp.get("is_lp").asBoolean();
       BigInteger newBal = new BigInteger(resp.get("amount").asText());
       Pair<Instrument, Boolean> balanceKey = Pair.of(instrument, isLp);
-      BigInteger prevBal = balanceCache.computeIfAbsent(balanceKey, p -> newBal);
+      BigInteger prevBal = balanceCache.put(balanceKey, newBal);
       boolean balanceMatch = newBal.equals(prevBal);
-      balanceCache.put(balanceKey, newBal);
       if (!balanceMatch) {
         logger.info("Balance change for {}{}: {} -> {}", instrument, isLp ? " LP" : "", x18ToDecimal(prevBal), x18ToDecimal(newBal));
       } else {
