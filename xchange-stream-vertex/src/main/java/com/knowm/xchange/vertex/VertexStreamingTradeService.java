@@ -72,8 +72,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   };
   public static final HashFunction ORDER_ID_HASHER = Hashing.murmur3_32_fixed();
 
-  private static final int RETRIES = 20;
-  private static final int RETRY_DELAY_MILLI = 500;
+  // Check for liquidation for 60 seconds after the balance change
+  private static final int LIQUIDATION_RETRIES = 120;
+  private static final int LIQUIDATION_RETRY_DELAY_MILLI = 500;
 
   private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
@@ -300,7 +301,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       if (!balanceMatch) {
         logger.info("Balance change for {}{}: {} -> {}", instrument, isLp ? " LP" : "", x18ToDecimal(prevBal), x18ToDecimal(newBal));
       } else {
-        logger.debug("No balance change for {}{}: {}", instrument, isLp ? " LP" : "", x18ToDecimal(newBal));
+        logger.info("No balance change for {}{}: {}", instrument, isLp ? " LP" : "", x18ToDecimal(newBal));
       }
       return !balanceMatch;
     }));
@@ -355,7 +356,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private Observable<UserTrade> mergeInLiquidationTrades(Instrument instrument, long productId, Observable<UserTrade> tradeStream) {
-    AtomicReference<BigInteger> indexCounter = indexCounters.computeIfAbsent(instrument, (i) -> new AtomicReference<BigInteger>(BigInteger.ZERO));
+    AtomicReference<BigInteger> indexCounter = indexCounters.computeIfAbsent(instrument, (i) -> new AtomicReference<>(BigInteger.ZERO));
 
     String subAccount = getSubAccountOrDefault();
 
@@ -366,7 +367,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     JsonNode eventQuery = events("liquidate_subaccount", ourSender, productId, 50);
 
     Observable<UserTrade> liquidations = subscribeToPositionChange(instrument)
-        .debounce(RETRY_DELAY_MILLI, TimeUnit.MILLISECONDS, liquidationScheduler).switchMap(c -> {
+        .debounce(LIQUIDATION_RETRY_DELAY_MILLI, TimeUnit.MILLISECONDS, liquidationScheduler).switchMap(c -> {
           BigDecimal newBalance = readX18Decimal(c, "amount");
           logger.info("Checking for {} liquidation events since index {}. New {} position: {}", instrument, indexCounter.get(), instrument, newBalance);
               // For each change, create an inner observable that retries until new balance is seen or max attempts is reached
@@ -444,8 +445,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
                     }
                   }).retryWhen(errors -> errors
-                      .zipWith(Observable.range(1, RETRIES), (n, i) -> i)
-                      .flatMap(retry -> Observable.timer(RETRY_DELAY_MILLI, TimeUnit.MILLISECONDS, liquidationScheduler)))
+                      .zipWith(Observable.range(1, LIQUIDATION_RETRIES), (n, i) -> i)
+                      .flatMap(retry -> Observable.timer(LIQUIDATION_RETRY_DELAY_MILLI, TimeUnit.MILLISECONDS, liquidationScheduler)))
                   .doOnComplete(() -> logger.info("Retry limit reached for {} liquidation events, no liquidations found", instrument));
             }
         );
