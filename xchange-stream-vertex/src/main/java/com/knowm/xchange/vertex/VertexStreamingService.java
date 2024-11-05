@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
@@ -35,8 +36,6 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   public static final RateLimiter TEN_PER_SECOND = RateLimiter.of("vertex-10-per-sec", RateLimiterConfig
       .custom().limitForPeriod(10).limitRefreshPeriod(Duration.ofSeconds(1)).build());
 
-  public static final RateLimiter UNLIMITED = RateLimiter.of("vertex-unlimited", RateLimiterConfig
-      .custom().limitForPeriod(Integer.MAX_VALUE).limitRefreshPeriod(Duration.ofSeconds(1)).build());
 
   private final AtomicLong reqCounter = new AtomicLong(1);
   private final String apiUrl;
@@ -44,6 +43,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   private final VertexStreamingExchange exchange;
   private final String customHost;
   private boolean authenticated;
+  private final AtomicBoolean authenticating = new AtomicBoolean(false);
   private boolean wasAuthenticated;
   private Observable<JsonNode> allMessages;
   private final Map<Long, String> subscriptionIdToChannel = new java.util.concurrent.ConcurrentHashMap<>();
@@ -151,71 +151,75 @@ public class VertexStreamingService extends JsonNettyStreamingService {
         "}";
   }
 
-  public synchronized void authenticate() {
-    wasAuthenticated = true;
-    if (authenticated) return;
-    String subAccount = exchange.getSubAccountOrDefault();
-
-    String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
-
-
-    long chainId = exchange.getChainId();
-    String endpointContract = exchange.getEndpointContract();
-
-    if (chainId == 0 || endpointContract == null) {
-      throw new IllegalStateException("ChainId or EndpointContract not available. Cannot authenticate");
-    }
-
-    Instant expiry = Instant.now().plus(20, ChronoUnit.SECONDS);
-    String timestamp = String.valueOf(expiry.toEpochMilli());
-    StreamAuthentication streamAuth = StreamAuthentication.build(chainId,
-        endpointContract,
-        sender,
-        BigInteger.valueOf(expiry.toEpochMilli()));
-    SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(streamAuth);
-
-    LOG.info("Authenticating stream");
-
-    CompletableFuture<JsonNode> responseLatch = new CompletableFuture<>();
-    long requestId = reqCounter.incrementAndGet();
-    Disposable responseSub = allMessages.subscribe(value -> {
-      LOG.info("Authentication response: {}", value);
-      JsonNode idNode = value.get("id");
-      if (idNode != null && idNode.asLong() == requestId) {
-        responseLatch.complete(value);
-      } else if (value.get("error") != null) {
-        responseLatch.complete(value);
-      }
-    });
-
+  public void authenticate() {
+    if (authenticated || !authenticating.compareAndSet(false, true)) return;
     try {
-      sendMessage("{\n" +
-          "  \"method\": \"authenticate\",\n" +
-          "  \"id\": " + requestId + ",\n" +
-          "  \"tx\": {\n" +
-          "    \"sender\": \"" + sender + "\",\n" +
-          "    \"expiration\": \"" + timestamp + "\"\n" +
-          "  },\n" +
-          "  \"signature\": \"" + signatureAndDigest.getSignature() + "\"\n" +
-          "}");
+      String subAccount = exchange.getSubAccountOrDefault();
 
-      JsonNode response = responseLatch.get(20, TimeUnit.SECONDS);
-      JsonNode error = response.get("error");
-      if (error != null) {
-        if (!error.textValue().contains("already authenticated")) {
-          throw new RuntimeException("Authentication error: " + error);
-        }
+      String sender = buildSender(exchangeSpecification.getApiKey(), subAccount);
+
+      long chainId = exchange.getChainId();
+      String endpointContract = exchange.getEndpointContract();
+
+      if (chainId == 0 || endpointContract == null) {
+        throw new IllegalStateException("ChainId or EndpointContract not available. Cannot authenticate");
       }
-    } catch (InterruptedException e) {
-      LOG.warn("Interrupted while waiting for authentication response");
-      return;
 
-    } catch (TimeoutException | ExecutionException e) {
-      throw new RuntimeException("Authentication timeout", e);
+      Instant expiry = Instant.now().plus(20, ChronoUnit.SECONDS);
+      String timestamp = String.valueOf(expiry.toEpochMilli());
+      StreamAuthentication streamAuth = StreamAuthentication.build(chainId,
+          endpointContract,
+          sender,
+          BigInteger.valueOf(expiry.toEpochMilli()));
+      SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(streamAuth);
+
+      LOG.info("Authenticating stream");
+
+      CompletableFuture<JsonNode> responseLatch = new CompletableFuture<>();
+      long requestId = reqCounter.incrementAndGet();
+      Disposable responseSub = allMessages.subscribe(value -> {
+        LOG.info("Authentication response: {}", value);
+        JsonNode idNode = value.get("id");
+        if (idNode != null && idNode.asLong() == requestId) {
+          responseLatch.complete(value);
+        } else if (value.get("error") != null) {
+          responseLatch.complete(value);
+        }
+      });
+
+      try {
+        sendMessage("{\n" +
+            "  \"method\": \"authenticate\",\n" +
+            "  \"id\": " + requestId + ",\n" +
+            "  \"tx\": {\n" +
+            "    \"sender\": \"" + sender + "\",\n" +
+            "    \"expiration\": \"" + timestamp + "\"\n" +
+            "  },\n" +
+            "  \"signature\": \"" + signatureAndDigest.getSignature() + "\"\n" +
+            "}");
+
+        JsonNode response = responseLatch.get(20, TimeUnit.SECONDS);
+        JsonNode error = response.get("error");
+        if (error != null) {
+          if (!error.textValue().contains("already authenticated")) {
+            throw new RuntimeException("Authentication error: " + error);
+          }
+        }
+        LOG.info("Authentication successful: {}", response);
+      } catch (InterruptedException e) {
+        LOG.warn("Interrupted while waiting for authentication response");
+        return;
+
+      } catch (TimeoutException | ExecutionException e) {
+        throw new RuntimeException("Authentication timeout", e);
+      } finally {
+        responseSub.dispose();
+      }
+      wasAuthenticated = true;
+      authenticated = true;
     } finally {
-      responseSub.dispose();
+      authenticating.getAndSet(false);
     }
-    authenticated = true;
   }
 
   @Override
