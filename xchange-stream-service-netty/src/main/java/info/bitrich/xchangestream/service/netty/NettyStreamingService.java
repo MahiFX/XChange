@@ -412,7 +412,6 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
 
   public Observable<T> subscribeChannel(String channelName, Object... args) {
     final String channelId = getSubscriptionUniqueId(channelName, args);
-    LOG.info("Subscribing to channel {}", channelId);
 
     return Observable.<T>create(
             e -> {
@@ -424,6 +423,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
                   cid -> {
                     Subscription newSubscription = new Subscription(e, channelName, args);
                     subscriptionRateLimiter.executeRunnable(() -> {
+                      LOG.info("Subscribing to channel {}", channelId);
                       try {
                         sendMessage(getSubscribeMessage(channelName, args));
                       } catch (Throwable throwable) { // if getSubscribeMessage throws this, it is because it

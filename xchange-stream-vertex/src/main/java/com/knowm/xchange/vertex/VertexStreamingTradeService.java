@@ -216,7 +216,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   @Override
   public Observable<Order> getOrderChanges(Instrument instrument, Object... args) {
     return subscribeToOrderUpdate(instrument).map(resp -> {
-
       String reason = resp.get("reason").asText();
 
       String orderId = resp.get("digest").asText();
@@ -275,7 +274,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
 
   private Observable<JsonNode> subscribeToOrderUpdate(Instrument instrument) {
-    subscriptionStream.authenticate();
+
     long productId = productInfo.lookupProductId(instrument);
 
     String subAccount = exchange.getSubAccountOrDefault();

@@ -80,7 +80,6 @@ public class VertexOrderExample {
       log.info("BTC trade: {}", userTrade);
     });
 
-
     Disposable tradesEth = tradeService.getUserTrades(eth, subAccount).subscribe(userTrade -> {
       log.info("ETH trade: {}", userTrade);
     });
@@ -112,7 +111,7 @@ public class VertexOrderExample {
     OpenPositions openPositions = tradeService.getOpenPositions();
     assert openPositions.getOpenPositions().size() == 0;
 
-    double btcPrice = 70000;
+    double btcPrice = 90000;
     BigDecimal orderSize = BigDecimal.valueOf(0.03);
 
     MarketOrder buy = new MarketOrder(Order.OrderType.BID, orderSize, btc);
