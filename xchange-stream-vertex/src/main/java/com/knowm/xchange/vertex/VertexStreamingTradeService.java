@@ -526,18 +526,24 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private void addBalance(List<OpenPosition> positions, JsonNode bal, JsonNode summary) {
-    int productId = bal.get("product_id").asInt();
-    Instrument instrument = productInfo.lookupInstrument(productId);
-    if (instrument == null) {
-      logger.warn("No instrument found for product id {}", productId);
-      return;
-    }
-    BigDecimal position = readX18Decimal(bal.get("balance"), "amount");
-    if (isZero(position)) {
-      return;
-    }
-    BigDecimal price = findPrice(productId, summary);
-    positions.add(new OpenPosition(instrument, position.compareTo(BigDecimal.ZERO) >= 0 ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT, position.abs(), price, null, null));
+      try {
+          int productId = bal.get("product_id").asInt();
+          Instrument instrument = productInfo.lookupInstrument(productId);
+          if (instrument == null) {
+            logger.warn("No instrument found for product id {}", productId);
+            return;
+          }
+          BigDecimal position = readX18Decimal(bal.get("balance"), "amount");
+          if (isZero(position)) {
+            return;
+          }
+          BigDecimal price = findPrice(productId, summary);
+          positions.add(new OpenPosition(instrument, position.compareTo(BigDecimal.ZERO) >= 0 ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT, position.abs(), price, null, null));
+
+      } catch (Exception e) {
+          throw new RuntimeException("Error processing " + bal, e);
+
+      }
   }
 
   private BigDecimal findPrice(int productId, JsonNode summary) {
@@ -546,13 +552,19 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     while (events.hasNext()) {
       JsonNode event = events.next();
       if (event.get("product_id").asInt() == productId) {
-        JsonNode postBalance = event.get("post_balance");
-        BigDecimal balance = readX18Decimal(MoreObjects.firstNonNull(postBalance.get("perp"), postBalance.get("spot")).get("balance"), "amount");
-        BigDecimal netUnrealised = readX18Decimal(event, "net_entry_unrealized");
-        if (balance.equals(BigDecimal.ZERO)) {
-          continue;
-        }
-        return netUnrealised.divide(balance, RoundingMode.HALF_UP).abs();
+          try {
+              JsonNode postBalance = event.get("post_balance");
+              BigDecimal balance = readX18Decimal(MoreObjects.firstNonNull(postBalance.get("perp"), postBalance.get("spot")).get("balance"), "amount");
+              BigDecimal netUnrealised = readX18Decimal(event, "net_entry_unrealized");
+              if (isZero(balance)) {
+                continue;
+              }
+              return netUnrealised.divide(balance, RoundingMode.HALF_UP).abs();
+
+          } catch (Exception e) {
+              throw new RuntimeException("Error processing " + event, e);
+
+          }
       }
     }
     return null;
