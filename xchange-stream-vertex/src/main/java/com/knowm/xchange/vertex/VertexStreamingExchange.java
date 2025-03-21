@@ -27,7 +27,15 @@ import org.knowm.xchange.service.trade.TradeService;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +45,10 @@ import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.VertexExchange.overrideOrDefault;
 import static com.knowm.xchange.vertex.VertexStreamingService.TEN_PER_SECOND;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18Decimal;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18DecimalArray;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.x18ToDecimal;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
 
@@ -240,8 +251,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       try {
         logger.info("Sending query " + query.getQueryMsg());
         queryStream.sendMessage(query.getQueryMsg());
-        if (!responseLatch.await(20, TimeUnit.SECONDS)) {
-          query.getErrorHandler().accept(-1, "Timed out after 20 seconds waiting for response for " + query.getQueryMsg());
+        if (!responseLatch.await(60, TimeUnit.SECONDS)) {
+          query.getErrorHandler().accept(-1, "Timed out after 60 seconds waiting for response for " + query.getQueryMsg());
         }
       } catch (InterruptedException e) {
         logger.error("Failed to get contract data due to timeout");
