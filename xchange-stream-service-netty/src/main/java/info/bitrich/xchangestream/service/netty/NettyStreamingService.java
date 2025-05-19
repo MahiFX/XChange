@@ -390,7 +390,15 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
 
     if (message != null) {
       LOG.debug("Sending message: {}", message);
-      webSocketChannel.writeAndFlush(new TextWebSocketFrame(message), webSocketChannel.voidPromise());
+      webSocketChannel.writeAndFlush(new TextWebSocketFrame(message), webSocketChannel.newPromise())
+          .addListener(
+              future -> {
+                if (!future.isSuccess()) {
+                  LOG.error("Failed to send message: {}", message, future.cause());
+                } else {
+                  LOG.debug("Message sent: {}", message);
+                }
+              });
     }
   }
 

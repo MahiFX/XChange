@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -198,7 +197,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
             "  \"signature\": \"" + signatureAndDigest.getSignature() + "\"\n" +
             "}");
 
-        JsonNode response = responseLatch.get(20, TimeUnit.SECONDS);
+        JsonNode response = responseLatch.get(5, TimeUnit.SECONDS);
         JsonNode error = response.get("error");
         if (error != null) {
           if (!error.textValue().contains("already authenticated")) {
@@ -210,8 +209,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
         LOG.warn("Interrupted while waiting for authentication response");
         return;
 
-      } catch (TimeoutException | ExecutionException e) {
-        throw new RuntimeException("Authentication timeout", e);
+      } catch (TimeoutException timeout) {
+        // FIXME only happening on SEI connection
+        LOG.warn("Timeout while waiting for authentication response, assuming we're authenticated", timeout);
+      } catch (Throwable e) {
+        throw new RuntimeException("Authentication error", e);
       } finally {
         responseSub.dispose();
       }

@@ -3,9 +3,6 @@ package com.knowm.xchange.vertex;
 import info.bitrich.xchangestream.core.StreamingMarketDataService;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
@@ -13,6 +10,11 @@ import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertTrue;
 
 public class VertexTickerIntegration {
 
@@ -24,6 +26,7 @@ public class VertexTickerIntegration {
     VertexStreamingExchange exchange = new VertexStreamingExchange();
     ExchangeSpecification spec = exchange.getDefaultExchangeSpecification();
     spec.setExchangeSpecificParametersItem(Exchange.USE_SANDBOX, false);
+    spec.setApiKey("api-key12345678901234567890123456789012");
 
     exchange.applySpecification(spec);
     StreamingMarketDataService streamingMarketDataService = exchange.getStreamingMarketDataService();
