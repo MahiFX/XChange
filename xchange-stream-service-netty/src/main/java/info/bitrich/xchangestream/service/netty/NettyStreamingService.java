@@ -3,12 +3,11 @@ package info.bitrich.xchangestream.service.netty;
 import info.bitrich.xchangestream.service.ConnectableService;
 import info.bitrich.xchangestream.service.exception.NotConnectedException;
 import info.bitrich.xchangestream.service.netty.ConnectionStateModel.State;
+import io.github.resilience4j.core.NamingThreadFactory;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -80,9 +79,11 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
   private final Duration retryDuration;
   private final Duration connectionTimeout;
   private final int idleTimeoutSeconds;
-  private Supplier<? extends EventLoopGroup> eventLoopGroupFactory = () -> new NioEventLoopGroup(8);
+
+  private final NettyEventLoopBuilder nettyEventLoopBuilder = new NettyEventLoopBuilder(true, 8, new NamingThreadFactory("xchange"));
+  private Supplier<? extends EventLoopGroup> eventLoopGroupFactory = nettyEventLoopBuilder::workerEventLoopGroup;
   private volatile EventLoopGroup eventLoopGroup;
-  private Class<? extends SocketChannel> socketChannelClass = NioSocketChannel.class;
+  private Class<? extends SocketChannel> socketChannelClass;
   protected final Map<String, Subscription> channels = new ConcurrentHashMap<>();
   private boolean compressedMessages = false;
 
@@ -214,7 +215,7 @@ public abstract class NettyStreamingService<T> extends ConnectableService {
                         ChannelOption.CONNECT_TIMEOUT_MILLIS,
                         java.lang.Math.toIntExact(connectionTimeout.toMillis()))
                     .option(ChannelOption.SO_KEEPALIVE, true)
-                    .channel(socketChannelClass)
+                    .channel(socketChannelClass != null ? socketChannelClass : nettyEventLoopBuilder.clientChannelClass())
                     .handler(
                         new ChannelInitializer<SocketChannel>() {
                           @Override
