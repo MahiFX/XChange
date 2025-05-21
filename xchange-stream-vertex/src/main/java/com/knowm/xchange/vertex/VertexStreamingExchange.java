@@ -276,7 +276,8 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   private VertexStreamingService getOrderStream(Instrument instrument) {
     return orderStreamLookup.computeIfAbsent(instrument, (i) -> {
-      VertexStreamingService newService = new VertexStreamingService(getOrderWsUrl(), exchangeSpecification, this, TEN_PER_SECOND, "[orders-" + instrument + "]", null);
+      Pair<String, String> urlAndHost = VertexExchange.parseUrlAndCustomHost(getOrderWsUrl());
+      VertexStreamingService newService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, TEN_PER_SECOND, "[orders-" + instrument + "]", urlAndHost.getRight());
       applyStreamingSpecification(getExchangeSpecification(), newService);
       return newService;
     });
