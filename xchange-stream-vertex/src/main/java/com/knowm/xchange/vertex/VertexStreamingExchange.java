@@ -347,8 +347,13 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public VertexStreamingTradeService getStreamingTradeService() {
     if (this.streamingTradeService == null) {
       VertexStreamingService primaryStream = subscriptionStreams.get(0);
-      primaryStream.authenticate();
+      if (primaryStream.isSocketOpen()) {
+        primaryStream.authenticate();
+      } else {
+        throw new ExchangeException("Can't authenticate subscription stream, it is not connected");
+      }
       this.streamingTradeService = new VertexStreamingTradeService(this::getOrderStream, primaryStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService(), orderStreamLookup);
+
     }
     return streamingTradeService;
   }
