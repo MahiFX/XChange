@@ -9,7 +9,9 @@ import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.client.ClientConfigCustomizer;
 import org.knowm.xchange.client.ExchangeRestProxyBuilder;
+import org.knowm.xchange.exceptions.ExchangeException;
 
+import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -61,6 +63,11 @@ public class VertexExchange extends BaseExchange {
     this.archiveApi = buildApi(archiveRestUrl, VertexArchiveApi.class);
     this.queryApi = buildApi(getGatewayRestUrl(), VertexQueryApi.class);
 
+  }
+
+  @Override
+  public void remoteInit() throws IOException, ExchangeException {
+    // No remote init needed
   }
 
   private <T> T buildApi(String url, Class<T> apiSpec) {

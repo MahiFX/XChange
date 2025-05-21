@@ -4,6 +4,7 @@ import com.knowm.xchange.vertex.VertexOrderFlags;
 import com.knowm.xchange.vertex.VertexStreamingExchange;
 import com.knowm.xchange.vertex.VertexStreamingTradeService;
 import com.knowm.xchange.vertex.dto.RewardsList;
+import info.bitrich.xchangestream.core.ProductSubscription;
 import info.bitrich.xchangestream.core.StreamingExchange;
 import info.bitrich.xchangestream.core.StreamingExchangeFactory;
 import io.reactivex.disposables.Disposable;
@@ -66,15 +67,18 @@ public class VertexOrderExample {
 
     VertexStreamingExchange exchange = (VertexStreamingExchange) StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
-    exchange.connect().blockingAwait();
+
+    CurrencyPair btc = new CurrencyPair("BTC-PERP", "USDC");
+    CurrencyPair eth = new CurrencyPair("ETH-PERP", "USDC");
+
+    ProductSubscription sub = ProductSubscription.create().addOrders(eth).addOrders(btc).build();
+    exchange.connect(sub).blockingAwait();
 
     RewardsList rewardsList = exchange.queryRewards(address);
 
     VertexStreamingTradeService tradeService = exchange.getStreamingTradeService();
 
 
-    CurrencyPair btc = new CurrencyPair("BTC-PERP", "USDC");
-    CurrencyPair eth = new CurrencyPair("ETH-PERP", "USDC");
 
     Disposable trades = tradeService.getUserTrades(btc, subAccount).subscribe(userTrade -> {
       log.info("BTC trade: {}", userTrade);
@@ -113,6 +117,13 @@ public class VertexOrderExample {
 
     double btcPrice = 90000;
     BigDecimal orderSize = BigDecimal.valueOf(0.03);
+    long productId = exchange.getProductInfo().lookupProductId(btc);
+
+    while (exchange.getMarketPrice(productId) == null) {
+      log.info("Waiting for price...");
+      Thread.sleep(1000);
+    }
+
 
     MarketOrder buy = new MarketOrder(Order.OrderType.BID, orderSize, btc);
     buy.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_IOC);
@@ -126,7 +137,8 @@ public class VertexOrderExample {
     sell.addOrderFlag(VertexOrderFlags.TIME_IN_FORCE_FOK);
     tradeService.placeMarketOrder(sell);
 
-    LimitOrder resting = new LimitOrder(Order.OrderType.BID, orderSize, btc, null, null, BigDecimal.valueOf(btcPrice * 0.95));
+    BigDecimal limitPrice = BigDecimal.valueOf(btcPrice * 0.95);
+    LimitOrder resting = new LimitOrder(Order.OrderType.BID, orderSize, btc, null, null, limitPrice);
     String orderId = tradeService.placeLimitOrder(resting);
 
     //Test re-connect
@@ -157,7 +169,7 @@ public class VertexOrderExample {
 
     Thread.sleep(2000);
 
-    LimitOrder resting2 = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, BigDecimal.valueOf(btcPrice * 0.95));
+    LimitOrder resting2 = new LimitOrder(Order.OrderType.BID, BigDecimal.valueOf(0.01), btc, null, null, limitPrice);
     String orderId2 = tradeService.placeLimitOrder(resting);
 
 

@@ -22,20 +22,13 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.knowm.xchange.BaseExchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.exceptions.ExchangeException;
+import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.marketdata.MarketDataService;
 import org.knowm.xchange.service.trade.TradeService;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -45,10 +38,7 @@ import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.VertexExchange.overrideOrDefault;
 import static com.knowm.xchange.vertex.VertexStreamingService.TEN_PER_SECOND;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.buildSender;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18Decimal;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.readX18DecimalArray;
-import static com.knowm.xchange.vertex.dto.VertexModelUtils.x18ToDecimal;
+import static com.knowm.xchange.vertex.dto.VertexModelUtils.*;
 
 public class VertexStreamingExchange extends BaseExchange implements StreamingExchange {
 
@@ -76,7 +66,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   private List<String> bookContracts;
 
-  private VertexStreamingService orderStream;
+  private final Map<Instrument, VertexStreamingService> orderStreamLookup = new HashMap<>();
   private VertexStreamingService queryStream;
   private VertexProductInfo productInfo;
 
@@ -99,7 +89,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
 
   public void applySpecification(ExchangeSpecification exchangeSpecification) {
-    this.useTestnet = Boolean.TRUE.equals(Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX))));
+    this.useTestnet = Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(USE_SANDBOX)));
 
     if (useTestnet) {
       exchangeSpecification.setHost(VertexExchange.getGatewayHost(useTestnet));
@@ -119,7 +109,9 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       throw new RuntimeException("Timeout waiting for connection");
     }
 
-    Symbol[] symbols = restExchange.queryAPI().symbols().data.symbols.values().toArray(new Symbol[0]);
+    Symbol[] symbols = restExchange.queryAPI().symbols().data.symbols.values().stream()
+        .filter(s -> s.getProduct_id() != 0) // Exclude USDC product
+        .toArray(Symbol[]::new);
 
     if (exchangeSpecification.getExchangeSpecificParametersItem(CUSTOM_SYMBOLS) != null) {
       String customSymbolsJson = exchangeSpecification.getExchangeSpecificParametersItem(CUSTOM_SYMBOLS).toString();
@@ -169,15 +161,18 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     Symbol[] finalSymbols = symbols;
     logger.info("Available symbols: {}", Arrays.toString(symbols));
 
+    Set<Long> validProductIds = Arrays.stream(finalSymbols).map(Symbol::getProduct_id).collect(Collectors.toSet());
+
     queries.add(new Query("{\"type\":\"all_products\"}", productData -> {
-      processProductIncrements(productData.withArray("spot_products"), spotProducts);
-      processProductIncrements(productData.withArray("perp_products"), perpProducts);
+
+      processProductIncrements(productData.withArray("spot_products"), spotProducts, validProductIds);
+      processProductIncrements(productData.withArray("perp_products"), perpProducts, validProductIds);
 
       //TODO - pull this from API when available
       BigDecimal interestFee = BigDecimal.valueOf(0.2);
       productInfo = new VertexProductInfo(spotProducts, finalSymbols, takerFees, makerFees, takerSequencerFee.get(), interestFee);
 
-      Query marketPricesQuery = new Query("{\"type\":\"market_prices\", \"product_ids\": " + productInfo.getProductsIds().stream().filter(id -> id != 0).collect(Collectors.toList()) + "}",
+      Query marketPricesQuery = new Query("{\"type\":\"market_prices\", \"product_ids\": " + validProductIds + "}",
           priceData -> priceData.get("market_prices").forEach(price -> {
             long productId = price.get("product_id").asLong();
             marketPrices.put(productId, new TopOfBookPrice(readX18Decimal(price, "bid_x18"), readX18Decimal(price, "ask_x18")));
@@ -195,13 +190,13 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
 
   }
 
-  private void processProductIncrements(ArrayNode spotProducts, Set<Long> productSet) {
-    for (JsonNode spotProduct : spotProducts) {
+  private void processProductIncrements(ArrayNode products, Set<Long> productIds, Set<Long> validProducts) {
+    for (JsonNode spotProduct : products) {
       long productId = spotProduct.get("product_id").asLong();
-      if (productId == 0) { // skip USDC product
+      if (productId == 0 || !validProducts.contains(productId)) { // skip USDC product
         continue;
       }
-      productSet.add(productId);
+      productIds.add(productId);
       JsonNode bookInfo = spotProduct.get("book_info");
       BigDecimal quantityIncrement = x18ToDecimal(new BigInteger(bookInfo.get("size_increment").asText()));
       BigDecimal priceIncrement = x18ToDecimal(new BigInteger(bookInfo.get("price_increment_x18").asText()));
@@ -267,23 +262,24 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   }
 
   public Observable<JsonNode> subscribeToAllOrderMessages() {
-    return orderStream.allMessages();
+    // Merge all order streams into one
+    return Observable.merge(orderStreamLookup.values().stream().map(VertexStreamingService::allMessages).collect(Collectors.toList()));
   }
 
   @Override
   protected void initServices() {
     this.subscriptionStreams = getSubscriptionStreams();
-    this.orderStream = getOrderStream();
     this.queryStream = getQueryStream();
 
 
   }
 
-  private VertexStreamingService getOrderStream() {
-    Pair<String, String> urlAndHost = VertexExchange.parseUrlAndCustomHost(getOrderWsUrl());
-    VertexStreamingService streamingService = new VertexStreamingService(urlAndHost.getLeft(), exchangeSpecification, this, TEN_PER_SECOND, "[orders]", urlAndHost.getRight());
-    applyStreamingSpecification(getExchangeSpecification(), streamingService);
-    return streamingService;
+  private VertexStreamingService getOrderStream(Instrument instrument) {
+    return orderStreamLookup.computeIfAbsent(instrument, (i) -> {
+      VertexStreamingService newService = new VertexStreamingService(getOrderWsUrl(), exchangeSpecification, this, TEN_PER_SECOND, "[orders-" + instrument + "]", null);
+      applyStreamingSpecification(getExchangeSpecification(), newService);
+      return newService;
+    });
   }
 
   private VertexStreamingService getQueryStream() {
@@ -351,7 +347,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     if (this.streamingTradeService == null) {
       VertexStreamingService primaryStream = subscriptionStreams.get(0);
       primaryStream.authenticate();
-      this.streamingTradeService = new VertexStreamingTradeService(orderStream, primaryStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService());
+      this.streamingTradeService = new VertexStreamingTradeService(this::getOrderStream, primaryStream, getExchangeSpecification(), productInfo, chainId, bookContracts, this, endpointContract, getStreamingMarketDataService(), orderStreamLookup);
     }
     return streamingTradeService;
   }
@@ -387,9 +383,16 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   @Override
   public Completable connect(ProductSubscription... args) {
     List<VertexStreamingService> services = new ArrayList<>();
-    if (!orderStream.isSocketOpen()) {
-      services.add(orderStream);
-    }
+    Arrays.stream(args).forEach(sub -> {
+      Set<Instrument> instruments = collectInstruments(sub);
+      instruments.forEach(instrument -> {
+        VertexStreamingService orderStream = getOrderStream(instrument);
+        if (!orderStream.isSocketOpen()) {
+          services.add(orderStream);
+        }
+      });
+    });
+
     // connect all subscription streams
     subscriptionStreams.forEach(subscriptionStream -> {
       if (!subscriptionStream.isSocketOpen()) {
@@ -402,17 +405,42 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     return Completable.mergeArray(services.stream().map(VertexStreamingService::connect).toArray(Completable[]::new));
   }
 
+  private static Set<Instrument> collectInstruments(ProductSubscription sub) {
+    // Collect up set of instruments
+    Set<Instrument> instruments = new HashSet<>();
+    if (sub.getOrderBook() != null) {
+      instruments.addAll(sub.getOrderBook());
+    }
+    if (sub.getTrades() != null) {
+      instruments.addAll(sub.getTrades());
+    }
+    if (sub.getTicker() != null) {
+      instruments.addAll(sub.getTicker());
+    }
+    if (sub.getFundingRates() != null) {
+      instruments.addAll(sub.getFundingRates());
+    }
+    if (sub.getUserTrades() != null) {
+      instruments.addAll(sub.getUserTrades());
+    }
+    if (sub.getOrders() != null) {
+      instruments.addAll(sub.getOrders());
+    }
+    return instruments;
+  }
+
   @Override
   public Completable disconnect() {
     // Disconnect all streams
-    Completable[] array = subscriptionStreams.stream().map(VertexStreamingService::disconnect).toArray(Completable[]::new);
-    return Completable.mergeArray(ArrayUtils.addAll(array, orderStream.disconnect(), queryStream.disconnect()));
+    Completable[] disconnects = subscriptionStreams.stream().map(VertexStreamingService::disconnect).toArray(Completable[]::new);
+    disconnects = ArrayUtils.addAll(disconnects, orderStreamLookup.values().stream().map(VertexStreamingService::disconnect).toArray(Completable[]::new));
+    return Completable.mergeArray(ArrayUtils.add(disconnects, queryStream.disconnect()));
   }
 
   @Override
   public boolean isAlive() {
     // Check that all streams are open
-    return subscriptionStreams.stream().allMatch(VertexStreamingService::isSocketOpen) && orderStream.isSocketOpen() && queryStream.isSocketOpen();
+    return subscriptionStreams.stream().allMatch(VertexStreamingService::isSocketOpen) && orderStreamLookup.values().stream().allMatch(VertexStreamingService::isSocketOpen) && queryStream.isSocketOpen();
   }
 
   @Override

@@ -58,6 +58,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.knowm.xchange.vertex.VertexStreamingExchange.*;
@@ -78,7 +79,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
   private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
-  private final VertexStreamingService orderStream;
+  private final Function<Instrument, VertexStreamingService> orderStreamLookup;
   private final VertexStreamingService subscriptionStream;
   private final ExchangeSpecification exchangeSpecification;
   private final ObjectMapper mapper;
@@ -100,10 +101,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final Map<Pair<Instrument, Boolean>, BigInteger> balanceCache = new ConcurrentHashMap<>();
   private final Disposable allMessageSubscription;
   private final StreamingMarketDataService marketDataService;
+  private final Map<Instrument, VertexStreamingService> allOrderStreams;
   private final Scheduler liquidationScheduler = Schedulers.io();
 
-  public VertexStreamingTradeService(VertexStreamingService orderStream, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService) {
-    this.orderStream = orderStream;
+  public VertexStreamingTradeService(Function<Instrument, VertexStreamingService> orderStreamLookup, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService, Map<Instrument, VertexStreamingService> allOrderStreams) {
+    this.orderStreamLookup = orderStreamLookup;
     this.subscriptionStream = subscriptionStream;
     this.exchangeSpecification = exchangeSpecification;
     this.productInfo = productInfo;
@@ -112,6 +114,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     this.endpointContract = endpointContract;
     this.exchange = exchange;
     this.marketDataService = marketDataService;
+    this.allOrderStreams = allOrderStreams;
     this.mapper = StreamingObjectMapperHelper.getObjectMapper();
     this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO))) : DEFAULT_MAX_SLIPPAGE_RATIO;
     this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE))) : DEFAULT_USE_LEVERAGE;
@@ -209,7 +212,9 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     long productId = productInfo.lookupProductId(marketOrder.getInstrument());
 
     BigDecimal price = getPrice(marketOrder, productId);
-
+    if (price == null) {
+      throw new IllegalArgumentException("No price for " + marketOrder.getInstrument());
+    }
     return placeOrder(marketOrder, price);
   }
 
@@ -526,24 +531,24 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private void addBalance(List<OpenPosition> positions, JsonNode bal, JsonNode summary) {
-      try {
-          int productId = bal.get("product_id").asInt();
-          Instrument instrument = productInfo.lookupInstrument(productId);
-          if (instrument == null) {
-            logger.warn("No instrument found for product id {}", productId);
-            return;
-          }
-          BigDecimal position = readX18Decimal(bal.get("balance"), "amount");
-          if (isZero(position)) {
-            return;
-          }
-          BigDecimal price = findPrice(productId, summary);
-          positions.add(new OpenPosition(instrument, position.compareTo(BigDecimal.ZERO) >= 0 ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT, position.abs(), price, null, null));
-
-      } catch (Exception e) {
-          throw new RuntimeException("Error processing " + bal, e);
-
+    try {
+      int productId = bal.get("product_id").asInt();
+      Instrument instrument = productInfo.lookupInstrument(productId);
+      if (instrument == null) {
+        logger.warn("No instrument found for product id {}", productId);
+        return;
       }
+      BigDecimal position = readX18Decimal(bal.get("balance"), "amount");
+      if (isZero(position)) {
+        return;
+      }
+      BigDecimal price = findPrice(productId, summary);
+      positions.add(new OpenPosition(instrument, position.compareTo(BigDecimal.ZERO) >= 0 ? OpenPosition.Type.LONG : OpenPosition.Type.SHORT, position.abs(), price, null, null));
+
+    } catch (Exception e) {
+      throw new RuntimeException("Error processing " + bal, e);
+
+    }
   }
 
   private BigDecimal findPrice(int productId, JsonNode summary) {
@@ -552,19 +557,19 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     while (events.hasNext()) {
       JsonNode event = events.next();
       if (event.get("product_id").asInt() == productId) {
-          try {
-              JsonNode postBalance = event.get("post_balance");
-              BigDecimal balance = readX18Decimal(MoreObjects.firstNonNull(postBalance.get("perp"), postBalance.get("spot")).get("balance"), "amount");
-              BigDecimal netUnrealised = readX18Decimal(event, "net_entry_unrealized");
-              if (isZero(balance)) {
-                continue;
-              }
-              return netUnrealised.divide(balance, RoundingMode.HALF_UP).abs();
-
-          } catch (Exception e) {
-              throw new RuntimeException("Error processing " + event, e);
-
+        try {
+          JsonNode postBalance = event.get("post_balance");
+          BigDecimal balance = readX18Decimal(MoreObjects.firstNonNull(postBalance.get("perp"), postBalance.get("spot")).get("balance"), "amount");
+          BigDecimal netUnrealised = readX18Decimal(event, "net_entry_unrealized");
+          if (isZero(balance)) {
+            continue;
           }
+          return netUnrealised.divide(balance, RoundingMode.HALF_UP).abs();
+
+        } catch (Exception e) {
+          throw new RuntimeException("Error processing " + event, e);
+
+        }
       }
     }
     return null;
@@ -576,7 +581,6 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private String placeOrder(Order marketOrder, BigDecimal price) {
-    checkConnection();
     Instrument instrument = marketOrder.getInstrument();
     long productId = productInfo.lookupProductId(instrument);
 
@@ -619,7 +623,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     logger.info("Send order {} -> {} (valid for {}ms)", marketOrder, signatureAndDigest, placeOrderValidUntilMs);
 
     try {
-      sendOrderRequest(orderMessage);
+      sendOrderRequest(orderMessage, instrument);
       orderCache.put(signatureAndDigest.getDigest(), marketOrder);
     } catch (Throwable e) {
       logger.error("Failed to place order : {}", orderMessage, e);
@@ -630,14 +634,27 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     return signatureAndDigest.getDigest();
   }
 
-  private void checkConnection() {
-    if (!(subscriptionStream.isSocketOpen() && orderStream.isSocketOpen())) {
+  private void checkConnection(Instrument instrument) {
+    boolean orderConnected = orderStreamLookup.apply(instrument).isSocketOpen();
+    if (!(subscriptionStream.isSocketOpen() && orderConnected)) {
       throw new ExchangeException("Can't place order, both the event stream (" + (subscriptionStream.isSocketOpen() ? "open" : "closed") + ") and order req stream (" +
-          (orderStream.isSocketOpen() ? "open" : "closed") + ") must be open");
+          (orderConnected ? "open" : "closed") + ") must be open");
     }
   }
 
-  private JsonNode sendOrderRequest(VertexRequest messageObj) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
+  private JsonNode sendOrderRequest(VertexRequest messageObj, Instrument instrument) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
+
+    if (instrument == null) {
+      VertexProductInfo productInfo1 = exchange.getProductInfo();
+      // Just pick the first instrument so send an 'all instrument' message such as cancel-all
+      instrument = allOrderStreams.keySet().iterator().next();
+    }
+    VertexStreamingService orderStream = orderStreamLookup.apply(instrument);
+    if (!orderStream.isSocketOpen()) {
+      orderStream.connect().blockingAwait(10, TimeUnit.SECONDS);
+    }
+    checkConnection(instrument);
+
     String requestType = messageObj.getRequestType();
     String signature = messageObj.getSignature();
 
@@ -690,8 +707,8 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       price = ((LimitOrder) order).getLimitPrice();
     } else {
       // Make sure we have a subscription to the ticker for market prices
-      tickerSubscriptions.computeIfAbsent(productId, id -> marketDataService.getTicker(order.getInstrument()).forEach(NO_OP));
-      TopOfBookPrice bidOffer = exchange.getMarketPrice(productId);
+      TopOfBookPrice bidOffer = getTopOfBookPrice(productId, order.getInstrument());
+      if (bidOffer == null) return null;
       boolean isSell = order.getType().equals(Order.OrderType.ASK);
       if (isSell) {
         BigDecimal bid = bidOffer.getBid();
@@ -706,6 +723,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     return price;
   }
 
+  private TopOfBookPrice getTopOfBookPrice(long productId, Instrument instrument) {
+    tickerSubscriptions.computeIfAbsent(productId, id -> marketDataService.getTicker(instrument).forEach(NO_OP));
+    return exchange.getMarketPrice(productId);
+  }
+
   @Override
   public Collection<String> cancelAllOrders(CancelAllOrders orderParams) {
     return doCancel(orderParams);
@@ -717,14 +739,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   }
 
   private List<String> doCancel(CancelOrderParams params) {
-    checkConnection();
     String id = getOrderId(params);
     Instrument instrument = getInstrument(params);
-
     VertexRequest cancelReq;
 
     if (StringUtils.isNotEmpty(id) && instrument != null) {
-
       long productId = productInfo.lookupProductId(instrument);
 
       String subAccount = exchange.getSubAccountOrDefault();
@@ -773,7 +792,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
 
     try {
-      JsonNode resp = sendOrderRequest(cancelReq);
+      JsonNode resp = sendOrderRequest(cancelReq, instrument);
       ArrayNode array = resp.get("data").withArray("cancelled_orders");
       List<String> digests = new ArrayList<>();
       array.forEach(order -> digests.add(order.get("digest").asText()));
