@@ -103,6 +103,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final StreamingMarketDataService marketDataService;
   private final Map<Instrument, VertexStreamingService> allOrderStreams;
   private final Scheduler liquidationScheduler = Schedulers.io();
+  private final MessageSigner messageSigner;
 
   public VertexStreamingTradeService(Function<Instrument, VertexStreamingService> orderStreamLookup, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService, Map<Instrument, VertexStreamingService> allOrderStreams) {
     this.orderStreamLookup = orderStreamLookup;
@@ -119,6 +120,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     this.slippage = exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO) != null ? Double.parseDouble(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(MAX_SLIPPAGE_RATIO))) : DEFAULT_MAX_SLIPPAGE_RATIO;
     this.useLeverage = exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE) != null ? Boolean.parseBoolean(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(USE_LEVERAGE))) : DEFAULT_USE_LEVERAGE;
     this.placeOrderValidUntilMs = exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP) != null ? Integer.parseInt(Objects.toString(exchangeSpecification.getExchangeSpecificParametersItem(PLACE_ORDER_VALID_UNTIL_MS_PROP))) : 60000;
+    messageSigner = new MessageSigner(exchangeSpecification.getSecretKey());
 
     exchange.connectionStateObservable().subscribe(
         s -> {
@@ -612,7 +614,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
         expiration,
         quantityAsInt,
         priceAsInt);
-    SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
+    SignatureAndDigest signatureAndDigest = messageSigner.signMessage(orderSchema);
 
     VertexPlaceOrderMessage orderMessage = new VertexPlaceOrderMessage(new VertexPlaceOrder(
         productId,
@@ -754,7 +756,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
       String[] digests = {id};
 
       CancelOrdersSchema orderSchema = CancelOrdersSchema.build(chainId, endpointContract, Long.valueOf(nonce), sender, productIds, digests);
-      SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(orderSchema);
+      SignatureAndDigest signatureAndDigest = messageSigner.signMessage(orderSchema);
 
       cancelReq = new VertexCancelOrdersMessage(new CancelOrders(
           new Tx(sender, productIds, digests, nonce),
@@ -777,7 +779,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
       CancelProductOrdersSchema cancelAllSchema = CancelProductOrdersSchema.build(chainId, endpointContract, Long.valueOf(nonce), sender, productIdsArray);
 
-      SignatureAndDigest signatureAndDigest = new MessageSigner(exchangeSpecification.getSecretKey()).signMessage(cancelAllSchema);
+      SignatureAndDigest signatureAndDigest = messageSigner.signMessage(cancelAllSchema);
 
       cancelReq = new VertexCancelProductOrdersMessage(new CancelProductOrders(
           new Tx(sender, productIdsArray, null, nonce),

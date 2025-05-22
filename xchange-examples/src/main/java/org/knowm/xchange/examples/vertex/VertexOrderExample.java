@@ -115,7 +115,7 @@ public class VertexOrderExample {
     OpenPositions openPositions = tradeService.getOpenPositions();
     assert openPositions.getOpenPositions().size() == 0;
 
-    double btcPrice = 90000;
+    double btcPrice = 105_000;
     BigDecimal orderSize = BigDecimal.valueOf(0.03);
     long productId = exchange.getProductInfo().lookupProductId(btc);
 

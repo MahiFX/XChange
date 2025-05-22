@@ -1,6 +1,7 @@
 package com.knowm.xchange.vertex.signing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,13 +15,14 @@ public class MessageSigner {
   private static final Logger log = LoggerFactory.getLogger(MessageSigner.class);
   private final ECKeyPair keyPair;
   private final ObjectMapper mapper;
+  private final ObjectWriter objectWriter;
 
   public MessageSigner(String privateKey) {
 
     // load a key pair from a private key
     keyPair = Credentials.create(privateKey).getEcKeyPair();
-
     mapper = StreamingObjectMapperHelper.getObjectMapper();
+    objectWriter = mapper.writerWithDefaultPrettyPrinter();
   }
 
 
@@ -28,7 +30,7 @@ public class MessageSigner {
 
     try {
 
-      String jsonSchema = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(schema);
+      String jsonSchema = objectWriter.writeValueAsString(schema);
 
       log.trace("Signing message: {}", jsonSchema);
 
