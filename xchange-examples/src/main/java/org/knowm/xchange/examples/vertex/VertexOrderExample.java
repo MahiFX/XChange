@@ -59,6 +59,7 @@ public class VertexOrderExample {
     exchangeSpecification.setSecretKey(Numeric.toHexStringNoPrefix(ecKeyPair.getPrivateKey()));
     exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.USE_LEVERAGE, true);
+    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.WEBSOCKET_POOL_SIZE, 20);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.BLEND_LIQUIDATION_TRADES, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.SECONDARY_SUBSCRIPTIONS_WEBSOCKET, "wss://gateway.sei-test.vertexprotocol.com/ws");
     //exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.CUSTOM_SYMBOLS, "[{\"symbol\":\"wSEI\", \"product_id\":115}]");

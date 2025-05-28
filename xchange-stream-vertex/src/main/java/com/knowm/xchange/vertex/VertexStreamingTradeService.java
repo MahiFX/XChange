@@ -79,7 +79,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
   private final Logger logger = LoggerFactory.getLogger(VertexStreamingTradeService.class);
 
-  private final Function<Instrument, VertexStreamingService> orderStreamLookup;
+  private final Function<String, VertexStreamingService> orderStreamLookup;
   private final VertexStreamingService subscriptionStream;
   private final ExchangeSpecification exchangeSpecification;
   private final ObjectMapper mapper;
@@ -101,11 +101,11 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
   private final Map<Pair<Instrument, Boolean>, BigInteger> balanceCache = new ConcurrentHashMap<>();
   private final Disposable allMessageSubscription;
   private final StreamingMarketDataService marketDataService;
-  private final Map<Instrument, VertexStreamingService> allOrderStreams;
+  private final List<VertexStreamingService> allOrderStreams;
   private final Scheduler liquidationScheduler = Schedulers.io();
   private final MessageSigner messageSigner;
 
-  public VertexStreamingTradeService(Function<Instrument, VertexStreamingService> orderStreamLookup, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService, Map<Instrument, VertexStreamingService> allOrderStreams) {
+  public VertexStreamingTradeService(Function<String, VertexStreamingService> orderStreamLookup, VertexStreamingService subscriptionStream, ExchangeSpecification exchangeSpecification, VertexProductInfo productInfo, long chainId, List<String> bookContracts, VertexStreamingExchange exchange, String endpointContract, StreamingMarketDataService marketDataService, List<VertexStreamingService> allOrderStreams) {
     this.orderStreamLookup = orderStreamLookup;
     this.subscriptionStream = subscriptionStream;
     this.exchangeSpecification = exchangeSpecification;
@@ -625,7 +625,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     logger.info("Send order {} -> {} (valid for {}ms)", marketOrder, signatureAndDigest, placeOrderValidUntilMs);
 
     try {
-      sendOrderRequest(orderMessage, instrument);
+      sendOrderRequest(orderMessage);
       orderCache.put(signatureAndDigest.getDigest(), marketOrder);
     } catch (Throwable e) {
       logger.error("Failed to place order : {}", orderMessage, e);
@@ -636,26 +636,21 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
     return signatureAndDigest.getDigest();
   }
 
-  private void checkConnection(Instrument instrument) {
-    boolean orderConnected = orderStreamLookup.apply(instrument).isSocketOpen();
+  private void checkConnection(String signature) {
+    boolean orderConnected = orderStreamLookup.apply(signature).isSocketOpen();
     if (!(subscriptionStream.isSocketOpen() && orderConnected)) {
       throw new ExchangeException("Can't place order, both the event stream (" + (subscriptionStream.isSocketOpen() ? "open" : "closed") + ") and order req stream (" +
           (orderConnected ? "open" : "closed") + ") must be open");
     }
   }
 
-  private JsonNode sendOrderRequest(VertexRequest messageObj, Instrument instrument) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
+  private JsonNode sendOrderRequest(VertexRequest messageObj) throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException {
 
-    if (instrument == null) {
-      VertexProductInfo productInfo1 = exchange.getProductInfo();
-      // Just pick the first instrument so send an 'all instrument' message such as cancel-all
-      instrument = allOrderStreams.keySet().iterator().next();
-    }
-    VertexStreamingService orderStream = orderStreamLookup.apply(instrument);
+    VertexStreamingService orderStream = orderStreamLookup.apply(messageObj.getSignature());
     if (!orderStream.isSocketOpen()) {
       orderStream.connect().blockingAwait(10, TimeUnit.SECONDS);
     }
-    checkConnection(instrument);
+    checkConnection(messageObj.getSignature());
 
     String requestType = messageObj.getRequestType();
     String signature = messageObj.getSignature();
@@ -794,7 +789,7 @@ public class VertexStreamingTradeService implements StreamingTradeService, Trade
 
 
     try {
-      JsonNode resp = sendOrderRequest(cancelReq, instrument);
+      JsonNode resp = sendOrderRequest(cancelReq);
       ArrayNode array = resp.get("data").withArray("cancelled_orders");
       List<String> digests = new ArrayList<>();
       array.forEach(order -> digests.add(order.get("digest").asText()));

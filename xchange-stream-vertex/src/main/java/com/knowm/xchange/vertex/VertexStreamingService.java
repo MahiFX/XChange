@@ -32,9 +32,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   //Channel to use to subscribe to all response
   public static final String ALL_MESSAGES = "all_messages";
   private static final int MAX_FRAME_KB = 1024 * 256;
-  public static final RateLimiter TEN_PER_SECOND = RateLimiter.of("vertex-10-per-sec", RateLimiterConfig
+  public static final RateLimiter TEN_PER_SECOND = RateLimiter.of("vertex-100-per-sec", RateLimiterConfig
       .custom().limitForPeriod(10).limitRefreshPeriod(Duration.ofSeconds(1)).build());
 
+  public static final RateLimiter ONE_HUNDRED_PER_SECOND = RateLimiter.of("vertex-100-per-sec", RateLimiterConfig
+      .custom().limitForPeriod(100).limitRefreshPeriod(Duration.ofSeconds(1)).build());
 
   private final AtomicLong reqCounter = new AtomicLong(1);
   private final String apiUrl;
@@ -197,7 +199,7 @@ public class VertexStreamingService extends JsonNettyStreamingService {
             "  \"signature\": \"" + signatureAndDigest.getSignature() + "\"\n" +
             "}");
 
-        JsonNode response = responseLatch.get(5, TimeUnit.SECONDS);
+        JsonNode response = responseLatch.get(10, TimeUnit.SECONDS);
         JsonNode error = response.get("error");
         if (error != null) {
           if (!error.textValue().contains("already authenticated")) {
@@ -253,6 +255,9 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   }
 
   public Observable<JsonNode> allMessages() {
+    if (allMessages == null) {
+      throw new IllegalStateException("Not connected");
+    }
     return allMessages;
   }
 

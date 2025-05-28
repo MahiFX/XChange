@@ -23,7 +23,6 @@ public class VertexCancelOrdersMessage implements VertexRequest {
   public String getRequestType() {
     return "execute_cancel_orders";
   }
-
   @Override
   public String getSignature() {
     return cancelOrders.getSignature();

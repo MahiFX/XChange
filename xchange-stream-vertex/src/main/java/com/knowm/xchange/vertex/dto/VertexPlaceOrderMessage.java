@@ -21,4 +21,5 @@ public class VertexPlaceOrderMessage implements VertexRequest {
   public String getSignature() {
     return place_order.getSignature();
   }
+
 }

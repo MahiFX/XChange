@@ -25,4 +25,5 @@ public class VertexCancelProductOrdersMessage implements VertexRequest {
   public String getSignature() {
     return cancelProductOrders.getSignature();
   }
+
 }

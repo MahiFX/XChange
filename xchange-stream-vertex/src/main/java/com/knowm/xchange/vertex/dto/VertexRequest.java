@@ -9,4 +9,5 @@ public interface VertexRequest {
 
   @JsonIgnore
   String getSignature();
+
 }
