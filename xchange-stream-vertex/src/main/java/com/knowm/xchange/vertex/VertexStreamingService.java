@@ -32,11 +32,11 @@ public class VertexStreamingService extends JsonNettyStreamingService {
   //Channel to use to subscribe to all response
   public static final String ALL_MESSAGES = "all_messages";
   private static final int MAX_FRAME_KB = 1024 * 256;
-  public static final RateLimiter TEN_PER_SECOND = RateLimiter.of("vertex-100-per-sec", RateLimiterConfig
-      .custom().limitForPeriod(10).limitRefreshPeriod(Duration.ofSeconds(1)).build());
+  public static final RateLimiter TEN_PER_SECOND = RateLimiter.of("vertex-10-per-sec", RateLimiterConfig
+      .custom().timeoutDuration(Duration.ofSeconds(60)).limitForPeriod(10).limitRefreshPeriod(Duration.ofSeconds(1)).build());
 
   public static final RateLimiter ONE_HUNDRED_PER_SECOND = RateLimiter.of("vertex-100-per-sec", RateLimiterConfig
-      .custom().limitForPeriod(100).limitRefreshPeriod(Duration.ofSeconds(1)).build());
+      .custom().timeoutDuration(Duration.ofSeconds(60)).limitForPeriod(100).limitRefreshPeriod(Duration.ofSeconds(1)).build());
 
   private final AtomicLong reqCounter = new AtomicLong(1);
   private final String apiUrl;

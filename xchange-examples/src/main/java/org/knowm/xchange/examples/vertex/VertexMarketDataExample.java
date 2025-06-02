@@ -37,7 +37,7 @@ public class VertexMarketDataExample {
 
     exchangeSpecification.setExchangeSpecificParametersItem(StreamingExchange.USE_SANDBOX, true);
     exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.WEBSOCKET_POOL_SIZE, 20);
-    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.SECONDARY_SUBSCRIPTIONS_WEBSOCKET, "wss://gateway.sei-test.vertexprotocol.com/v1/subscribe,wss://gateway.sepolia-test.vertexprotocol.com/v1/subscribe|mantle-test");
+    exchangeSpecification.setExchangeSpecificParametersItem(VertexStreamingExchange.SECONDARY_SUBSCRIPTIONS_WEBSOCKET, "wss://gateway.sei-test.vertexprotocol.com/v1/subscribe,wss://gateway.sepolia-test.vertexprotocol.com/v1/subscribe|gateway.mantle-test.vertexprotocol.com");
 
     StreamingExchange exchange = StreamingExchangeFactory.INSTANCE.createExchange(exchangeSpecification);
 
