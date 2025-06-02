@@ -52,7 +52,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
   public static final String SUBSCRIPTIONS_WEBSOCKET = "subscriptionWebsocketUrl";
   public static final String SECONDARY_SUBSCRIPTIONS_WEBSOCKET = "secondarySubscriptionWebsocketUrls";
   public static final String CUSTOM_SYMBOLS = "customSymbols";
-  public static final String WEBSOCKET_POOL_SIZE = "orderWebsocketPoolSize";
+  public static final String WEBSOCKET_POOL_SIZE = "websocketPoolSize";
   private static final ObjectMapper json = new ObjectMapper();
 
   private List<VertexStreamingService> subscriptionStreams = new ArrayList<>();
@@ -389,7 +389,7 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
     List<VertexStreamingService> services = new ArrayList<>();
     Arrays.stream(args).forEach(sub -> {
       Set<Instrument> instruments = collectInstruments(sub);
-      Integer poolSize = (Integer) exchangeSpecification.getExchangeSpecificParametersItem(WEBSOCKET_POOL_SIZE);
+      Integer poolSize = getPoolSize();
       if (poolSize == null) {
         poolSize = instruments.size();
       }
@@ -413,6 +413,14 @@ public class VertexStreamingExchange extends BaseExchange implements StreamingEx
       services.add(queryStream);
     }
     return Completable.mergeArray(services.stream().map(VertexStreamingService::connect).toArray(Completable[]::new));
+  }
+
+  private Integer getPoolSize() {
+    Object poolParam = exchangeSpecification.getExchangeSpecificParametersItem(WEBSOCKET_POOL_SIZE);
+    if (poolParam == null) {
+      return null;
+    }
+    return Integer.parseInt(Objects.toString(poolParam));
   }
 
   private static Set<Instrument> collectInstruments(ProductSubscription sub) {
