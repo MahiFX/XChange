@@ -42,7 +42,7 @@ public class KrakenFuturesStreamingExchange extends KrakenFuturesExchange implem
 
     @Override
     public boolean isAlive() {
-        return streamingService.isSocketOpen();
+        return streamingService != null && streamingService.isSocketOpen();
     }
 
     @Override
