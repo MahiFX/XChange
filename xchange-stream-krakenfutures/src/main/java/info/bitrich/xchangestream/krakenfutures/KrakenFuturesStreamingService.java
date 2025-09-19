@@ -28,7 +28,7 @@ public class KrakenFuturesStreamingService extends JsonNettyStreamingService {
     private String CHALLENGE = "";
     private final ExchangeSpecification exchangeSpecification;
     public KrakenFuturesStreamingService(String apiUrl, ExchangeSpecification exchangeSpecification) {
-        super(apiUrl);
+        super(apiUrl, Integer.MAX_VALUE);
         this.exchangeSpecification = exchangeSpecification;
     }
 
