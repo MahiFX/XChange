@@ -9,7 +9,10 @@ import info.bitrich.xchangestream.krakenfutures.dto.KrakenFuturesStreamingTradeR
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.marketdata.*;
+import org.knowm.xchange.dto.marketdata.FundingRate;
+import org.knowm.xchange.dto.marketdata.OrderBook;
+import org.knowm.xchange.dto.marketdata.Ticker;
+import org.knowm.xchange.dto.marketdata.Trade;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.krakenfutures.KrakenFuturesAdapters;
@@ -19,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class KrakenFuturesStreamingMarketDataService implements StreamingMarketDataService {
-
     private final ObjectMapper objectMapper = StreamingObjectMapperHelper.getObjectMapper();
     private final KrakenFuturesStreamingService service;
     private final Map<Instrument, OrderBook> orderBookMap = new HashMap<>();
@@ -74,7 +76,13 @@ public class KrakenFuturesStreamingMarketDataService implements StreamingMarketD
         return service.subscribeChannel(channelName)
                 .filter(message-> message.has("feed") && message.has("product_id"))
                 .filter(message -> message.get("feed").asText().equals("trade"))
-                .map(message-> KrakenFuturesStreamingAdapters.adaptTrade(objectMapper.treeToValue(message, KrakenFuturesStreamingTradeResponse.class)));
+                .map(message-> {
+                    try {
+                        return KrakenFuturesStreamingAdapters.adaptTrade(objectMapper.treeToValue(message, KrakenFuturesStreamingTradeResponse.class));
+                    } catch (RuntimeException e) {
+                        throw new RuntimeException("Error parsing trade message " + message, e);
+                    }
+                });
     }
 
     @Override

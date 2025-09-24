@@ -44,6 +44,7 @@ public class KrakenFuturesStreamingTradeResponse {
     public enum KrakenFuturesStreamingType {
         fill,
         liquidation,
-        termination
+        termination,
+        assignment
     }
 }
