@@ -9,7 +9,7 @@
     <parent>
         <artifactId>xchange-parent</artifactId>
         <groupId>org.knowm.xchange</groupId>
-        <version>5.1.2-MAHI</version>
+        <version>5.1.3-MAHI</version>
     </parent>
 
     <dependencies>

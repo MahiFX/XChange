@@ -10,7 +10,7 @@
 
     <groupId>org.knowm.xchange</groupId>
     <artifactId>xchange-parent</artifactId>
-    <version>5.1.2-MAHI</version>
+    <version>5.1.3-MAHI</version>
     <packaging>pom</packaging>
 
     <name>XChange</name>
