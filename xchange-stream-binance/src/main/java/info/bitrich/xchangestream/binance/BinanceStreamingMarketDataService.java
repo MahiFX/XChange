@@ -630,9 +630,12 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
     }
   }
 
-  private Stream<OrderBookUpdate> extractOrderBookUpdates(
+  static Stream<OrderBookUpdate> extractOrderBookUpdates(
           Instrument instrument, DepthBinanceWebSocketTransaction depthTransaction) {
     BinanceOrderbook orderBookDiff = depthTransaction.getOrderBook();
+    // Spot depth updates carry no "T", only "E". A null timestamp leaves the book's timestamp at the
+    // REST snapshot time, so fall back to the event time.
+    Date updateTime = depthTransaction.getTransactTime() != null ? depthTransaction.getTransactTime() : depthTransaction.getEventTime();
 
     Stream<OrderBookUpdate> bidStream =
             orderBookDiff.bids.entrySet().stream()
@@ -643,7 +646,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
                                             entry.getValue(),
                                             instrument,
                                             entry.getKey(),
-                                            depthTransaction.getTransactTime(),
+                                            updateTime,
                                             entry.getValue()));
 
     Stream<OrderBookUpdate> askStream =
@@ -655,7 +658,7 @@ public class BinanceStreamingMarketDataService implements StreamingMarketDataSer
                                             entry.getValue(),
                                             instrument,
                                             entry.getKey(),
-                                            depthTransaction.getTransactTime(),
+                                            updateTime,
                                             entry.getValue()));
 
     return Stream.concat(bidStream, askStream);
